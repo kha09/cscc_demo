@@ -2,7 +2,6 @@ import { Bell, User, Shield, Send, ClipboardList, BarChart, ListTodo } from "luc
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import Link from "next/link"
 
 export default function DashboardPage() {
   return (
@@ -14,25 +13,25 @@ export default function DashboardPage() {
           <div className="flex items-center">
             <Shield className="h-8 w-8 text-white ml-3" />
             <div className="text-right">
-            <h1 className="text-sm font-medium">أداة قياس الامتثال لضوابط الهيئة الوطنية </h1>
-            <p className="text-xs">للأمن السيبراني للأنظمة الحساسة</p>
+              <h1 className="text-sm font-medium">أداة قياس الامتثال لضوابط الهيئة الوطنية </h1>
+              <p className="text-xs">للأمن السيبراني للأنظمة الحساسة</p>
             </div>
           </div>
 
           {/* Navigation - Center */}
           <nav className="hidden md:flex items-center space-x-8 space-x-reverse">
-            <Link href="/" className="text-white hover:text-gray-300 px-3 py-2">
+            <a href="#" className="text-white hover:text-gray-300 px-3 py-2">
               الرئيسية
-            </Link>
-            <Link href="#" className="text-white hover:text-gray-300 px-3 py-2">
+            </a>
+            <a href="#" className="text-white hover:text-gray-300 px-3 py-2">
               التقارير
-            </Link>
-            <Link href="/assessment" className="text-white hover:text-gray-300 px-3 py-2">
+            </a>
+            <a href="#" className="text-white hover:text-gray-300 px-3 py-2">
               التقييم
-            </Link>
-            <Link href="#" className="text-white hover:text-gray-300 px-3 py-2">
+            </a>
+            <a href="#" className="text-white hover:text-gray-300 px-3 py-2">
               الدعم
-            </Link>
+            </a>
           </nav>
 
           {/* User Profile and Bell - Left Side */}
