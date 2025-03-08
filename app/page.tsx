@@ -70,7 +70,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
             <Link href="/signup" className="w-full">
               <Button size="lg" className="w-full bg-nca-teal text-white hover:bg-nca-teal-dark">
-                ابدأ التقييم مجاناً
+                ابدأ التقييم 
               </Button>
             </Link>
             <Button
@@ -85,7 +85,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-white dark:bg-nca-dark-blue-light">
+      <section id="features" className="py-20 bg-white dark:bg-nca-dark-blue-light mb-12">
         <div className="container">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold mb-4 text-nca-dark-blue dark:text-white">مميزات المنصة</h2>
@@ -147,10 +147,10 @@ export default function LandingPage() {
       </section>
 
       {/* Process Timeline Section */}
-      <section id="process" className="bg-white dark:bg-nca-dark-blue-light">
+      <section id="process" className="bg-white">
         <div className="container">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4 text-nca-dark-blue dark:text-white">إجراءات التقييم وقياس الالتزام بضوابط الأمن السيبراني للأنظمة الحساسة</h2>
+          <div className="text-center bg-white py-8">
+            <h2 className="text-3xl font-bold" style={{ color: '#1a2e3c' }}>إجراءات التقييم وقياس الالتزام بضوابط الأمن السيبراني للأنظمة الحساسة</h2>
           </div>
           <ProcessTimeline />
         </div>
