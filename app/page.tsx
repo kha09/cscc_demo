@@ -1,122 +1,317 @@
-import { Bell, User, Shield, Send, ClipboardList, BarChart, ListTodo } from "lucide-react"
+"use client"
+
+import { useState } from "react"
+import { Shield, CheckCircle, BarChart3, FileText, ArrowRight, Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
 
-export default function DashboardPage() {
+export default function LandingPage() {
+  const [email, setEmail] = useState("")
+  const [darkMode, setDarkMode] = useState(true)
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode)
+    document.documentElement.classList.toggle("dark")
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
+    <div className={`flex min-h-screen flex-col ${darkMode ? "dark" : ""}`} dir="rtl">
       {/* Header */}
-      <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Logo and Title - Right Side */}
-          <div className="flex items-center">
-            <Shield className="h-8 w-8 text-white ml-3" />
-            <div className="text-right">
-            <h1 className="text-sm font-medium">أداة قياس الامتثال لضوابط الهيئة الوطنية </h1>
-            <p className="text-xs">للأمن السيبراني للأنظمة الحساسة</p>
-            </div>
+      <header className="sticky top-0 z-40 border-b bg-nca-dark-blue text-white">
+        <div className="container flex h-16 items-center justify-between py-4">
+          <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
+            <Shield className="h-6 w-6 text-nca-teal flex-shrink-0" />
+            <span className="text-wrap">
+              أداة قياس الامتثال لضوابط الهيئة الوطنية
+              <br />
+              للأمن السيبراني للأنظمة الحساسة
+            </span>
           </div>
-
-          {/* Navigation - Center */}
-          <nav className="hidden md:flex items-center space-x-8 space-x-reverse">
-            <Link href="/" className="text-white hover:text-gray-300 px-3 py-2">
-              الرئيسية
-            </Link>
-            <Link href="#" className="text-white hover:text-gray-300 px-3 py-2">
-              التقارير
-            </Link>
-            <Link href="/assessment" className="text-white hover:text-gray-300 px-3 py-2">
-              التقييم
-            </Link>
-            <Link href="#" className="text-white hover:text-gray-300 px-3 py-2">
-              الدعم
-            </Link>
+          <nav className="hidden md:flex items-center gap-6">
+            <a href="#features" className="text-sm font-medium hover:text-nca-teal">
+              المميزات
+            </a>
+            <a href="#benefits" className="text-sm font-medium hover:text-nca-teal">
+              الفوائد
+            </a>
+            <a href="#about" className="text-sm font-medium hover:text-nca-teal">
+              عن المنصة
+            </a>
           </nav>
-
-          {/* User Profile and Bell - Left Side */}
-          <div className="flex items-center space-x-4 space-x-reverse">
-            <Button variant="ghost" size="icon" className="text-white">
-              <Bell className="h-5 w-5" />
+          <div className="flex items-center gap-4">
+            <Button variant="outline" className="border-white text-white hover:bg-white hover:text-nca-dark-blue">
+              <Link href="/signin">تسجيل الدخول</Link>
             </Button>
-            <Button variant="ghost" size="icon" className="text-white">
-              <User className="h-5 w-5" />
+            <Button className="bg-nca-teal text-white hover:bg-nca-teal-dark">
+              <Link href="/signup">ابدأ الآن</Link>
             </Button>
+            <button onClick={toggleDarkMode} className="p-2 rounded-full bg-nca-dark-blue-light">
+              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">12</div>
-                <ClipboardList className="h-6 w-6 text-slate-600" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">التقييمات النشطة</div>
-            </Card>
+      {/* Hero Section */}
+      <section className="bg-gradient-to-b from-nca-dark-blue to-nca-dark-blue-light py-20 md:py-32 text-white">
+        <div className="container flex flex-col items-center text-center">
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
+            تقييم الامتثال لضوابط الأمن السيبراني للأنظمة الحساسة
+          </h1>
+          <p className="text-xl text-nca-light-blue max-w-3xl mb-10">
+            منصة ذاتية الخدمة تمكن المؤسسات من تقييم امتثالها لضوابط الأمن السيبراني للأنظمة الحساسة بشكل مستقل، مما
+            يقلل الاعتماد على الطرق اليدوية والاستشاريين الخارجيين.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+            <Link href="/signup" className="w-full">
+              <Button size="lg" className="w-full bg-nca-teal text-white hover:bg-nca-teal-dark">
+                ابدأ التقييم مجاناً
+              </Button>
+            </Link>
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full border-white text-white hover:bg-white hover:text-nca-dark-blue"
+            >
+              تعرف على المزيد
+            </Button>
+          </div>
+        </div>
+      </section>
 
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">87%</div>
-                <BarChart className="h-6 w-6 text-slate-600" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">نسبة المهام المنجزة</div>
-            </Card>
-
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">5</div>
-                <ListTodo className="h-6 w-6 text-slate-600" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">مهام قيد التنفيذ</div>
-            </Card>
+      {/* Features Section */}
+      <section id="features" className="py-20 bg-white dark:bg-nca-dark-blue-light">
+        <div className="container">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-4 text-nca-dark-blue dark:text-white">مميزات المنصة</h2>
+            <p className="text-xl text-nca-dark-blue-light dark:text-nca-light-blue max-w-2xl mx-auto">
+              تقدم منصتنا مجموعة من المميزات المتقدمة لتسهيل عملية تقييم الامتثال للضوابط الأمنية
+            </p>
           </div>
 
-          {/* Two Column Layout */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Recent Assessments */}
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">التقييمات الأخيرة</h2>
-              <div className="space-y-4">
-                <div className="border rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">التقييمات الأخيرة</span>
-                    <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">منتهية</span>
-                  </div>
-                  <div className="text-sm text-gray-500">اخر تحديث Jan 15, 2025</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <Card className="bg-white dark:bg-nca-dark-blue border-nca-teal">
+              <CardContent className="pt-6">
+                <div className="mb-4 text-nca-teal">
+                  <CheckCircle className="h-10 w-10" />
                 </div>
-
-                <div className="border rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">التقييمات الأخيرة</span>
-                    <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-sm">قيد التنفيذ</span>
-                  </div>
-                  <div className="text-sm text-gray-500">اخر تحديث Jan 15, 2025</div>
-                </div>
-              </div>
+                <h3 className="text-xl font-bold mb-2 text-nca-dark-blue dark:text-white">تقييم ذاتي</h3>
+                <p className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                  تمكين المؤسسات من تقييم امتثالها بشكل مستقل دون الحاجة إلى استشاريين خارجيين
+                </p>
+              </CardContent>
             </Card>
 
-            {/* Compliance Assistant */}
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">مساعد الامتثال</h2>
-              <div className="text-center mb-4">
-                <h3 className="text-lg font-medium text-gray-700">كيف يمكنني مساعدتك في الامتثال اليوم؟</h3>
-              </div>
-              <div className="flex gap-2">
-                <Input placeholder="اكتب سؤالك..." className="text-right" />
-                <Button size="icon" className="bg-slate-900 hover:bg-slate-800">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+            <Card className="bg-white dark:bg-nca-dark-blue border-nca-teal">
+              <CardContent className="pt-6">
+                <div className="mb-4 text-nca-teal">
+                  <BarChart3 className="h-10 w-10" />
+                </div>
+                <h3 className="text-xl font-bold mb-2 text-nca-dark-blue dark:text-white">تقييم آلي</h3>
+                <p className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                  تقليل الأخطاء البشرية من خلال أتمتة تقييمات الامتثال، مما يضمن نتائج تقييم موثوقة وموحدة
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white dark:bg-nca-dark-blue border-nca-teal">
+              <CardContent className="pt-6">
+                <div className="mb-4 text-nca-teal">
+                  <FileText className="h-10 w-10" />
+                </div>
+                <h3 className="text-xl font-bold mb-2 text-nca-dark-blue dark:text-white">تقارير شاملة</h3>
+                <p className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                  توفير تقارير مفصلة ومنظمة توضح حالة الامتثال والمخاطر الأمنية وتوصيات للتحسين
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white dark:bg-nca-dark-blue border-nca-teal">
+              <CardContent className="pt-6">
+                <div className="mb-4 text-nca-teal">
+                  <Shield className="h-10 w-10" />
+                </div>
+                <h3 className="text-xl font-bold mb-2 text-nca-dark-blue dark:text-white">واجهة سهلة الاستخدام</h3>
+                <p className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                  تصميم منصة تفاعلية مبسطة تسهل تقييم الامتثال وتعزز قابلية الاستخدام وتحسن تجربة المستخدم
+                </p>
+              </CardContent>
             </Card>
           </div>
         </div>
-      </main>
+      </section>
+
+      {/* Benefits Section */}
+      <section id="benefits" className="py-20 bg-nca-light-blue dark:bg-nca-dark-blue">
+        <div className="container">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-4 text-nca-dark-blue dark:text-white">فوائد استخدام المنصة</h2>
+            <p className="text-xl text-nca-dark-blue-light dark:text-nca-light-blue max-w-2xl mx-auto">
+              تساهم منصتنا في تحسين أداء إدارة الامتثال وفهم أفضل للمتطلبات التنظيمية وحماية أقوى للأنظمة الحساسة
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="flex gap-4">
+              <div className="mt-1 text-nca-teal">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-2 text-nca-dark-blue dark:text-white">تحسين إدارة الامتثال</h3>
+                <p className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                  تبسيط عمليات تقييم الامتثال وتوفير الوقت والموارد من خلال الأتمتة والتقارير المنظمة
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="mt-1 text-nca-teal">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-2 text-nca-dark-blue dark:text-white">فهم أفضل للمتطلبات</h3>
+                <p className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                  توفير رؤية واضحة للمتطلبات التنظيمية وكيفية تطبيقها في سياق المؤسسة
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="mt-1 text-nca-teal">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-2 text-nca-dark-blue dark:text-white">تقليل المخاطر</h3>
+                <p className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                  تحديد نقاط الضعف والثغرات الأمنية بشكل استباقي، مما يساعد على تقليل المخاطر السيبرانية
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="mt-1 text-nca-teal">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-2 text-nca-dark-blue dark:text-white">تعزيز الأمن السيبراني</h3>
+                <p className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                  تحسين الوضع الأمني الشامل للمؤسسة من خلال الالتزام بأفضل الممارسات وضوابط الأمن السيبراني
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" className="py-20 bg-white dark:bg-nca-dark-blue-light">
+        <div className="container">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-3xl font-bold mb-6 text-nca-dark-blue dark:text-white">عن منصة تقييم الامتثال</h2>
+              <p className="text-lg text-nca-dark-blue-light dark:text-nca-light-blue mb-6">
+                تم تطوير هذه المنصة لمساعدة المؤسسات على تقييم امتثالها لضوابط الأمن السيبراني للأنظمة الحساسة الصادرة
+                عن الهيئة الوطنية للأمن السيبراني.
+              </p>
+              <p className="text-lg text-nca-dark-blue-light dark:text-nca-light-blue mb-6">
+                تهدف المنصة إلى معالجة التحديات الحالية في تقييم الامتثال وتقديم حل شامل يمكن المؤسسات من إدارة امتثالها
+                بكفاءة وفعالية.
+              </p>
+              <Button className="bg-nca-teal text-white hover:bg-nca-teal-dark gap-2">
+                تعرف على المزيد
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="bg-nca-light-blue dark:bg-nca-dark-blue rounded-lg p-8">
+              <h3 className="text-xl font-bold mb-4 text-nca-dark-blue dark:text-white">أهداف المشروع</h3>
+              <ul className="space-y-4">
+                <li className="flex gap-3">
+                  <CheckCircle className="h-6 w-6 text-nca-teal shrink-0 mt-0.5" />
+                  <span className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                    تطوير منصة تقييم امتثال ذاتية الخدمة تمكن المؤسسات من تقييم امتثالها بشكل مستقل
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <CheckCircle className="h-6 w-6 text-nca-teal shrink-0 mt-0.5" />
+                  <span className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                    تصميم واجهة سهلة الاستخدام ومركزة على المستخدم لتبسيط عملية تقييم الامتثال
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <CheckCircle className="h-6 w-6 text-nca-teal shrink-0 mt-0.5" />
+                  <span className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                    ضمان الدقة والاتساق من خلال أتمتة عمليات التقييم وتقليل الأخطاء البشرية
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <CheckCircle className="h-6 w-6 text-nca-teal shrink-0 mt-0.5" />
+                  <span className="text-nca-dark-blue-light dark:text-nca-light-blue">
+                    إنشاء تقارير امتثال شاملة توضح حالة الامتثال والمخاطر والتوصيات
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-nca-dark-blue text-white">
+        <div className="container text-center">
+          <h2 className="text-3xl font-bold mb-6">ابدأ تقييم الامتثال اليوم</h2>
+          <p className="text-xl mb-10 max-w-2xl mx-auto text-nca-light-blue">
+            سجل الآن للحصول على تجربة مجانية واكتشف كيف يمكن لمنصتنا مساعدة مؤسستك على تحسين امتثالها لضوابط الأمن
+            السيبراني
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+            <input
+              type="email"
+              placeholder="البريد الإلكتروني"
+              className="px-4 py-3 rounded-md border bg-white text-nca-dark-blue w-full"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Link href="/signup">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="whitespace-nowrap bg-nca-teal text-white hover:bg-nca-teal-dark"
+              >
+                ابدأ الآن
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t py-12 bg-nca-dark-blue-light text-white">
+        <div className="container">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-2 font-bold text-sm md:text-base">
+              <Shield className="h-6 w-6 text-nca-teal flex-shrink-0" />
+              <span className="text-wrap">
+                أداة قياس الامتثال لضوابط الهيئة الوطنية
+                <br />
+                للأمن السيبراني للأنظمة الحساسة
+              </span>
+            </div>
+            <div className="flex gap-8">
+              <a href="#" className="text-sm text-nca-light-blue hover:text-white">
+                الشروط والأحكام
+              </a>
+              <a href="#" className="text-sm text-nca-light-blue hover:text-white">
+                سياسة الخصوصية
+              </a>
+              <a href="#" className="text-sm text-nca-light-blue hover:text-white">
+                اتصل بنا
+              </a>
+            </div>
+            <div className="text-sm text-nca-light-blue">© {new Date().getFullYear()} جميع الحقوق محفوظة</div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

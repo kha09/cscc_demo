@@ -1,9 +1,11 @@
 # Project Structure and Pages
 
 ## Pages/Routes
-- `/` - Home page (app/page.tsx)
+- `/` - Landing page (app/page.tsx)
+- `/signin` - Sign In page (app/signin/page.tsx)
+- `/signup` - Sign Up page (app/signup/page.tsx)
+- `/dashboard` - Dashboard page (app/dashboard/page.tsx) [Protected - requires authentication]
 - `/assessment` - Assessment page (app/assessment/page.tsx)
-- `/dashboard` - Dashboard page (app/dashboard/page.tsx)
 
 ## Components
 ### Base Components
@@ -15,6 +17,7 @@
 - `components/ui/button.tsx`
 - `components/ui/card.tsx`
 - `components/ui/input.tsx`
+- `components/ui/select.tsx`
 
 ## Core Files
 ### App Configuration
