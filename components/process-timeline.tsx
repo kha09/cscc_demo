@@ -55,7 +55,7 @@ export default function ProcessTimeline() {
   ]
 
   return (
-    <section className="py-16" dir="rtl">
+    <section className="" dir="rtl">
       <div className="container mx-auto px-4">
         <div className="flex justify-center">
           <div className="relative">

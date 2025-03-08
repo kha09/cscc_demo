@@ -147,7 +147,7 @@ export default function LandingPage() {
       </section>
 
       {/* Process Timeline Section */}
-      <section id="process" className="bg-white">
+      <section id="process" className="bg-white mb-12">
         <div className="container">
           <div className="text-center bg-white py-8">
             <h2 className="text-3xl font-bold" style={{ color: '#1a2e3c' }}>إجراءات التقييم وقياس الالتزام بضوابط الأمن السيبراني للأنظمة الحساسة</h2>
