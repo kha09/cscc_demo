@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Shield, CheckCircle, BarChart3, FileText, ArrowRight, Moon, Sun } from "lucide-react"
+import ProcessTimeline from "@/components/process-timeline"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
@@ -31,6 +32,9 @@ export default function LandingPage() {
           <nav className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-sm font-medium hover:text-nca-teal">
               المميزات
+            </a>
+            <a href="#process" className="text-sm font-medium hover:text-nca-teal">
+              إجراءات التقييم
             </a>
             <a href="#benefits" className="text-sm font-medium hover:text-nca-teal">
               الفوائد
@@ -139,6 +143,16 @@ export default function LandingPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      </section>
+
+      {/* Process Timeline Section */}
+      <section id="process" className="bg-white dark:bg-nca-dark-blue-light">
+        <div className="container">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-4 text-nca-dark-blue dark:text-white">إجراءات التقييم وقياس الالتزام بضوابط الأمن السيبراني للأنظمة الحساسة</h2>
+          </div>
+          <ProcessTimeline />
         </div>
       </section>
 
@@ -315,4 +329,3 @@ export default function LandingPage() {
     </div>
   )
 }
-
