@@ -50,9 +50,7 @@ export default function LandingPage() {
             <Button className="bg-nca-teal text-white hover:bg-nca-teal-dark">
               <Link href="/signup">ابدأ الآن</Link>
             </Button>
-            <button onClick={toggleDarkMode} className="p-2 rounded-full bg-nca-dark-blue-light">
-              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
+            
           </div>
         </div>
       </header>
