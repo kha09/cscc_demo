@@ -1,7 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { Shield, CheckCircle, BarChart3, FileText, ArrowRight } from "lucide-react"
+import { 
+  Shield, 
+  CheckCircle, 
+  BarChart3, 
+  FileText, 
+  ArrowRight, 
+  Users, 
+  Activity, 
+  ClipboardList, 
+  AlertTriangle, 
+  Upload, 
+  MessageSquare 
+} from "lucide-react"
 import ProcessTimeline from "@/components/process-timeline"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -144,6 +156,180 @@ export default function LandingPage() {
             <h2 className="text-3xl font-bold" style={{ color: '#1a2e3c' }}>إجراءات التقييم وقياس الالتزام بضوابط الأمن السيبراني للأنظمة الحساسة</h2>
           </div>
           <ProcessTimeline />
+        </div>
+      </section>
+
+      {/* Dashboard Preview Section */}
+      <section className="py-20 bg-white">
+        <div className="container">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-4 text-nca-dark-blue">لوحات تحكم متخصصة لكل دور</h2>
+            <p className="text-xl text-nca-dark-blue-light max-w-2xl mx-auto">
+              توفر المنصة لوحات تحكم مخصصة لكل دور، مما يضمن حصول كل مستخدم على الأدوات والمعلومات المناسبة لمسؤولياته
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            <Card className="overflow-hidden border-nca-teal">
+              <div className="bg-nca-dark-blue text-white p-4">
+                <h3 className="text-xl font-bold">لوحة تحكم المشرف</h3>
+                <p className="text-sm text-nca-light-blue">إدارة المستخدمين والتقييمات ومراقبة النظام</p>
+              </div>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <Users className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">إدارة المستخدمين</h4>
+                      <p className="text-sm text-nca-dark-blue-light">إضافة وتعديل وإدارة حسابات المستخدمين والأدوار</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <BarChart3 className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">مؤشرات الامتثال العامة</h4>
+                      <p className="text-sm text-nca-dark-blue-light">عرض ومراقبة مؤشرات الامتثال على مستوى المؤسسة</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <Activity className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">سجلات النظام</h4>
+                      <p className="text-sm text-nca-dark-blue-light">مراقبة نشاطات المستخدمين وأداء النظام</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden border-nca-teal">
+              <div className="bg-nca-dark-blue text-white p-4">
+                <h3 className="text-xl font-bold">لوحة تحكم مدير الأمن</h3>
+                <p className="text-sm text-nca-light-blue">إدارة التقييمات وتحليل المخاطر وإنشاء التقارير</p>
+              </div>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <ClipboardList className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">بدء التقييمات</h4>
+                      <p className="text-sm text-nca-dark-blue-light">إنشاء وإدارة تقييمات الامتثال المختلفة</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <AlertTriangle className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">تقييم المخاطر</h4>
+                      <p className="text-sm text-nca-dark-blue-light">تحليل وتقييم المخاطر الأمنية وتحديد الأولويات</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <FileText className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">إنشاء التقارير</h4>
+                      <p className="text-sm text-nca-dark-blue-light">إنشاء تقارير مفصلة عن حالة الامتثال والمخاطر</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Card className="overflow-hidden border-nca-teal">
+              <div className="bg-nca-dark-blue text-white p-4">
+                <h3 className="text-xl font-bold">لوحة تحكم مدير القسم</h3>
+                <p className="text-sm text-nca-light-blue">إدارة فريق العمل ومراقبة امتثال القسم</p>
+              </div>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <Users className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">إدارة الفريق</h4>
+                      <p className="text-sm text-nca-dark-blue-light">إدارة أعضاء الفريق وتوزيع المهام</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <BarChart3 className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">حالة امتثال القسم</h4>
+                      <p className="text-sm text-nca-dark-blue-light">مراقبة مستوى امتثال القسم للضوابط الأمنية</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <FileText className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">مراجعة الأدلة</h4>
+                      <p className="text-sm text-nca-dark-blue-light">مراجعة واعتماد أدلة الامتثال المقدمة</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden border-nca-teal">
+              <div className="bg-nca-dark-blue text-white p-4">
+                <h3 className="text-xl font-bold">لوحة تحكم المستخدم</h3>
+                <p className="text-sm text-nca-light-blue">إدارة المهام وتقديم أدلة الامتثال</p>
+              </div>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <ClipboardList className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">إدارة المهام</h4>
+                      <p className="text-sm text-nca-dark-blue-light">عرض وإدارة المهام المسندة والمواعيد النهائية</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <Upload className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">تقديم الأدلة</h4>
+                      <p className="text-sm text-nca-dark-blue-light">رفع وتقديم أدلة الامتثال للضوابط الأمنية</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-nca-teal bg-opacity-10 p-2 rounded-full">
+                      <MessageSquare className="h-5 w-5 text-nca-teal" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-nca-dark-blue">مساعد الامتثال</h4>
+                      <p className="text-sm text-nca-dark-blue-light">الحصول على المساعدة والإرشادات حول متطلبات الامتثال</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center mt-12">
+            <Button className="bg-nca-teal text-white hover:bg-nca-teal-dark">
+              <Link href="/signup">ابدأ استخدام لوحات التحكم</Link>
+            </Button>
+          </div>
         </div>
       </section>
 
