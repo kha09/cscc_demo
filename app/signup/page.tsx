@@ -3,26 +3,81 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Shield } from "lucide-react"
+import { Shield, AlertCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function SignUp() {
+  const router = useRouter()
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [department, setDepartment] = useState("")
   const [role, setRole] = useState("")
-  const [specialization, setSpecialization] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle sign up logic here
-    console.log("Sign up with:", { firstName, lastName, email, department, role, specialization, password })
+    setIsLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      // Validate form
+      if (password !== confirmPassword) {
+        setError("كلمات المرور غير متطابقة")
+        setIsLoading(false)
+        return
+      }
+
+      if (password.length < 8) {
+        setError("يجب أن تكون كلمة المرور 8 أحرف على الأقل")
+        setIsLoading(false)
+        return
+      }
+
+      // Call the API
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          department,
+          role,
+          password,
+          confirmPassword,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "حدث خطأ أثناء إنشاء الحساب")
+      }
+
+      // Success
+      setSuccess("تم إنشاء الحساب بنجاح! جاري تحويلك لصفحة تسجيل الدخول...")
+      
+      // Redirect to signin page after 2 seconds
+      setTimeout(() => {
+        router.push("/signin")
+      }, 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الحساب")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -162,8 +217,26 @@ export default function SignUp() {
             />
           </div>
 
-          <Button type="submit" className="w-full mt-2 bg-nca-teal hover:bg-nca-teal-dark text-white">
-            إنشاء حساب
+          {error && (
+            <div className="flex items-center gap-2 rounded-md bg-red-100 p-3 text-red-700">
+              <AlertCircle className="h-5 w-5" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+
+          {success && (
+            <div className="flex items-center gap-2 rounded-md bg-green-100 p-3 text-green-700">
+              <CheckCircle className="h-5 w-5" />
+              <p className="text-sm">{success}</p>
+            </div>
+          )}
+
+          <Button 
+            type="submit" 
+            className="w-full mt-2 bg-nca-teal hover:bg-nca-teal-dark text-white"
+            disabled={isLoading}
+          >
+            {isLoading ? "جاري إنشاء الحساب..." : "إنشاء حساب"}
           </Button>
         </form>
 
@@ -176,4 +249,3 @@ export default function SignUp() {
     </div>
   )
 }
-

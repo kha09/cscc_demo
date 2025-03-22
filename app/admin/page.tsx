@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import ProtectedRoute from "@/lib/protected-route"
 import { 
   Bell, 
   User, 
@@ -24,7 +25,8 @@ export default function AdminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
   
   return (
-    <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
+    <ProtectedRoute allowedRoles={['ADMIN']}>
+      <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
       {/* Header */}
       <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -386,5 +388,6 @@ export default function AdminDashboardPage() {
         </div>
       </main>
     </div>
+    </ProtectedRoute>
   )
 }

@@ -3,19 +3,72 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Shield } from "lucide-react"
+import { Shield, AlertCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function SignIn() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle sign in logic here
-    console.log("Sign in with:", email, password)
+    setIsLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      // Call the API
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "حدث خطأ أثناء تسجيل الدخول")
+      }
+
+      // Success
+      setSuccess("تم تسجيل الدخول بنجاح! جاري تحويلك...")
+      
+      // Redirect based on user role
+      setTimeout(() => {
+        const role = data.user.role
+        switch (role) {
+          case "ADMIN":
+            router.push("/admin")
+            break
+          case "SECURITY_MANAGER":
+            router.push("/security-manager")
+            break
+          case "DEPARTMENT_MANAGER":
+            router.push("/department-manager")
+            break
+          case "USER":
+          default:
+            router.push("/user-dashboard")
+            break
+        }
+      }, 1500)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "حدث خطأ أثناء تسجيل الدخول")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -66,8 +119,26 @@ export default function SignIn() {
             />
           </div>
 
-          <Button type="submit" className="w-full bg-nca-teal hover:bg-nca-teal-dark text-white">
-            دخول
+          {error && (
+            <div className="flex items-center gap-2 rounded-md bg-red-100 p-3 text-red-700">
+              <AlertCircle className="h-5 w-5" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+
+          {success && (
+            <div className="flex items-center gap-2 rounded-md bg-green-100 p-3 text-green-700">
+              <CheckCircle className="h-5 w-5" />
+              <p className="text-sm">{success}</p>
+            </div>
+          )}
+
+          <Button 
+            type="submit" 
+            className="w-full bg-nca-teal hover:bg-nca-teal-dark text-white"
+            disabled={isLoading}
+          >
+            {isLoading ? "جاري تسجيل الدخول..." : "دخول"}
           </Button>
         </form>
 
@@ -80,4 +151,3 @@ export default function SignIn() {
     </div>
   )
 }
-
