@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 
 export default function SignIn() {
   const router = useRouter()
+  const { login, getDashboardUrl } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -24,45 +26,20 @@ export default function SignIn() {
     setSuccess(null)
 
     try {
-      // Call the API
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      })
+      // Use the auth context login function
+      const result = await login(email, password)
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "حدث خطأ أثناء تسجيل الدخول")
+      if (!result.success) {
+        throw new Error(result.error || "حدث خطأ أثناء تسجيل الدخول")
       }
 
       // Success
       setSuccess("تم تسجيل الدخول بنجاح! جاري تحويلك...")
       
-      // Redirect based on user role
+      // Redirect to the appropriate dashboard
       setTimeout(() => {
-        const role = data.user.role
-        switch (role) {
-          case "ADMIN":
-            router.push("/admin")
-            break
-          case "SECURITY_MANAGER":
-            router.push("/security-manager")
-            break
-          case "DEPARTMENT_MANAGER":
-            router.push("/department-manager")
-            break
-          case "USER":
-          default:
-            router.push("/user-dashboard")
-            break
-        }
+        router.refresh() // Force a refresh to update the auth state
+        router.push(getDashboardUrl()) // Redirect to the appropriate dashboard based on user role
       }, 1500)
     } catch (err) {
       setError(err instanceof Error ? err.message : "حدث خطأ أثناء تسجيل الدخول")

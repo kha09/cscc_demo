@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   isAuthenticated: boolean
+  getDashboardUrl: () => string
 }
 
 // Create the context with a default value
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => ({ success: false }),
   logout: () => {},
   isAuthenticated: false,
+  getDashboardUrl: () => '/signin',
 })
 
 // Custom hook to use the auth context
@@ -91,6 +93,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Determine if user is authenticated
   const isAuthenticated = !!user
 
+  // Function to get the dashboard URL based on user role
+  const getDashboardUrl = () => {
+    if (!user) return '/signin'
+    
+    switch (user.role) {
+      case 'ADMIN':
+        return '/admin'
+      case 'SECURITY_MANAGER':
+        return '/security-manager'
+      case 'DEPARTMENT_MANAGER':
+        return '/department-manager'
+      case 'USER':
+      default:
+        return '/user-dashboard'
+    }
+  }
+
   // Create the context value object
   const contextValue: AuthContextType = {
     user,
@@ -98,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     isAuthenticated,
+    getDashboardUrl,
   }
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
