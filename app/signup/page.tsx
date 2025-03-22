@@ -93,8 +93,7 @@ export default function SignUp() {
               <SelectContent className="bg-white text-nca-dark-blue">
                 <SelectItem value="it">تكنولوجيا المعلومات</SelectItem>
                 <SelectItem value="security">الأمن السيبراني</SelectItem>
-                <SelectItem value="compliance">الامتثال</SelectItem>
-                <SelectItem value="operations">العمليات</SelectItem>
+                
               </SelectContent>
             </Select>
           </div>
@@ -116,7 +115,7 @@ export default function SignUp() {
             </Select>
           </div>
 
-          <div className="space-y-2">
+        {/*  <div className="space-y-2">
             <label htmlFor="specialization" className="text-sm font-medium leading-none text-nca-light-blue">
               التخصص
             </label>
@@ -131,7 +130,7 @@ export default function SignUp() {
                 <SelectItem value="risk">إدارة المخاطر</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </div> */}
 
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium leading-none text-nca-light-blue">
