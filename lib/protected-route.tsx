@@ -19,13 +19,13 @@ export default function ProtectedRoute({
   // Check if authentication is enabled
   const isAuthEnabled = process.env.NEXT_PUBLIC_ENABLE_AUTH !== 'false'
   
-  // If authentication is disabled, bypass authentication
-  if (!isAuthEnabled) {
-    return <>{children}</>
-  }
-  
-  // In development, enforce authentication
+  // Always call useEffect to comply with React Hooks rules
   useEffect(() => {
+    // Skip authentication checks if auth is disabled
+    if (!isAuthEnabled) {
+      return;
+    }
+    
     // If not loading and not authenticated, redirect to login
     if (!loading && !isAuthenticated) {
       router.push('/signin')
@@ -55,7 +55,12 @@ export default function ProtectedRoute({
         }
       }
     }
-  }, [loading, isAuthenticated, user, router, allowedRoles])
+  }, [loading, isAuthenticated, user, router, allowedRoles, isAuthEnabled])
+
+  // If authentication is disabled, render children directly
+  if (!isAuthEnabled) {
+    return <>{children}</>
+  }
 
   // Show loading state
   if (loading) {
