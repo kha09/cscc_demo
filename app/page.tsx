@@ -50,7 +50,7 @@ export default function LandingPage() {
             </a>
           </nav>
           <div className="flex items-center gap-4">
-            <Button variant="outline" className="border-white text-white hover:bg-white hover:text-nca-dark-blue">
+            <Button variant="outline" className="border-white text-nca-dark-blue hover:bg-white hover:text-nca-dark-blue">
               <Link href="/signin">تسجيل الدخول</Link>
             </Button>
             <Button className="bg-nca-teal text-white hover:bg-nca-teal-dark">
@@ -79,7 +79,7 @@ export default function LandingPage() {
             <Button
               size="lg"
               variant="outline"
-              className="w-full border-white text-white hover:bg-white hover:text-nca-dark-blue"
+              className="w-full border-white text-nca-dark-blue hover:bg-white hover:text-nca-dark-blue"
             >
               تعرف على المزيد
             </Button>
