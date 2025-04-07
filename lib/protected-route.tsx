@@ -15,7 +15,16 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, loading, isAuthenticated } = useAuth()
   const router = useRouter()
-
+  
+  // Check if authentication is enabled
+  const isAuthEnabled = process.env.NEXT_PUBLIC_ENABLE_AUTH !== 'false'
+  
+  // If authentication is disabled, bypass authentication
+  if (!isAuthEnabled) {
+    return <>{children}</>
+  }
+  
+  // In development, enforce authentication
   useEffect(() => {
     // If not loading and not authenticated, redirect to login
     if (!loading && !isAuthenticated) {

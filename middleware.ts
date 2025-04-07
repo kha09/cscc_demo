@@ -16,6 +16,16 @@ export function middleware(request: NextRequest) {
   // Get the pathname from the URL
   const { pathname } = request.nextUrl
 
+  // Check if authentication is enabled
+  const isAuthEnabled = process.env.NEXT_PUBLIC_ENABLE_AUTH !== 'false'
+  
+  // If authentication is disabled, bypass authentication
+  if (!isAuthEnabled) {
+    return NextResponse.next()
+  }
+  
+  // In development, enforce authentication
+  
   // Check if the user is authenticated by looking for the user in localStorage
   // Note: This is a client-side check, so we can't do it in middleware
   // Instead, we'll rely on the AuthProvider to handle this on the client side
