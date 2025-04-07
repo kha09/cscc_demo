@@ -7,7 +7,6 @@ import {
   User, 
   Shield, 
   Users, 
-  Settings, 
   FileText, 
   Activity, 
   Server, 

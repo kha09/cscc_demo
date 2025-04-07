@@ -10,12 +10,8 @@ import {
   FileText, 
   AlertTriangle, 
   Search,
-  Plus,
   Filter,
   Download,
-  Calendar,
-  ChevronDown,
-  Send,
   CheckCircle,
   Users
 } from "lucide-react"
