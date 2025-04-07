@@ -67,7 +67,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Return user without password
-    const { password: _password, ...userWithoutPassword } = user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: userPassword, ...userWithoutPassword } = user;
     return NextResponse.json(
       { 
         message: 'تم إنشاء الحساب بنجاح',
