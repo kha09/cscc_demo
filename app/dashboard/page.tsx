@@ -1,4 +1,4 @@
-import { Bell, User, Shield, Send, ClipboardList, BarChart, ListTodo } from "lucide-react"
+import { Bell, User, Send, ClipboardList, BarChart, ListTodo } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"

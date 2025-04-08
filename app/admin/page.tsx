@@ -6,7 +6,6 @@ import ProtectedRoute from "@/lib/protected-route"
 import { 
   Bell, 
   User, 
-  Shield, 
   Users, 
   FileText, 
   Activity, 

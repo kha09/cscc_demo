@@ -3,13 +3,13 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Shield, AlertCircle, CheckCircle } from "lucide-react"
+import { AlertCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-
+import Image from "next/image"
 export default function SignUp() {
   const router = useRouter()
   const [firstName, setFirstName] = useState("")
@@ -83,13 +83,16 @@ export default function SignUp() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-nca-dark-blue p-4" dir="rtl">
       <div className="w-full max-w-md rounded-lg border border-nca-teal bg-nca-dark-blue-light p-8 shadow-sm">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <Shield className="h-10 w-10 text-nca-teal mb-2" />
-          <h1 className="text-lg font-bold tracking-tight mb-4 max-w-[250px] text-white">
-            أداة قياس الامتثال لضوابط الهيئة الوطنية للأمن السيبراني للأنظمة الحساسة
-          </h1>
-          <h2 className="text-2xl font-bold text-white">إنشاء حساب جديد</h2>
-        </div>
+      <div className="flex items-center justify-center">
+            <div className="relative h-21 w-21">
+              <Image
+                src="/static/image/logo.png" width={140} height={160}
+                alt="Logo"
+                
+                className="object-contain"
+              />
+            </div>
+          </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
