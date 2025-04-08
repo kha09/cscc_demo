@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import ProtectedRoute from "@/lib/protected-route"
 import { 
   Bell, 
@@ -30,13 +31,16 @@ export default function AdminDashboardPage() {
       <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo and Title - Right Side */}
-          <div className="flex items-center">
-            <Shield className="h-8 w-8 text-white ml-3" />
-            <div className="text-right">
-              <h1 className="text-sm font-medium">أداة قياس الامتثال لضوابط الهيئة الوطنية </h1>
-              <p className="text-xs">للأمن السيبراني للأنظمة الحساسة</p>
-            </div>
-          </div>
+          <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
+                      <div className="relative h-16 w-16">
+                        <Image
+                          src="/static/image/logo.png" width={160} height={160}
+                          alt="Logo"
+                          
+                          className="object-contain"
+                        />
+                      </div>
+                    </div>
 
           {/* Navigation - Center */}
           <nav className="hidden md:flex items-center space-x-8 space-x-reverse">

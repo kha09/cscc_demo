@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { 
-  Shield, 
   CheckCircle, 
   BarChart3, 
   FileText, 
@@ -28,12 +28,14 @@ export default function LandingPage() {
       <header className="sticky top-0 z-40 border-b bg-nca-dark-blue text-white">
         <div className="container flex h-16 items-center justify-between py-4">
           <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
-            <Shield className="h-6 w-6 text-nca-teal flex-shrink-0" />
-            <span className="text-wrap">
-              أداة قياس الامتثال لضوابط الهيئة الوطنية
-              <br />
-              للأمن السيبراني للأنظمة الحساسة
-            </span>
+            <div className="relative h-16 w-16">
+              <Image
+                src="/static/image/logo.png" width={160} height={160}
+                alt="Logo"
+                
+                className="object-contain"
+              />
+            </div>
           </div>
           <nav className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-sm font-medium hover:text-nca-teal">
@@ -137,7 +139,7 @@ export default function LandingPage() {
             <Card className="bg-white border-nca-teal">
               <CardContent className="pt-6">
                 <div className="mb-4 text-nca-teal">
-                  <Shield className="h-10 w-10" />
+                  <CheckCircle className="h-10 w-10" />
                 </div>
                 <h3 className="text-xl font-bold mb-2 text-nca-dark-blue">واجهة سهلة الاستخدام</h3>
                 <p className="text-nca-dark-blue-light">
@@ -481,12 +483,14 @@ export default function LandingPage() {
         <div className="container">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2 font-bold text-sm md:text-base">
-              <Shield className="h-6 w-6 text-nca-teal flex-shrink-0" />
-              <span className="text-wrap">
-                أداة قياس الامتثال لضوابط الهيئة الوطنية
-                <br />
-                للأمن السيبراني للأنظمة الحساسة
-              </span>
+            <div className="relative h-22 w-22">
+              <Image
+                  src="/static/image/logo.png" width={160} height={160}
+                  alt="Logo"
+                  
+                  className="object-contain"
+                />
+              </div>
             </div>
             <div className="flex gap-8">
               <a href="#" className="text-sm text-nca-light-blue hover:text-white">
