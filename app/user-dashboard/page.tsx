@@ -154,8 +154,8 @@ export default function UserDashboardPage() {
                 </thead>
                 <tbody>
                   <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقديم أدلة الامتثال لضوابط التشفير</td>
-                    <td className="py-4">تقييم ضوابط الأمن السيبراني - Q1</td>
+                    <td className="py-4 pr-4">3-2-3-1 تأمين واجهة برمجة التطبيقات.	</td>
+                    <td className="py-4">تقييم الأنظمة الحساسة 2025	</td>
                     <td className="py-4">15 يناير 2025</td>
                     <td className="py-4">10 مارس 2025</td>
                     <td className="py-4">
@@ -168,8 +168,8 @@ export default function UserDashboardPage() {
                     </td>
                   </tr>
                   <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تحديث سياسات كلمات المرور</td>
-                    <td className="py-4">تقييم ضوابط الأمن السيبراني - Q1</td>
+                    <td className="py-4 pr-4">1-1-3-1 إجراء اختبار التحمل (Stress Testing) للتأكد من سعة المكونات المختلفة.	</td>
+                    <td className="py-4">تقييم الأنظمة الحساسة 2025	</td>
                     <td className="py-4">20 يناير 2025</td>
                     <td className="py-4">20 مارس 2025</td>
                     <td className="py-4">
@@ -182,8 +182,8 @@ export default function UserDashboardPage() {
                     </td>
                   </tr>
                   <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">مراجعة إعدادات جدار الحماية</td>
-                    <td className="py-4">تقييم أمن الشبكات</td>
+                    <td className="py-4 pr-4">2-1-3-1 التأكد من تطبيق متطلبات استمرارية الأعمال.	</td>
+                    <td className="py-4">تقييم الأنظمة الحساسة 2025	</td>
                     <td className="py-4">5 فبراير 2025</td>
                     <td className="py-4">5 أبريل 2025</td>
                     <td className="py-4">
@@ -195,34 +195,8 @@ export default function UserDashboardPage() {
                       </Button>
                     </td>
                   </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تحديث خطة التعافي من الكوارث</td>
-                    <td className="py-4">تقييم ضوابط الأمن السيبراني - Q1</td>
-                    <td className="py-4">10 يناير 2025</td>
-                    <td className="py-4">10 فبراير 2025</td>
-                    <td className="py-4">
-                      <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">مكتمل</span>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        عرض
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تنفيذ اختبار الاختراق</td>
-                    <td className="py-4">تقييم أمن التطبيقات</td>
-                    <td className="py-4">15 يناير 2025</td>
-                    <td className="py-4">15 فبراير 2025</td>
-                    <td className="py-4">
-                      <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">مكتمل</span>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        عرض
-                      </Button>
-                    </td>
-                  </tr>
+                  
+                  
                 </tbody>
               </table>
             </div>

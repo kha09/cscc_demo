@@ -75,7 +75,7 @@ export default function DepartmentManagerDashboardPage() {
       <main className="p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">لوحة مدير القسم - تكنولوجيا المعلومات</h1>
+            <h1 className="text-2xl font-bold text-slate-800">لوحة مدير القسم - تقنية المعلومات</h1>
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Search className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -127,7 +127,7 @@ export default function DepartmentManagerDashboardPage() {
           {/* Active Assessments Section */}
           <Card className="p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">التقييمات النشطة للقسم</h2>
+              <h2 className="text-xl font-semibold">التقييمات النشطة والمنتهية للقسم</h2>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="gap-2">
                   <Filter className="h-4 w-4" />
@@ -145,7 +145,7 @@ export default function DepartmentManagerDashboardPage() {
                 <thead>
                   <tr className="text-right border-b border-gray-200">
                     <th className="pb-3 font-medium text-gray-700 pr-4">اسم التقييم</th>
-                    <th className="pb-3 font-medium text-gray-700">المسؤول</th>
+                    <th className="pb-3 font-medium text-gray-700">المهمة</th>
                     <th className="pb-3 font-medium text-gray-700">تاريخ البدء</th>
                     <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th>
                     <th className="pb-3 font-medium text-gray-700">التقدم</th>
@@ -154,8 +154,8 @@ export default function DepartmentManagerDashboardPage() {
                 </thead>
                 <tbody>
                   <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقييم ضوابط الأمن السيبراني - Q1</td>
-                    <td className="py-4">أحمد محمد</td>
+                    <td className="py-4 pr-4">تقييم الأنظمة الحساسة 2025</td>
+                    <td className="py-4">1-1-3-1 إجراء اختبار التحمل (Stress Testing) للتأكد من سعة المكونات المختلفة.                    </td>
                     <td className="py-4">15 يناير 2025</td>
                     <td className="py-4">15 مارس 2025</td>
                     <td className="py-4">
@@ -173,8 +173,8 @@ export default function DepartmentManagerDashboardPage() {
                     </td>
                   </tr>
                   <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقييم أمن الشبكات</td>
-                    <td className="py-4">سارة عبدالله</td>
+                    <td className="py-4 pr-4">تقييم الأنظمة الحساسة 2025</td>
+                    <td className="py-4">3-2-3-1 تأمين واجهة برمجة التطبيقات.                    </td>
                     <td className="py-4">1 فبراير 2025</td>
                     <td className="py-4">1 أبريل 2025</td>
                     <td className="py-4">
@@ -192,8 +192,8 @@ export default function DepartmentManagerDashboardPage() {
                     </td>
                   </tr>
                   <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقييم أمن التطبيقات</td>
-                    <td className="py-4">محمد علي</td>
+                    <td className="py-4 pr-4">تقييم الأنظمة الحساسة 2025</td>
+                    <td className="py-4">2-1-3-1 التأكد من تطبيق متطلبات استمرارية الأعمال.                    </td>
                     <td className="py-4">10 فبراير 2025</td>
                     <td className="py-4">10 أبريل 2025</td>
                     <td className="py-4">
