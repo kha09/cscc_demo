@@ -172,7 +172,7 @@ export default function SecurityManagerDashboardPage() {
           {/* Active Assessments Section */}
           <Card className="p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">التقييمات النشطة</h2>
+              <h2 className="text-xl font-semibold"> التقييمات النشطة والمنتهية</h2>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="gap-2">
                   <Filter className="h-4 w-4" />
@@ -190,7 +190,7 @@ export default function SecurityManagerDashboardPage() {
                 <thead>
                   <tr className="text-right border-b border-gray-200">
                     <th className="pb-3 font-medium text-gray-700 pr-4">اسم التقييم</th>
-                    <th className="pb-3 font-medium text-gray-700">القسم</th>
+                    
                     <th className="pb-3 font-medium text-gray-700">تاريخ البدء</th>
                     <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th>
                     <th className="pb-3 font-medium text-gray-700">التقدم</th>
@@ -199,8 +199,8 @@ export default function SecurityManagerDashboardPage() {
                 </thead>
                 <tbody>
                   <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقييم ضوابط الأمن السيبراني - Q1</td>
-                    <td className="py-4">تكنولوجيا المعلومات</td>
+                    <td className="py-4 pr-4">تقييم الأنظمة الحساسة 2025</td>
+                    
                     <td className="py-4">15 يناير 2025</td>
                     <td className="py-4">15 مارس 2025</td>
                     <td className="py-4">
@@ -218,8 +218,8 @@ export default function SecurityManagerDashboardPage() {
                     </td>
                   </tr>
                   <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقييم أمن الشبكات</td>
-                    <td className="py-4">البنية التحتية</td>
+                    <td className="py-4 pr-4">تقييم الأنظمة الحساسة 2024</td>
+                    
                     <td className="py-4">1 فبراير 2025</td>
                     <td className="py-4">1 أبريل 2025</td>
                     <td className="py-4">
@@ -252,8 +252,8 @@ export default function SecurityManagerDashboardPage() {
                 </div>
                 <div className="relative">
                   <select className="w-full p-2 border rounded-md text-right pr-10 appearance-none bg-white">
-                    <option>تقييم ضوابط الأمن السيبراني - Q1</option>
-                    <option>تقييم أمن الشبكات</option>
+                    <option>تقييم الأنظمة الحساسة 2025</option>
+                    <option>تقييم الأنظمة الحساسة 2024</option>
                   </select>
                   <ChevronDown className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
