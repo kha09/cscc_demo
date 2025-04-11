@@ -130,44 +130,7 @@ export default function SecurityManagerDashboardPage() {
             </Card>
           </div>
 
-          {/* Assessment Initiation Section */}
-          <Card className="p-6 mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">بدء تقييم جديد</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="border rounded-lg p-6 hover:border-nca-teal cursor-pointer transition-all">
-                <div className="flex justify-center mb-4">
-                  <div className="bg-nca-teal bg-opacity-10 p-4 rounded-full">
-                    <ClipboardList className="h-8 w-8 text-nca-teal" />
-                  </div>
-                </div>
-                <h3 className="text-lg font-medium text-center mb-2">تقييم شامل</h3>
-                <p className="text-sm text-gray-600 text-center">تقييم كامل لجميع ضوابط الأمن السيبراني للأنظمة الحساسة</p>
-              </div>
-              
-              <div className="border rounded-lg p-6 hover:border-nca-teal cursor-pointer transition-all">
-                <div className="flex justify-center mb-4">
-                  <div className="bg-nca-teal bg-opacity-10 p-4 rounded-full">
-                    <Shield className="h-8 w-8 text-nca-teal" />
-                  </div>
-                </div>
-                <h3 className="text-lg font-medium text-center mb-2">تقييم مخصص</h3>
-                <p className="text-sm text-gray-600 text-center">تقييم مخصص لمجموعة محددة من الضوابط</p>
-              </div>
-              
-              <div className="border rounded-lg p-6 hover:border-nca-teal cursor-pointer transition-all">
-                <div className="flex justify-center mb-4">
-                  <div className="bg-nca-teal bg-opacity-10 p-4 rounded-full">
-                    <AlertTriangle className="h-8 w-8 text-nca-teal" />
-                  </div>
-                </div>
-                <h3 className="text-lg font-medium text-center mb-2">تقييم المخاطر</h3>
-                <p className="text-sm text-gray-600 text-center">تقييم مركز على المخاطر العالية والمتوسطة</p>
-              </div>
-            </div>
-          </Card>
+          
 
           {/* Active Assessments Section */}
           <Card className="p-6 mb-6">
@@ -248,12 +211,17 @@ export default function SecurityManagerDashboardPage() {
               <h2 className="text-xl font-semibold mb-4">تعيين المهام</h2>
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">اختر التقييم</span>
+                  <span className="text-sm font-medium">اختر الضابط</span>
                 </div>
                 <div className="relative">
                   <select className="w-full p-2 border rounded-md text-right pr-10 appearance-none bg-white">
-                    <option>تقييم الأنظمة الحساسة 2025</option>
-                    <option>تقييم الأنظمة الحساسة 2024</option>
+                    <option>1-1-3-1 إجراء اختبار التحمل (Stress Testing) للتأكد من سعة المكونات المختلفة.
+                    </option>
+                    <option>2-1-3-1 التأكد من تطبيق متطلبات استمرارية الأعمال.
+                    </option>
+
+                    <option>3-2-3-1 تأمين واجهة برمجة التطبيقات.
+                    </option>
                   </select>
                   <ChevronDown className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
