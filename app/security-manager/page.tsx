@@ -15,7 +15,7 @@ import {
   Plus,
   Filter,
   Download,
-  Calendar,
+  // Calendar, // Original Calendar icon, now aliased below
   ChevronDown,
   Menu, // Added for sidebar toggle
   Activity, // Added for sidebar icon
@@ -31,6 +31,11 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select" // Added Select components
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover" // Added Popover
+import { Calendar as CalendarIcon } from "lucide-react" // Renamed original Calendar icon import
+import { Calendar } from "@/components/ui/calendar" // Added Calendar component
+import { cn } from "@/lib/utils" // Added cn utility
+import { format } from "date-fns" // Added date-fns format
 // Import the form component
 import SensitiveSystemForm from "@/components/sensitive-system-form";
 
@@ -63,6 +68,9 @@ export default function SecurityManagerDashboardPage() {
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
   const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+
+  // State for the deadline date picker
+  const [deadlineDate, setDeadlineDate] = useState<Date | undefined>(undefined);
 
 
   // --- Temporary User ID Fetch ---
@@ -574,10 +582,29 @@ export default function SecurityManagerDashboardPage() {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">الموعد النهائي</span>
                 </div>
-                <div className="relative">
-                  <Input type="date" className="w-full p-2 border rounded-md text-right" />
-                  <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                </div>
+                {/* Replaced native date input with Shadcn Date Picker */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-right font-normal", // Use text-right for RTL placeholder alignment
+                        !deadlineDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="ml-2 h-4 w-4" /> {/* Icon on the left */}
+                      {deadlineDate ? format(deadlineDate, "PPP") : <span>اختر تاريخاً</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={deadlineDate}
+                      onSelect={setDeadlineDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
                 <Button className="w-full bg-nca-teal text-white hover:bg-nca-teal-dark">
