@@ -23,7 +23,8 @@ import {
   ListChecks, // Added for sidebar icon
   ShieldCheck, // Added for sidebar icon
   FileWarning, // Added for sidebar icon
-  LayoutDashboard
+  LayoutDashboard,
+  Building // Added for Departments icon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -57,6 +58,11 @@ export default function SecurityManagerDashboardPage() {
   const [controls, setControls] = useState<SimpleControl[]>([]);
   const [isLoadingControls, setIsLoadingControls] = useState(true);
   const [controlsError, setControlsError] = useState<string | null>(null);
+
+  // State variables for departments
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
 
 
   // --- Temporary User ID Fetch ---
@@ -158,7 +164,27 @@ export default function SecurityManagerDashboardPage() {
       }
     };
 
+    // Fetch Departments function
+    const fetchDepartments = async () => {
+      setIsLoadingDepartments(true);
+      setDepartmentsError(null);
+      try {
+        const response = await fetch('/api/departments');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch departments: ${response.statusText}`);
+        }
+        const data: { id: string; name: string }[] = await response.json();
+        setDepartments(data);
+      } catch (err: any) {
+        console.error("Error fetching departments:", err);
+        setDepartmentsError(err.message || "An unknown error occurred fetching departments");
+      } finally {
+        setIsLoadingDepartments(false);
+      }
+    };
+
     fetchControls();
+    fetchDepartments(); // Fetch departments on mount as well
   }, []); // Empty dependency array means run once on mount
 
 
@@ -259,6 +285,11 @@ export default function SecurityManagerDashboardPage() {
              <Link href="/security-manager/system-info" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}> {/* Updated href */}
               <Server className="h-5 w-5 flex-shrink-0" />
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>معلومات الأنظمة</span>
+            </Link>
+            {/* Link to Manage Departments */}
+            <Link href="/security-manager/departments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Building className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة الأقسام</span>
             </Link>
             <Link href="/security-manager#tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
               <ListChecks className="h-5 w-5 flex-shrink-0" />
@@ -517,13 +548,26 @@ export default function SecurityManagerDashboardPage() {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">اختر القسم</span>
                 </div>
-                <div className="relative">
-                  <select className="w-full p-2 border rounded-md text-right pr-10 appearance-none bg-white">
-                    <option>تكنولوجيا المعلومات</option>
-                    <option>البنية التحتية</option>
-                  </select>
-                  <ChevronDown className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                </div>
+                 <Select dir="rtl">
+                   <SelectTrigger className="w-full text-right">
+                     <SelectValue placeholder="اختر قسماً..." />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {isLoadingDepartments ? (
+                       <SelectItem value="loading" disabled>جاري تحميل الأقسام...</SelectItem>
+                     ) : departmentsError ? (
+                       <SelectItem value="error" disabled>خطأ: {departmentsError}</SelectItem>
+                     ) : departments.length === 0 ? (
+                       <SelectItem value="no-departments" disabled>لا توجد أقسام.</SelectItem>
+                     ) : (
+                       departments.map((dept) => (
+                         <SelectItem key={dept.id} value={dept.id}>
+                           {dept.name}
+                         </SelectItem>
+                       ))
+                     )}
+                   </SelectContent>
+                 </Select>
               </div>
 
               <div className="mb-4">

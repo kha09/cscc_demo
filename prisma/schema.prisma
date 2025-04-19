@@ -101,6 +101,13 @@ model Control {
 //   SUB   // فرعي
 // }
 
+model Department {
+  id        String   @id @default(uuid())
+  name      String   @unique // Department name must be unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum Role {
   ADMIN
   SECURITY_MANAGER
