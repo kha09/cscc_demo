@@ -49,6 +49,16 @@ interface EditFormData {
   department: string;
 }
 
+// Define type for the Add User Form data
+interface AddFormData {
+  name: string;
+  nameAr: string;
+  email: string;
+  role: Role; // Use the Role enum type
+  department: string;
+  password?: string; // Optional password field for creation
+}
+
 // Define types for Security Manager data (subset of UserData)
 interface SecurityManager {
   id: string;
@@ -97,6 +107,12 @@ export default function AdminDashboardPage() {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // State for Add User Dialog
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [addFormData, setAddFormData] = useState<AddFormData>({ name: '', nameAr: '', email: '', role: Role.USER, department: '', password: '' });
+  const [addSubmitStatus, setAddSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [addSubmitError, setAddSubmitError] = useState<string | null>(null);
 
 
   // Fetch security managers on component mount
@@ -231,6 +247,70 @@ export default function AdminDashboardPage() {
       setEditSubmitStatus('error');
     }
   };
+
+  // --- Add User Functionality ---
+
+  // Handle Add Form Input Change
+  const handleAddFormChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setAddFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handle Add Form Role Change (using Select component)
+  const handleAddRoleChange = (value: Role) => {
+    setAddFormData(prev => ({ ...prev, role: value }));
+  };
+
+  // Handle Add Form Submission
+  const handleAddUserSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAddSubmitStatus('loading');
+    setAddSubmitError(null);
+
+    // Basic validation (add more as needed)
+    if (!addFormData.email || !addFormData.name || !addFormData.role || !addFormData.password) {
+        setAddSubmitError("يرجى ملء جميع الحقول المطلوبة (الاسم الإنجليزي، البريد الإلكتروني، الدور، كلمة المرور).");
+        setAddSubmitStatus('error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: addFormData.name,
+                nameAr: addFormData.nameAr || null,
+                email: addFormData.email,
+                password: addFormData.password, // Send password for creation
+                role: addFormData.role,
+                department: addFormData.department || null,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'فشل إنشاء المستخدم.' }));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+
+        setAddSubmitStatus('success');
+        await fetchAllUsers(); // Refresh the user list
+        // Reset form
+        setAddFormData({ name: '', nameAr: '', email: '', role: Role.USER, department: '', password: '' });
+
+        setTimeout(() => {
+            setIsAddUserDialogOpen(false); // Close dialog
+            setAddSubmitStatus('idle');
+        }, 1500); // Close dialog after success message
+
+    } catch (err: any) {
+        console.error("Add user error:", err);
+        setAddSubmitError(err.message || "حدث خطأ غير متوقع أثناء إنشاء المستخدم.");
+        setAddSubmitStatus('error');
+    }
+  };
+
+  // --- End Add User Functionality ---
 
 
   // Handle Delete Button Click
@@ -491,11 +571,111 @@ export default function AdminDashboardPage() {
                 />
               </div>
 
-              {/* Add User Button (Example) */}
-              <Button className="bg-nca-teal hover:bg-nca-teal-dark text-white gap-2">
-                <Plus className="h-4 w-4" />
-                إضافة مستخدم
-              </Button>
+              {/* Add User Button (Dialog Trigger) */}
+              <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-nca-teal hover:bg-nca-teal-dark text-white gap-2">
+                    <Plus className="h-4 w-4" />
+                    إضافة مستخدم
+                  </Button>
+                </DialogTrigger>
+                {/* Add User Dialog Content */}
+                <DialogContent className="sm:max-w-[500px]" dir="rtl">
+                  <DialogHeader>
+                    <DialogTitle>إضافة مستخدم جديد</DialogTitle>
+                    <DialogDescription>
+                      أدخل تفاصيل المستخدم الجديد أدناه. الحقول المعلمة بـ <span className="text-red-500">*</span> مطلوبة.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleAddUserSubmit} className="space-y-4 py-4">
+                    <div>
+                      <Label htmlFor="add-nameAr">الاسم (بالعربي)</Label>
+                      <Input
+                        id="add-nameAr"
+                        name="nameAr"
+                        value={addFormData.nameAr}
+                        onChange={handleAddFormChange}
+                        className="text-right"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="add-name">الاسم (بالإنجليزي) <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="add-name"
+                        name="name"
+                        value={addFormData.name}
+                        onChange={handleAddFormChange}
+                        required
+                        className="text-left" dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="add-email">البريد الإلكتروني <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="add-email"
+                        name="email"
+                        type="email"
+                        value={addFormData.email}
+                        onChange={handleAddFormChange}
+                        required
+                        className="text-left" dir="ltr"
+                      />
+                    </div>
+                     <div>
+                      <Label htmlFor="add-password">كلمة المرور <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="add-password"
+                        name="password"
+                        type="password"
+                        value={addFormData.password || ''}
+                        onChange={handleAddFormChange}
+                        required
+                        className="text-left" dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="add-department">القسم</Label>
+                      <Input
+                        id="add-department"
+                        name="department"
+                        value={addFormData.department}
+                        onChange={handleAddFormChange}
+                        className="text-right"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="add-role">الدور <span className="text-red-500">*</span></Label>
+                      <Select name="role" onValueChange={handleAddRoleChange} value={addFormData.role} required>
+                        <SelectTrigger id="add-role">
+                          <SelectValue placeholder="اختر الدور..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(Role).map((roleValue) => (
+                            <SelectItem key={roleValue} value={roleValue}>
+                              {roleValue} {/* Display role enum value */}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Add Status/Error */}
+                    {addSubmitStatus === 'error' && addSubmitError && (
+                      <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md">{addSubmitError}</p>
+                    )}
+                    {addSubmitStatus === 'success' && (
+                      <p className="text-sm text-green-600 bg-green-100 p-3 rounded-md">تم إضافة المستخدم بنجاح.</p>
+                    )}
+
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsAddUserDialogOpen(false)}>إلغاء</Button>
+                      <Button type="submit" className="bg-nca-teal hover:bg-nca-teal-dark text-white" disabled={addSubmitStatus === 'loading'}>
+                        {addSubmitStatus === 'loading' ? 'جاري الإضافة...' : 'إضافة مستخدم'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
 
               {/* Create New Assessment Button (Dialog Trigger) */}
               <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
