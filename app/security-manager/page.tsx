@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+"use client"
+
+import { useState, useEffect, useRef } from "react" // Added useRef
 import Image from "next/image"
 import { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client"; // Added Control
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Removed DialogTrigger as it's not used directly here
@@ -24,7 +26,9 @@ import {
   ShieldCheck, // Added for sidebar icon
   FileWarning, // Added for sidebar icon
   LayoutDashboard,
-  Building // Added for Departments icon
+  Building, // Added for Departments icon
+  Check, // Added for multi-select
+  X // Added for badge removal
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -32,6 +36,9 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select" // Added Select components
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover" // Added Popover
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command" // Added Command components
+import { Checkbox } from "@/components/ui/checkbox" // Added Checkbox
+import { Badge } from "@/components/ui/badge" // Added Badge
 import { Calendar as CalendarIcon } from "lucide-react" // Renamed original Calendar icon import
 import { Calendar } from "@/components/ui/calendar" // Added Calendar component
 import { cn } from "@/lib/utils" // Added cn utility
@@ -63,6 +70,9 @@ export default function SecurityManagerDashboardPage() {
   const [controls, setControls] = useState<SimpleControl[]>([]);
   const [isLoadingControls, setIsLoadingControls] = useState(true);
   const [controlsError, setControlsError] = useState<string | null>(null);
+  const [selectedControls, setSelectedControls] = useState<SimpleControl[]>([]); // State for selected controls
+  const [isControlPopoverOpen, setIsControlPopoverOpen] = useState(false); // State for popover visibility
+  const controlInputRef = useRef<HTMLInputElement>(null); // Ref for command input
 
   // State variables for departments
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
@@ -220,6 +230,28 @@ export default function SecurityManagerDashboardPage() {
       return 'Invalid Date';
     }
   };
+
+  // Handler for selecting/deselecting a control
+  const handleControlSelect = (control: SimpleControl) => {
+    setSelectedControls((prevSelected) => {
+      const isSelected = prevSelected.some((c) => c.id === control.id);
+      if (isSelected) {
+        return prevSelected.filter((c) => c.id !== control.id);
+      } else {
+        return [...prevSelected, control];
+      }
+    });
+    // Keep focus on input after selection
+    controlInputRef.current?.focus();
+  };
+
+  // Handler for removing a selected control via the badge
+  const handleControlRemove = (controlId: string) => {
+    setSelectedControls((prevSelected) =>
+      prevSelected.filter((c) => c.id !== controlId)
+    );
+  };
+
 
   return (
     // Removed ProtectedRoute for now as auth isn't fully implemented server-side
@@ -527,29 +559,88 @@ export default function SecurityManagerDashboardPage() {
               {/* Select Control Dropdown - Updated */}
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">اختر الضابط</span> {/* Keep label as is, but it means Control */}
+                  <span className="text-sm font-medium">اختر الضوابط</span> {/* Changed label */}
                 </div>
-                 <Select dir="rtl">
-                   <SelectTrigger className="w-full text-right">
-                     <SelectValue placeholder="اختر ضابطاً..." />
-                   </SelectTrigger>
-                   <SelectContent>
-                     {isLoadingControls ? (
-                       <SelectItem value="loading" disabled>جاري تحميل الضوابط...</SelectItem>
-                     ) : controlsError ? (
-                       <SelectItem value="error" disabled>خطأ: {controlsError}</SelectItem>
-                     ) : controls.length === 0 ? (
-                       <SelectItem value="no-controls" disabled>لا توجد ضوابط.</SelectItem>
-                     ) : (
-                       controls.map((control) => (
-                         <SelectItem key={control.id} value={control.id}>
-                           {/* Display control number and text */}
-                           {control.controlNumber} - {control.controlText}
-                         </SelectItem>
-                       ))
-                     )}
-                   </SelectContent>
-                 </Select>
+                <Popover open={isControlPopoverOpen} onOpenChange={setIsControlPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={isControlPopoverOpen}
+                      className="w-full justify-between text-right font-normal"
+                    >
+                      <span className="truncate">
+                        {selectedControls.length > 0
+                          ? selectedControls.map((c) => c.controlNumber).join(', ')
+                          : "اختر ضابطاً أو أكثر..."}
+                      </span>
+                      <ChevronDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command shouldFilter={true}> {/* Enable default filtering */}
+                      <CommandInput
+                        ref={controlInputRef}
+                        placeholder="ابحث عن ضابط..."
+                        className="text-right" // Ensure placeholder is right-aligned
+                      />
+                      <CommandList>
+                        <CommandEmpty>لم يتم العثور على ضوابط.</CommandEmpty>
+                        <CommandGroup>
+                          {isLoadingControls ? (
+                            <CommandItem disabled>جاري تحميل الضوابط...</CommandItem>
+                          ) : controlsError ? (
+                            <CommandItem disabled>خطأ: {controlsError}</CommandItem>
+                          ) : controls.length === 0 ? (
+                            <CommandItem disabled>لا توجد ضوابط.</CommandItem>
+                          ) : (
+                            controls.map((control) => {
+                              const isSelected = selectedControls.some((c) => c.id === control.id);
+                              return (
+                                <CommandItem
+                                  key={control.id}
+                                  value={`${control.controlNumber} ${control.controlText}`} // Value used for searching
+                                  onSelect={() => handleControlSelect(control)}
+                                  className="flex items-center justify-between cursor-pointer"
+                                >
+                                  <span className="flex-1 text-right truncate" title={`${control.controlNumber} - ${control.controlText}`}>
+                                    {control.controlNumber} - {control.controlText}
+                                  </span>
+                                  <Checkbox
+                                    checked={isSelected}
+                                    className="ml-2" // Margin left for RTL
+                                    aria-hidden="true" // Hide from screen readers, handled by CommandItem selection
+                                  />
+                                </CommandItem>
+                              );
+                            })
+                          )}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {/* Display selected controls as badges */}
+                {selectedControls.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedControls.map((control) => (
+                      <Badge
+                        key={control.id}
+                        variant="secondary"
+                        className="flex items-center gap-1"
+                      >
+                        <span>{control.controlNumber}</span>
+                        <button
+                          onClick={() => handleControlRemove(control.id)}
+                          className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+                          aria-label={`إزالة ${control.controlNumber}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="mb-4">
