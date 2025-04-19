@@ -1,10 +1,24 @@
 'use client';
 
 import React, { useState, useEffect, FormEvent } from 'react';
+import Image from "next/image"; // Added for header logo
+import Link from "next/link"; // Added for sidebar links
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Trash2 } from 'lucide-react'; // Icon for delete button
+import {
+  Trash2, // Icon for delete button
+  Bell,   // Header icon
+  User as UserIcon, // Header icon
+  Menu,   // Sidebar toggle icon
+  Server, // Sidebar icon
+  FileText, // Sidebar icon
+  FileWarning, // Sidebar icon
+  LayoutDashboard, // Sidebar icon
+  ListChecks, // Sidebar icon
+  ShieldCheck, // Sidebar icon
+  Building // Sidebar icon (current page)
+} from 'lucide-react';
 import { useAuth } from '@/lib/auth-context'; // Assuming you have auth context
 import { useRouter } from 'next/navigation';
 
@@ -21,11 +35,12 @@ export default function ManageDepartmentsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [addError, setAddError] = useState<string | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true); // State for sidebar
 
     const { user } = useAuth(); // Get user info for role checks if needed
     const router = useRouter();
 
-    // Redirect if not a security manager (or admin)
+    // Optional: Redirect if not a security manager (or admin)
     // useEffect(() => {
     //     if (user && user.role !== 'SECURITY_MANAGER' && user.role !== 'ADMIN') {
     //         router.push('/unauthorized'); // Or your login/home page
@@ -49,7 +64,6 @@ export default function ManageDepartmentsPage() {
             setDepartments(data);
         } catch (err) {
             console.error("Failed to fetch departments:", err);
-            setError('فشل في تحميل قائمة الأقسام.');
             if (err instanceof Error) {
                 setError(`فشل في تحميل قائمة الأقسام: ${err.message}`);
             } else {
@@ -132,63 +146,153 @@ export default function ManageDepartmentsPage() {
     // if (!user) return <div>Loading user data...</div>;
 
     return (
-        <div className="container mx-auto p-4 md:p-6 lg:p-8">
-            <h1 className="text-2xl font-bold mb-6 text-center">إدارة الأقسام</h1>
+        <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
+            {/* Header - Copied from system-info */}
+            <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
+                        <div className="relative h-16 w-16">
+                            <Image
+                                src="/static/image/logo.png" width={160} height={160}
+                                alt="Logo"
+                                className="object-contain"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex-grow"></div>
+                    <div className="flex items-center space-x-4 space-x-reverse">
+                        <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
+                            <Bell className="h-5 w-5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
+                            <UserIcon className="h-5 w-5" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-white hover:bg-slate-700 md:hidden"
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                        >
+                            <Menu className="h-6 w-6" />
+                        </Button>
+                    </div>
+                </div>
+            </header>
 
-            {/* Add Department Form */}
-            <Card className="mb-8">
-                <CardHeader>
-                    <CardTitle>إضافة قسم جديد</CardTitle>
-                </CardHeader>
-                <form onSubmit={handleAddDepartment}>
-                    <CardContent>
-                        <Input
-                            type="text"
-                            placeholder="أدخل اسم القسم الجديد"
-                            value={newDepartmentName}
-                            onChange={(e) => setNewDepartmentName(e.target.value)}
-                            required
-                            className="mb-2"
-                        />
-                        {addError && <p className="text-red-500 text-sm">{addError}</p>}
-                    </CardContent>
-                    <CardFooter>
-                        <Button type="submit">إضافة القسم</Button>
-                    </CardFooter>
-                </form>
-            </Card>
+            {/* Main Layout with Sidebar - Copied from system-info */}
+            <div className="flex flex-row">
+                {/* Sidebar */}
+                <aside className={`bg-slate-800 text-white p-4 sticky top-[76px] h-[calc(100vh-76px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+                    <div className={`flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-white hover:bg-slate-700"
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                        >
+                            <Menu className="h-6 w-6" />
+                        </Button>
+                    </div>
+                    <nav className="space-y-2">
+                        {/* Sidebar Links - Copied from main dashboard */}
+                        <Link href="/security-manager" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+                            <LayoutDashboard className="h-5 w-5 flex-shrink-0" />
+                            <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>لوحة المعلومات</span>
+                        </Link>
+                        <Link href="/security-manager#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+                            <ShieldCheck className="h-5 w-5 flex-shrink-0" />
+                            <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقييمات المعينة</span>
+                        </Link>
+                        <Link href="/security-manager/system-info" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+                            <Server className="h-5 w-5 flex-shrink-0" />
+                            <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>معلومات الأنظمة</span>
+                        </Link>
+                        {/* Highlight the current page */}
+                        <Link href="/security-manager/departments" className={`flex items-center gap-3 px-3 py-2 rounded bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+                            <Building className="h-5 w-5 flex-shrink-0" />
+                            <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة الأقسام</span>
+                        </Link>
+                        <Link href="/security-manager#tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+                            <ListChecks className="h-5 w-5 flex-shrink-0" />
+                            <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المهام</span>
+                        </Link>
+                        <Link href="/security-manager#risks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+                            <FileWarning className="h-5 w-5 flex-shrink-0" />
+                            <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المخاطر</span>
+                        </Link>
+                        <Link href="/security-manager#reports" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+                            <FileText className="h-5 w-5 flex-shrink-0" />
+                            <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقارير</span>
+                        </Link>
+                    </nav>
+                </aside>
 
-            {/* Departments List */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>الأقسام الحالية</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {isLoading && <p>جاري تحميل الأقسام...</p>}
-                    {error && <p className="text-red-500">{error}</p>}
-                    {!isLoading && !error && departments.length === 0 && (
-                        <p>لا توجد أقسام مضافة حالياً.</p>
-                    )}
-                    {!isLoading && !error && departments.length > 0 && (
-                        <ul className="space-y-3">
-                            {departments.map((dept) => (
-                                <li key={dept.id} className="flex justify-between items-center p-3 border rounded-md bg-gray-50">
-                                    <span className="font-medium">{dept.name}</span>
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={() => handleDeleteDepartment(dept.id)}
-                                        aria-label={`حذف قسم ${dept.name}`}
-                                    >
-                                        <Trash2 className="h-4 w-4 mr-1" />
-                                        حذف
-                                    </Button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </CardContent>
-            </Card>
+                {/* Main Content Area */}
+                <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
+                    {/* Original Page Content Starts Here */}
+                    <div className="flex justify-between items-center mb-6">
+                         <h1 className="text-2xl font-bold text-slate-800">إدارة الأقسام</h1>
+                         {/* Optional: Add search or other controls if needed */}
+                    </div>
+
+
+                    {/* Add Department Form */}
+                    <Card className="mb-8">
+                        <CardHeader>
+                            <CardTitle>إضافة قسم جديد</CardTitle>
+                        </CardHeader>
+                        <form onSubmit={handleAddDepartment}>
+                            <CardContent>
+                                <Input
+                                    type="text"
+                                    placeholder="أدخل اسم القسم الجديد"
+                                    value={newDepartmentName}
+                                    onChange={(e) => setNewDepartmentName(e.target.value)}
+                                    required
+                                    className="mb-2"
+                                />
+                                {addError && <p className="text-red-500 text-sm">{addError}</p>}
+                            </CardContent>
+                            <CardFooter>
+                                <Button type="submit">إضافة القسم</Button>
+                            </CardFooter>
+                        </form>
+                    </Card>
+
+                    {/* Departments List */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>الأقسام الحالية</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {isLoading && <p>جاري تحميل الأقسام...</p>}
+                            {error && <p className="text-red-500">{error}</p>}
+                            {!isLoading && !error && departments.length === 0 && (
+                                <p>لا توجد أقسام مضافة حالياً.</p>
+                            )}
+                            {!isLoading && !error && departments.length > 0 && (
+                                <ul className="space-y-3">
+                                    {departments.map((dept) => (
+                                        <li key={dept.id} className="flex justify-between items-center p-3 border rounded-md bg-gray-50 hover:bg-gray-100">
+                                            <span className="font-medium">{dept.name}</span>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={() => handleDeleteDepartment(dept.id)}
+                                                aria-label={`حذف قسم ${dept.name}`}
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-1" />
+                                                حذف
+                                            </Button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+                    {/* Original Page Content Ends Here */}
+                </main>
+            </div>
         </div>
     );
 }

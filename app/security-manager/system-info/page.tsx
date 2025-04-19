@@ -199,7 +199,7 @@ export default function SystemInfoPage() {
                     <tr className="text-right border-b border-gray-200">
                       <th className="pb-3 font-medium text-gray-700 pr-4">اسم النظام</th>
                       <th className="pb-3 font-medium text-gray-700">فئة النظام</th>
-                      <th className="pb-3 font-medium text-gray-700">التقييم (الشركة)</th>
+                      <th className="pb-3 font-medium text-gray-700">الشركة</th>
                       <th className="pb-3 font-medium text-gray-700">تاريخ الإدخال</th>
                       <th className="pb-3 font-medium text-gray-700">إجمالي الأصول</th>
                       {/* <th className="pb-3 font-medium text-gray-700">الإجراءات</th> */}
