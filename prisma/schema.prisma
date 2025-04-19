@@ -47,6 +47,41 @@ model Assessment {
 
   @@index([securityManagerId])
   @@index([createdById])
+
+  sensitiveSystems SensitiveSystemInfo[] // Relation to the sensitive system info
+}
+
+model SensitiveSystemInfo {
+  id                         String  @id @default(uuid())
+  systemName                 String
+  systemCategory             String
+  systemDescription          String
+  assetRouterCount           Int
+  assetSwitchCount           Int
+  assetGatewayCount          Int
+  assetFirewallCount         Int
+  assetIPSIDSCount           Int
+  assetAPTCount              Int
+  assetDatabaseCount         Int
+  assetStorageCount          Int
+  assetMiddlewareCount       Int
+  assetServerOSCount         Int
+  assetApplicationCount      Int
+  assetEncryptionDeviceCount Int
+  assetPeripheralCount       Int
+  assetSupportStaffCount     Int
+  assetDocumentationCount    Int
+  otherAssetType             String?
+  otherAssetCount            Int?
+  totalAssetCount            Int // Consider calculating this on the frontend/backend if needed
+
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assessmentId])
 }
 
 enum Role {

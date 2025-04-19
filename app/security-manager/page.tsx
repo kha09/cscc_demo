@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react" // Added useEffect
 import Image from "next/image"
+import { Assessment, User } from "@prisma/client"; // Added Assessment, User types
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"; // Added Dialog components
 import { 
   Bell, 
-  User, 
+  User as UserIcon, // Aliased the User icon
   ClipboardList, 
   BarChart, 
   FileText, 
@@ -20,10 +22,94 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+// Import the form component
+import SensitiveSystemForm from "@/components/sensitive-system-form"; 
 
 export default function SecurityManagerDashboardPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
+
+  // --- Temporary User ID Fetch ---
+  // In a real app, get this from auth context/session
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        // Fetch the first security manager user as a placeholder
+        // Ensure the API endpoint exists and returns security managers
+        const response = await fetch('/api/users/security-managers'); 
+        if (!response.ok) throw new Error('Failed to fetch security managers');
+        const managers: User[] = await response.json();
+        if (managers.length > 0) {
+          setUserId(managers[0].id);
+        } else {
+          setError("No Security Manager user found to display assessments for.");
+          setIsLoading(false); // Stop loading if no user found
+        }
+      } catch (err: any) {
+        console.error("Error fetching user ID:", err);
+        setError(err.message || "Failed to get user ID");
+        setIsLoading(false); // Stop loading on error
+      }
+    };
+    fetchUserId();
+  }, []);
+  // --- End Temporary User ID Fetch ---
+
+  // Fetch assessments when userId is available
+  useEffect(() => {
+    if (!userId) return; // Don't fetch if userId is not set
+
+    const fetchAssessments = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`/api/users/${userId}/assessments`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch assessments: ${response.statusText}`);
+        }
+        const data: Assessment[] = await response.json();
+        setAssessments(data);
+      } catch (err: any) {
+        console.error("Error fetching assessments:", err);
+        setError(err.message || "An unknown error occurred");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAssessments();
+  }, [userId]); // Re-run when userId changes
+
+  const handleOpenForm = (assessmentId: string) => {
+    setSelectedAssessmentId(assessmentId);
+    setIsModalOpen(true);
+  };
+
+  // Filter assessments based on search query (simple example)
+  const filteredAssessments = assessments.filter(assessment => 
+    assessment.companyNameAr.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    assessment.companyNameEn.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Format date helper
+  const formatDate = (dateString: string | Date) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('ar-SA', { // Use Arabic locale for formatting
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch (e) {
+      return 'Invalid Date';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
       {/* Header */}
@@ -66,7 +152,7 @@ export default function SecurityManagerDashboardPage() {
               <Bell className="h-5 w-5" />
             </Button>
             <Button variant="ghost" size="icon" className="text-white">
-              <User className="h-5 w-5" />
+              <UserIcon className="h-5 w-5" /> {/* Use the aliased icon */}
             </Button>
           </div>
         </div>
@@ -151,57 +237,80 @@ export default function SecurityManagerDashboardPage() {
               <table className="w-full">
                 <thead>
                   <tr className="text-right border-b border-gray-200">
-                    <th className="pb-3 font-medium text-gray-700 pr-4">اسم التقييم</th>
-                    
-                    <th className="pb-3 font-medium text-gray-700">تاريخ البدء</th>
-                    <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th>
-                    <th className="pb-3 font-medium text-gray-700">التقدم</th>
+                    <th className="pb-3 font-medium text-gray-700 pr-4">اسم الشركة (عربي)</th>
+                    <th className="pb-3 font-medium text-gray-700">اسم الشركة (انجليزي)</th>
+                    <th className="pb-3 font-medium text-gray-700">تاريخ الإنشاء</th>
+                    {/* <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th> */}
+                    {/* <th className="pb-3 font-medium text-gray-700">التقدم</th> */}
                     <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقييم الأنظمة الحساسة 2025</td>
-                    
-                    <td className="py-4">15 يناير 2025</td>
-                    <td className="py-4">15 مارس 2025</td>
-                    <td className="py-4">
-                      <div className="flex items-center">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">
-                          <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '75%' }}></div>
-                        </div>
-                        <span className="text-sm">75%</span>
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        عرض
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقييم الأنظمة الحساسة 2024</td>
-                    
-                    <td className="py-4">1 فبراير 2025</td>
-                    <td className="py-4">1 أبريل 2025</td>
-                    <td className="py-4">
-                      <div className="flex items-center">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">
-                          <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '45%' }}></div>
-                        </div>
-                        <span className="text-sm">45%</span>
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        عرض
-                      </Button>
-                    </td>
-                  </tr>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-4">جاري تحميل التقييمات...</td>
+                    </tr>
+                  ) : error ? (
+                     <tr>
+                      <td colSpan={5} className="text-center py-4 text-red-600">{error}</td>
+                    </tr>
+                  ) : filteredAssessments.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-4">لا توجد تقييمات معينة لك.</td>
+                    </tr>
+                  ) : (
+                    filteredAssessments.map((assessment) => (
+                      <tr key={assessment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4 pr-4">{assessment.companyNameAr}</td>
+                        <td className="py-4">{assessment.companyNameEn}</td>
+                        <td className="py-4">{formatDate(assessment.createdAt)}</td>
+                        {/* Add other columns like deadline or progress if available in Assessment model */}
+                        {/* <td className="py-4">N/A</td> */}
+                        {/* <td className="py-4">
+                          <div className="flex items-center">
+                            <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">
+                              <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '0%' }}></div>
+                            </div>
+                            <span className="text-sm">0%</span>
+                          </div>
+                        </td> */}
+                        <td className="py-4">
+                          {/* Button to open the form modal */}
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white"
+                            onClick={() => handleOpenForm(assessment.id)}
+                          >
+                            إضافة معلومات النظام
+                          </Button>
+                          {/* Add other actions like 'View Details' if needed */}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </Card>
+
+          {/* Modal for Sensitive System Form */}
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            {/* DialogTrigger is usually placed on the button, but we trigger manually */}
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>معلومات اساسية عن الأنظمة الحساسة</DialogTitle>
+              </DialogHeader>
+              {selectedAssessmentId ? (
+                <SensitiveSystemForm 
+                  assessmentId={selectedAssessmentId} 
+                  onFormSubmit={() => setIsModalOpen(false)} // Close modal on successful submit
+                />
+              ) : (
+                <div className="p-4 text-center">لم يتم تحديد تقييم.</div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Two Column Layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -293,7 +402,7 @@ export default function SecurityManagerDashboardPage() {
             </Card>
           </div>
           
-          {/* Report Generation */}
+          {/* Report Generation (Keep existing sections) */}
           <Card className="p-6 mt-6">
             <h2 className="text-xl font-semibold mb-4">إنشاء التقارير</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
