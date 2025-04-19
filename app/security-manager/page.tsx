@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { Assessment, User, SensitiveSystemInfo } from "@prisma/client";
+import { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client"; // Added Control
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Removed DialogTrigger as it's not used directly here
 import {
   Bell,
   User as UserIcon, // Aliased the User icon
-  ClipboardList, 
-  BarChart, 
-  FileText, 
-  AlertTriangle, 
+  ClipboardList,
+  BarChart,
+  FileText,
+  AlertTriangle,
   Search,
   Plus,
   Filter,
@@ -33,9 +33,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 // Import the form component
 import SensitiveSystemForm from "@/components/sensitive-system-form";
 
-// Define the type for the fetched sensitive system data
-// We only need id and systemName for the dropdown
+// Define the type for the fetched sensitive system data (id and name)
 type SimpleSensitiveSystemInfo = Pick<SensitiveSystemInfo, 'id' | 'systemName'>;
+
+// Define type for fetched control data (id, number, text)
+type SimpleControl = Pick<Control, 'id' | 'controlNumber' | 'controlText'>;
 
 
 export default function SecurityManagerDashboardPage() {
@@ -51,6 +53,11 @@ export default function SecurityManagerDashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
 
+  // State variables for controls
+  const [controls, setControls] = useState<SimpleControl[]>([]);
+  const [isLoadingControls, setIsLoadingControls] = useState(true);
+  const [controlsError, setControlsError] = useState<string | null>(null);
+
 
   // --- Temporary User ID Fetch ---
   // In a real app, get this from auth context/session
@@ -59,7 +66,7 @@ export default function SecurityManagerDashboardPage() {
       try {
         // Fetch the first security manager user as a placeholder
         // Ensure the API endpoint exists and returns security managers
-        const response = await fetch('/api/users/security-managers'); 
+        const response = await fetch('/api/users/security-managers');
         if (!response.ok) throw new Error('Failed to fetch security managers');
         const managers: User[] = await response.json();
         if (managers.length > 0) {
@@ -83,7 +90,7 @@ export default function SecurityManagerDashboardPage() {
   }, []);
   // --- End Temporary User ID Fetch ---
 
-  // Fetch assessments when userId is available
+  // Fetch assessments and systems when userId is available
   useEffect(() => {
     if (!userId) return;
 
@@ -131,6 +138,29 @@ export default function SecurityManagerDashboardPage() {
     fetchSensitiveSystems(); // Fetch systems as well
   }, [userId]);
 
+  // Fetch Controls on component mount
+  useEffect(() => {
+    const fetchControls = async () => {
+      setIsLoadingControls(true);
+      setControlsError(null);
+      try {
+        const response = await fetch('/api/controls');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch controls: ${response.statusText}`);
+        }
+        const data: SimpleControl[] = await response.json();
+        setControls(data);
+      } catch (err: any) {
+        console.error("Error fetching controls:", err);
+        setControlsError(err.message || "An unknown error occurred fetching controls");
+      } finally {
+        setIsLoadingControls(false);
+      }
+    };
+
+    fetchControls();
+  }, []); // Empty dependency array means run once on mount
+
 
   const handleOpenForm = (assessmentId: string) => {
     setSelectedAssessmentId(assessmentId);
@@ -138,7 +168,7 @@ export default function SecurityManagerDashboardPage() {
   };
 
   // Filter assessments based on search query (simple example)
-  const filteredAssessments = assessments.filter(assessment => 
+  const filteredAssessments = assessments.filter(assessment =>
     assessment.companyNameAr.toLowerCase().includes(searchQuery.toLowerCase()) ||
     assessment.companyNameEn.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -255,9 +285,9 @@ export default function SecurityManagerDashboardPage() {
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Search className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input 
-                  placeholder="بحث..." 
-                  className="pl-4 pr-10 w-64 text-right" 
+                <Input
+                  placeholder="بحث..."
+                  className="pl-4 pr-10 w-64 text-right"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -268,7 +298,7 @@ export default function SecurityManagerDashboardPage() {
               </Button>
             </div>
           </div>
-          
+
           {/* Stats Cards - Using CardHeader/Content */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
              <Card>
@@ -317,7 +347,7 @@ export default function SecurityManagerDashboardPage() {
           </div>
 
           {/* Anchor for Assessments */}
-          <div id="assessments"></div> 
+          <div id="assessments"></div>
 
           {/* Active Assessments Section - Using CardHeader/Content */}
           <Card className="mb-6">
@@ -378,9 +408,9 @@ export default function SecurityManagerDashboardPage() {
                         </td> */}
                         <td className="py-4">
                           {/* Button to open the form modal */}
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             className="text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white"
                             onClick={() => handleOpenForm(assessment.id)}
                           >
@@ -405,8 +435,8 @@ export default function SecurityManagerDashboardPage() {
                 <DialogTitle>معلومات اساسية عن الأنظمة الحساسة</DialogTitle>
               </DialogHeader>
               {selectedAssessmentId ? (
-                <SensitiveSystemForm 
-                  assessmentId={selectedAssessmentId} 
+                <SensitiveSystemForm
+                  assessmentId={selectedAssessmentId}
                   onFormSubmit={() => setIsModalOpen(false)} // Close modal on successful submit
                 />
               ) : (
@@ -455,25 +485,34 @@ export default function SecurityManagerDashboardPage() {
                  </Select>
                </div>
 
-              {/* Select Control Dropdown */}
+              {/* Select Control Dropdown - Updated */}
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">اختر الضابط</span> {/* Keep label as is, but it means Control */}
                 </div>
-                <div className="relative">
-                  <select className="w-full p-2 border rounded-md text-right pr-10 appearance-none bg-white">
-                    <option>1-1-3-1 إجراء اختبار التحمل (Stress Testing) للتأكد من سعة المكونات المختلفة.
-                    </option>
-                    <option>2-1-3-1 التأكد من تطبيق متطلبات استمرارية الأعمال.
-                    </option>
-
-                    <option>3-2-3-1 تأمين واجهة برمجة التطبيقات.
-                    </option>
-                  </select>
-                  <ChevronDown className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                </div>
+                 <Select dir="rtl">
+                   <SelectTrigger className="w-full text-right">
+                     <SelectValue placeholder="اختر ضابطاً..." />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {isLoadingControls ? (
+                       <SelectItem value="loading" disabled>جاري تحميل الضوابط...</SelectItem>
+                     ) : controlsError ? (
+                       <SelectItem value="error" disabled>خطأ: {controlsError}</SelectItem>
+                     ) : controls.length === 0 ? (
+                       <SelectItem value="no-controls" disabled>لا توجد ضوابط.</SelectItem>
+                     ) : (
+                       controls.map((control) => (
+                         <SelectItem key={control.id} value={control.id}>
+                           {/* Display control number and text */}
+                           {control.controlNumber} - {control.controlText}
+                         </SelectItem>
+                       ))
+                     )}
+                   </SelectContent>
+                 </Select>
               </div>
-              
+
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">اختر القسم</span>
@@ -486,7 +525,7 @@ export default function SecurityManagerDashboardPage() {
                   <ChevronDown className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">الموعد النهائي</span>
@@ -496,7 +535,7 @@ export default function SecurityManagerDashboardPage() {
                   <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
               </div>
-                
+
                 <Button className="w-full bg-nca-teal text-white hover:bg-nca-teal-dark">
                   تعيين المهمة
                 </Button>
@@ -538,14 +577,14 @@ export default function SecurityManagerDashboardPage() {
                   </div>
                 </div>
               </div>
-                
+
                 <Button variant="outline" className="w-full mt-4 text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white">
                   عرض جميع المخاطر
                 </Button>
                </CardContent>
             </Card>
           </div>
-          
+
           {/* Anchor for Reports */}
           <div id="reports"></div>
           {/* Report Generation */}
@@ -564,7 +603,7 @@ export default function SecurityManagerDashboardPage() {
                 <h3 className="text-lg font-medium text-center mb-2">تقرير الامتثال</h3>
                 <p className="text-sm text-gray-600 text-center">تقرير شامل عن مستوى الامتثال لضوابط الأمن السيبراني</p>
               </div>
-              
+
               <div className="border rounded-lg p-6 hover:border-nca-teal cursor-pointer transition-all">
                 <div className="flex justify-center mb-4">
                   <div className="bg-nca-teal bg-opacity-10 p-4 rounded-full">
@@ -574,7 +613,7 @@ export default function SecurityManagerDashboardPage() {
                 <h3 className="text-lg font-medium text-center mb-2">تقرير المخاطر</h3>
                 <p className="text-sm text-gray-600 text-center">تقرير مفصل عن المخاطر المكتشفة وتوصيات المعالجة</p>
               </div>
-              
+
               <div className="border rounded-lg p-6 hover:border-nca-teal cursor-pointer transition-all">
                 <div className="flex justify-center mb-4">
                   <div className="bg-nca-teal bg-opacity-10 p-4 rounded-full">
@@ -585,7 +624,7 @@ export default function SecurityManagerDashboardPage() {
                 <p className="text-sm text-gray-600 text-center">تقرير تحليلي مع رسوم بيانية ومؤشرات أداء</p>
               </div>
             </div>
-              
+
               <div className="mt-6 p-4 border rounded-lg bg-gray-50">
                 <h3 className="text-lg font-medium mb-3">إعدادات التقرير</h3>
                 <div className="flex justify-end mt-4">
