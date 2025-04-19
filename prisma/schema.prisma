@@ -84,6 +84,23 @@ model SensitiveSystemInfo {
   @@index([assessmentId])
 }
 
+model Control {
+  id            String  @id @default(uuid())
+  mainComponent String
+  subComponent  String?
+  controlType   String // Could be an Enum if values are fixed: ControlType @default(BASIC)
+  controlNumber String  @unique // Assuming control numbers are unique identifiers
+  controlText   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Optional Enum for ControlType if needed
+// enum ControlType {
+//   BASIC // أساسي
+//   SUB   // فرعي
+// }
+
 enum Role {
   ADMIN
   SECURITY_MANAGER

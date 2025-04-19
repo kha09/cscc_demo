@@ -4,7 +4,9 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
+    // "noEmit": true, // Changed to false to allow JS output
+    "noEmit": false,
+    "outDir": "./dist", // Added output directory
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
