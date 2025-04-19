@@ -24,14 +24,23 @@ export async function POST(request: Request) {
     const secondaryContactEmail = formData.get('secondaryContactEmail') as string;
     const logoFile = formData.get('logo') as File | null;
 
-    // --- Authentication Placeholder ---
-    // In a real app, get the admin user's ID from the session/token
-    const adminUserId = "placeholder-admin-user-id"; // Replace with actual auth logic
-    // --- End Authentication Placeholder ---
+    // --- Get Admin User ID (Temporary Fix) ---
+    // Fetch the first admin user to associate with the assessment creation
+    const adminUser = await prisma.user.findFirst({
+      where: { role: 'ADMIN' }, // Assuming Role enum is imported or use 'ADMIN' string
+      select: { id: true },
+    });
+
+    if (!adminUser) {
+      console.error('No ADMIN user found in the database.');
+      return NextResponse.json({ message: 'Admin user not found to create assessment' }, { status: 500 });
+    }
+    const adminUserId = adminUser.id;
+    // --- End Temporary Fix ---
 
 
     // Basic Validation
-    if (!companyNameAr || !companyNameEn || !securityManagerId || !secondaryContactEmail || !adminUserId) {
+    if (!companyNameAr || !companyNameEn || !securityManagerId || !secondaryContactEmail) { // Removed adminUserId check as it's fetched above
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 

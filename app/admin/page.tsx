@@ -15,16 +15,41 @@ import {
   Filter,
   Download,
   Upload, // Added for logo input styling
+  Menu, // Added for sidebar toggle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"; // Added Dialog components
-import { Label } from "@/components/ui/label"; // Added Label component
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"; // Import AlertDialog
+import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import { Role } from "@prisma/client"; // Import Role enum
+import { Edit, Trash2 } from "lucide-react"; // Import icons for actions
 
-// Define types for Security Manager data
+// Define types for User data (matching Prisma schema)
+interface UserData {
+  id: string;
+  email: string;
+  name: string;
+  role: Role; // Use the imported Role enum
+  department?: string | null;
+  nameAr?: string | null;
+  // Add other fields if needed from your Prisma schema, e.g., mobile, phone, createdAt
+  createdAt: Date; // Assuming createdAt is available
+}
+
+// Define type for the Edit Form data
+interface EditFormData {
+  name: string;
+  nameAr: string;
+  email: string;
+  role: Role; // Use the Role enum type
+  department: string;
+}
+
+// Define types for Security Manager data (subset of UserData)
 interface SecurityManager {
   id: string;
   name: string;
@@ -35,6 +60,7 @@ interface SecurityManager {
 }
 
 export default function AdminDashboardPage() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // State for sidebar visibility
   const [searchQuery, setSearchQuery] = useState("");
   const [securityManagers, setSecurityManagers] = useState<SecurityManager[]>([]);
   const [selectedSecurityManagerId, setSelectedSecurityManagerId] = useState<string>('');
@@ -52,6 +78,26 @@ export default function AdminDashboardPage() {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle'); // For form submission feedback
   const [submitError, setSubmitError] = useState<string | null>(null); // Error state for form submission
   const [isFormOpen, setIsFormOpen] = useState(false); // State to control Dialog visibility
+
+  // State for all users table
+  const [allUsers, setAllUsers] = useState<UserData[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true); // Start loading initially
+  const [usersError, setUsersError] = useState<string | null>(null);
+
+  // State for Edit User Dialog
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  // Explicitly type the state using the EditFormData interface
+  const [editFormData, setEditFormData] = useState<EditFormData>({ name: '', nameAr: '', email: '', role: Role.USER, department: '' });
+  const [editSubmitStatus, setEditSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [editSubmitError, setEditSubmitError] = useState<string | null>(null);
+
+  // State for Delete User Confirmation
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [deleteStatus, setDeleteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
 
   // Fetch security managers on component mount
   useEffect(() => {
@@ -74,7 +120,162 @@ export default function AdminDashboardPage() {
       }
     };
     fetchManagers();
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // Fetch all users for the management table
+  useEffect(() => {
+    const fetchAllUsers = async () => {
+      setUsersLoading(true);
+      setUsersError(null);
+      try {
+        const response = await fetch('/api/users'); // Fetch from the new endpoint
+        if (!response.ok) {
+          // Try to parse error message from response body
+          const errorData = await response.json().catch(() => ({ message: `Failed to fetch users: ${response.statusText}` }));
+          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+        const data: UserData[] = await response.json();
+        setAllUsers(data);
+      } catch (err: any) {
+        setUsersError(err.message);
+        console.error("Error fetching all users:", err);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+    fetchAllUsers();
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // Function to fetch all users (can be reused for refresh)
+  const fetchAllUsers = async () => {
+    setUsersLoading(true);
+    setUsersError(null);
+    try {
+      const response = await fetch('/api/users'); // Fetch from the new endpoint
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `Failed to fetch users: ${response.statusText}` }));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      const data: UserData[] = await response.json();
+      setAllUsers(data);
+    } catch (err: any) {
+      setUsersError(err.message);
+      console.error("Error fetching all users:", err);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  // Handle Edit Button Click
+  const handleEditClick = (user: UserData) => {
+    setEditingUser(user);
+    setEditFormData({
+      name: user.name || '',
+      nameAr: user.nameAr || '',
+      email: user.email || '',
+      role: user.role,
+      department: user.department || '',
+    });
+    setEditSubmitStatus('idle');
+    setEditSubmitError(null);
+    setIsEditDialogOpen(true);
+  };
+
+  // Handle Edit Form Input Change
+  const handleEditFormChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+   // Handle Edit Form Role Change (using Select component)
+   const handleEditRoleChange = (value: Role) => {
+    setEditFormData(prev => ({ ...prev, role: value }));
+  };
+
+  // Handle Edit Form Submission
+  const handleUpdateUser = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingUser) return;
+
+    setEditSubmitStatus('loading');
+    setEditSubmitError(null);
+
+    try {
+      const response = await fetch(`/api/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: editFormData.name,
+            nameAr: editFormData.nameAr || null, // Send null if empty
+            email: editFormData.email,
+            role: editFormData.role,
+            department: editFormData.department || null, // Send null if empty
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to update user.' }));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      setEditSubmitStatus('success');
+      await fetchAllUsers(); // Refresh the user list
+      setTimeout(() => {
+        setIsEditDialogOpen(false);
+        setEditSubmitStatus('idle');
+      }, 1500); // Close dialog after success message
+
+    } catch (err: any) {
+      console.error("Update error:", err);
+      setEditSubmitError(err.message || "An unexpected error occurred.");
+      setEditSubmitStatus('error');
+    }
+  };
+
+
+  // Handle Delete Button Click
+  const handleDeleteClick = (userId: string) => {
+    setDeletingUserId(userId);
+    setDeleteStatus('idle');
+    setDeleteError(null);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Handle Delete Confirmation
+  const handleDeleteUser = async () => {
+    if (!deletingUserId) return;
+
+    setDeleteStatus('loading');
+    setDeleteError(null);
+
+    try {
+      const response = await fetch(`/api/users/${deletingUserId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to delete user.' }));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      setDeleteStatus('success');
+      await fetchAllUsers(); // Refresh the user list
+      // Optionally show success message before closing
+      setTimeout(() => {
+         setIsDeleteDialogOpen(false);
+         setDeletingUserId(null);
+         setDeleteStatus('idle');
+      }, 1500);
+
+
+    } catch (err: any) {
+      console.error("Delete error:", err);
+      setDeleteError(err.message || "An unexpected error occurred.");
+      setDeleteStatus('error');
+      // Keep dialog open on error to show message
+    }
+  };
+
 
   // Handle security manager selection change
   const handleManagerChange = (value: string) => {
@@ -218,15 +419,66 @@ export default function AdminDashboardPage() {
             <Button variant="ghost" size="icon" className="text-white">
               <User className="h-5 w-5" />
             </Button>
+            {/* Sidebar Toggle Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white md:hidden mr-4" // Show only on smaller screens initially, adjust as needed
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+      {/* Main Layout with Sidebar */}
+      <div className="flex flex-row"> {/* Changed to flex-row for left sidebar */}
+        {/* Sidebar */}
+        {/* Added transition-all and duration */}
+        <aside className={`bg-slate-800 text-white p-4 sticky top-[76px] h-[calc(100vh-76px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}> {/* Adjust top, conditional width */}
+           {/* Toggle Button inside sidebar for larger screens */}
+           <div className={`flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
+             <Button
+               variant="ghost"
+               size="icon"
+               className="text-white hover:bg-slate-700"
+               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+             >
+               <Menu className="h-6 w-6" />
+             </Button>
+           </div>
+          <nav className="space-y-2">
+            {/* Links updated for conditional rendering */}
+            <Link href="/admin" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Activity className="h-5 w-5 flex-shrink-0" /> {/* Example Icon */}
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>لوحة المعلومات</span>
+            </Link>
+            <Link href="/admin#user-management" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Users className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة المستخدمين</span>
+            </Link>
+            {/* TODO: Link to actual assessment management page when created */}
+            <Link href="/admin#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <FileText className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة التقييمات</span>
+            </Link>
+            <Link href="/admin#system-settings" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Server className="h-5 w-5 flex-shrink-0" /> {/* Using Server icon for settings */}
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إعدادات النظام</span>
+            </Link>
+            {/* Add more links as needed */}
+          </nav>
+        </aside>
+
+        {/* Main Content Area */}
+        {/* Added transition-all and conditional margin */}
+        {/* Reverted margin to mr for left sidebar in RTL */}
+        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}> {/* Adjust height, scrolling, and margin-right */}
+          {/* Removed max-w-7xl and mx-auto from here, applied to overall container if needed */}
+          {/* Original content starts */}
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">لوحة الإدارة</h1>
+            <h1 className="text-2xl font-bold text-slate-800">لوحة الإدارة</h1> {/* Title remains in main content */}
             <div className="flex items-center gap-4">
               {/* Search Input */}
               <div className="relative">
@@ -448,6 +700,8 @@ export default function AdminDashboardPage() {
               </Dialog>
             </div>
           </div>
+          {/* Anchor for User Management */}
+          <div id="user-management"></div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -521,67 +775,66 @@ export default function AdminDashboardPage() {
                     <th className="pb-3 font-medium text-gray-700">البريد الإلكتروني</th>
                     <th className="pb-3 font-medium text-gray-700">الدور</th>
                     <th className="pb-3 font-medium text-gray-700">القسم</th>
-                    <th className="pb-3 font-medium text-gray-700">الحالة</th>
-                    <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
+                    {/* <th className="pb-3 font-medium text-gray-700">الحالة</th> */} {/* Status column removed for now */}
+                    <th className="pb-3 font-medium text-gray-700">تاريخ الإنشاء</th>
+                    <th className="pb-3 font-medium text-gray-700 text-left pl-4">الإجراءات</th> {/* Align actions left */}
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">أحمد محمد</td>
-                    <td className="py-4">ahmed@example.com</td>
-                    <td className="py-4">مدير أمن</td>
-                    <td className="py-4">تكنولوجيا المعلومات</td>
-                    <td className="py-4">
-                      <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">نشط</span>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        تعديل
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">سارة عبدالله</td>
-                    <td className="py-4">sara@example.com</td>
-                    <td className="py-4">مدير قسم</td>
-                    <td className="py-4">الموارد البشرية</td>
-                    <td className="py-4">
-                      <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">نشط</span>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        تعديل
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">محمد علي</td>
-                    <td className="py-4">mohammed@example.com</td>
-                    <td className="py-4">مستخدم</td>
-                    <td className="py-4">المالية</td>
-                    <td className="py-4">
-                      <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">غير نشط</span>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        تعديل
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">نورة سعد</td>
-                    <td className="py-4">noura@example.com</td>
-                    <td className="py-4">مدير أمن</td>
-                    <td className="py-4">الأمن السيبراني</td>
-                    <td className="py-4">
-                      <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">نشط</span>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        تعديل
-                      </Button>
-                    </td>
-                  </tr>
+                  {usersLoading && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-4 text-gray-500">جاري تحميل المستخدمين...</td>
+                    </tr>
+                  )}
+                  {usersError && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-4 text-red-500">خطأ في تحميل المستخدمين: {usersError}</td>
+                    </tr>
+                  )}
+                  {!usersLoading && !usersError && allUsers.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-4 text-gray-500">لا يوجد مستخدمون لعرضهم.</td>
+                    </tr>
+                  )}
+                  {!usersLoading && !usersError && allUsers.map((user) => (
+                    <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 pr-4">{user.nameAr || user.name}</td>
+                      <td className="py-3">{user.email}</td>
+                      <td className="py-3">{user.role}</td> {/* Display role directly */}
+                      <td className="py-3">{user.department || '-'}</td>
+                      {/* <td className="py-3">
+                        <span className={`px-3 py-1 rounded-full text-sm ${user.isActive ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
+                          {user.isActive ? 'نشط' : 'غير نشط'}
+                        </span>
+                      </td> */}
+                      <td className="py-3">{new Date(user.createdAt).toLocaleDateString('ar-SA')}</td> {/* Format date */}
+                      <td className="py-3 pl-4 text-left"> {/* Align buttons left */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-blue-600 hover:text-blue-800 mr-1 h-8 w-8"
+                          onClick={() => handleEditClick(user)} // Attach edit handler
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span className="sr-only">تعديل</span>
+                        </Button>
+                        <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               className="text-red-600 hover:text-red-800 h-8 w-8"
+                               onClick={() => handleDeleteClick(user.id)} // Pass only ID
+                             >
+                               <Trash2 className="h-4 w-4" />
+                               <span className="sr-only">حذف</span>
+                             </Button>
+                           </AlertDialogTrigger>
+                           {/* Keep Delete Confirmation Dialog Content separate for clarity */}
+                         </AlertDialog>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -596,6 +849,8 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Anchor for Assessments (Placeholder) */}
+          <div id="assessments"></div>
           {/* Assessment Form is now inside the Dialog triggered above */}
 
 
@@ -696,8 +951,10 @@ export default function AdminDashboardPage() {
               </Button>
             </Card>
           </div>
-          
+
           {/* System Configuration */}
+          {/* Anchor for System Settings */}
+          <div id="system-settings"></div>
           <Card className="p-6 mt-6">
             <h2 className="text-xl font-semibold mb-4">إعدادات النظام</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -759,8 +1016,126 @@ export default function AdminDashboardPage() {
               <Button className="bg-nca-teal text-white hover:bg-nca-teal-dark">حفظ التغييرات</Button>
             </div>
           </Card>
-        </div>
-      </main>
+          {/* End of original content */}
+        </main>
+      </div> {/* End Main Layout with Sidebar */}
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات المستخدم</DialogTitle>
+            <DialogDescription>
+              قم بتحديث معلومات المستخدم أدناه.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateUser} className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-nameAr">الاسم (بالعربي)</Label>
+              <Input
+                id="edit-nameAr"
+                name="nameAr"
+                value={editFormData.nameAr}
+                onChange={handleEditFormChange}
+                className="text-right"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-name">الاسم (بالإنجليزي) <span className="text-red-500">*</span></Label>
+              <Input
+                id="edit-name"
+                name="name"
+                value={editFormData.name}
+                onChange={handleEditFormChange}
+                required
+                className="text-left" dir="ltr"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-email">البريد الإلكتروني <span className="text-red-500">*</span></Label>
+              <Input
+                id="edit-email"
+                name="email"
+                type="email"
+                value={editFormData.email}
+                onChange={handleEditFormChange}
+                required
+                className="text-left" dir="ltr"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-department">القسم</Label>
+              <Input
+                id="edit-department"
+                name="department"
+                value={editFormData.department}
+                onChange={handleEditFormChange}
+                className="text-right"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-role">الدور <span className="text-red-500">*</span></Label>
+              <Select name="role" onValueChange={handleEditRoleChange} value={editFormData.role} required>
+                <SelectTrigger id="edit-role">
+                  <SelectValue placeholder="اختر الدور..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(Role).map((roleValue) => (
+                    <SelectItem key={roleValue} value={roleValue}>
+                      {roleValue} {/* Display role enum value */}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Edit Status/Error */}
+            {editSubmitStatus === 'error' && editSubmitError && (
+              <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md">{editSubmitError}</p>
+            )}
+            {editSubmitStatus === 'success' && (
+              <p className="text-sm text-green-600 bg-green-100 p-3 rounded-md">تم تحديث المستخدم بنجاح.</p>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>إلغاء</Button>
+              <Button type="submit" className="bg-nca-teal hover:bg-nca-teal-dark text-white" disabled={editSubmitStatus === 'loading'}>
+                {editSubmitStatus === 'loading' ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من رغبتك في حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+           {/* Delete Status/Error */}
+           {deleteStatus === 'error' && deleteError && (
+              <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md">{deleteError}</p>
+            )}
+            {deleteStatus === 'success' && (
+              <p className="text-sm text-green-600 bg-green-100 p-3 rounded-md">تم حذف المستخدم بنجاح.</p>
+            )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteStatus === 'loading'}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={deleteStatus === 'loading'}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteStatus === 'loading' ? 'جاري الحذف...' : 'حذف'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
     </ProtectedRoute>
   )

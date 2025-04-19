@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma'; // Corrected import
 import { Role } from '@prisma/client'; // Import Role enum
 
 export async function GET() {
