@@ -17,8 +17,36 @@ model User {
   name      String
   role      Role     @default(USER)
   department String?
+  nameAr    String? // Added Arabic Name
+  mobile    String? // Added Mobile Number
+  phone     String? // Added Phone Number
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  createdAssessments Assessment[] @relation("CreatedByAdmin") // Relation for assessments created by this admin
+  managedAssessments Assessment[] @relation("ManagedBySecurityManager") // Relation for assessments managed by this security manager
+}
+
+model Assessment {
+  id                      String   @id @default(uuid())
+  companyNameAr           String
+  companyNameEn           String
+  logoPath                String? // Path or URL to the uploaded logo
+  securityManagerId       String   // Foreign key for the selected Security Manager
+  secondaryContactNameAr  String
+  secondaryContactNameEn  String
+  secondaryContactMobile  String
+  secondaryContactPhone   String
+  secondaryContactEmail   String
+  createdById             String   // Foreign key for the Admin who created it
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  securityManager User @relation("ManagedBySecurityManager", fields: [securityManagerId], references: [id])
+  createdBy       User @relation("CreatedByAdmin", fields: [createdById], references: [id])
+
+  @@index([securityManagerId])
+  @@index([createdById])
 }
 
 enum Role {

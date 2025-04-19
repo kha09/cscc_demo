@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Image from "next/image"
-import ProtectedRoute from "@/lib/protected-route"
-import { 
-  Bell, 
+import { useState, useEffect, ChangeEvent, FormEvent } from "react"; // Added useEffect, ChangeEvent, FormEvent
+import Image from "next/image";
+import ProtectedRoute from "@/lib/protected-route";
+import {
+  Bell,
   User, 
   Users, 
   FileText, 
@@ -13,16 +13,166 @@ import {
   Search,
   Plus,
   Filter,
-  Download
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import Link from "next/link"
+  Download,
+  Upload, // Added for logo input styling
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"; // Added Dialog components
+import { Label } from "@/components/ui/label"; // Added Label component
+import Link from "next/link";
+
+// Define types for Security Manager data
+interface SecurityManager {
+  id: string;
+  name: string;
+  nameAr?: string | null;
+  email: string;
+  mobile?: string | null;
+  phone?: string | null;
+}
 
 export default function AdminDashboardPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [securityManagers, setSecurityManagers] = useState<SecurityManager[]>([]);
+  const [selectedSecurityManagerId, setSelectedSecurityManagerId] = useState<string>('');
+  const [selectedSecurityManagerDetails, setSelectedSecurityManagerDetails] = useState<SecurityManager | null>(null);
+  const [companyNameAr, setCompanyNameAr] = useState('');
+  const [companyNameEn, setCompanyNameEn] = useState('');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [secondaryContactNameAr, setSecondaryContactNameAr] = useState('');
+  const [secondaryContactNameEn, setSecondaryContactNameEn] = useState('');
+  const [secondaryContactMobile, setSecondaryContactMobile] = useState('');
+  const [secondaryContactPhone, setSecondaryContactPhone] = useState('');
+  const [secondaryContactEmail, setSecondaryContactEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // Loading state for fetching managers
+  const [fetchError, setFetchError] = useState<string | null>(null); // Error state for fetching managers
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle'); // For form submission feedback
+  const [submitError, setSubmitError] = useState<string | null>(null); // Error state for form submission
+  const [isFormOpen, setIsFormOpen] = useState(false); // State to control Dialog visibility
+
+  // Fetch security managers on component mount
+  useEffect(() => {
+    // Renamed error state to avoid conflict
+    const fetchManagers = async () => {
+      setIsLoading(true);
+      setFetchError(null);
+      try {
+        const response = await fetch('/api/users/security-managers');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch security managers: ${response.statusText}`);
+        }
+        const data: SecurityManager[] = await response.json();
+        setSecurityManagers(data);
+      } catch (err: any) {
+        setFetchError(err.message); // Use dedicated fetch error state
+        console.error("Error fetching security managers:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchManagers();
+  }, []);
+
+  // Handle security manager selection change
+  const handleManagerChange = (value: string) => {
+    setSelectedSecurityManagerId(value);
+    const selectedManager = securityManagers.find(manager => manager.id === value) || null;
+    setSelectedSecurityManagerDetails(selectedManager);
+  };
+
+  // Handle file input change
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setLogoFile(event.target.files[0]);
+    } else {
+      setLogoFile(null);
+    }
+  };
+
+  // Handle form submission (placeholder for now)
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitStatus('loading');
+    setSubmitError(null); // Use dedicated submit error state
+
+    // Basic validation (can be expanded)
+    if (!companyNameAr || !companyNameEn || !selectedSecurityManagerId || !secondaryContactEmail) {
+        setSubmitError("يرجى ملء جميع الحقول المطلوبة."); // Use dedicated submit error state
+        setSubmitStatus('error');
+        return;
+    }
+
+    console.log("Form submitted with data:", {
+      companyNameAr,
+      companyNameEn,
+      logoFile: logoFile?.name, // Log file name for now
+      selectedSecurityManagerId,
+      secondaryContactNameAr,
+      secondaryContactNameEn,
+      secondaryContactMobile,
+      secondaryContactPhone,
+      secondaryContactEmail,
+    });
+
+    const formData = new FormData();
+    formData.append('companyNameAr', companyNameAr);
+    formData.append('companyNameEn', companyNameEn);
+    formData.append('securityManagerId', selectedSecurityManagerId);
+    formData.append('secondaryContactNameAr', secondaryContactNameAr);
+    formData.append('secondaryContactNameEn', secondaryContactNameEn);
+    formData.append('secondaryContactMobile', secondaryContactMobile);
+    formData.append('secondaryContactPhone', secondaryContactPhone);
+    formData.append('secondaryContactEmail', secondaryContactEmail);
+    if (logoFile) {
+      formData.append('logo', logoFile);
+    }
+
+    try {
+      const response = await fetch('/api/assessments', {
+        method: 'POST',
+        body: formData,
+        // Headers are not typically needed for FormData with fetch,
+        // the browser sets the 'Content-Type' to 'multipart/form-data' automatically.
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'فشل إنشاء التقييم. حاول مرة أخرى.' }));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      // Successfully created
+      setSubmitStatus('success');
+      // Reset the form
+      setCompanyNameAr('');
+      setCompanyNameEn('');
+      setLogoFile(null);
+      const fileInput = document.getElementById('logo') as HTMLInputElement;
+      if (fileInput) fileInput.value = ''; // Clear file input
+
+      setSelectedSecurityManagerId('');
+      setSelectedSecurityManagerDetails(null);
+      setSecondaryContactNameAr('');
+      setSecondaryContactNameEn('');
+      setSecondaryContactMobile('');
+      setSecondaryContactPhone('');
+      setSecondaryContactEmail('');
+
+      // Close dialog and hide success message after a delay
+      setTimeout(() => {
+        setIsFormOpen(false); // Close the dialog
+        setSubmitStatus('idle');
+      }, 2000); // Keep success message visible for 2 seconds
+
+    } catch (err: any) {
+      console.error("Submission error:", err);
+      setSubmitError(err.message || "حدث خطأ غير متوقع أثناء إنشاء التقييم."); // Use dedicated submit error state
+      setSubmitStatus('error');
+    }
+  };
+
   return (
     <ProtectedRoute allowedRoles={['ADMIN']}>
       <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
@@ -78,74 +228,292 @@ export default function AdminDashboardPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-slate-800">لوحة الإدارة</h1>
             <div className="flex items-center gap-4">
+              {/* Search Input */}
               <div className="relative">
                 <Search className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input 
-                  placeholder="بحث..." 
-                  className="pl-4 pr-10 w-64 text-right" 
+                <Input
+                  placeholder="بحث..."
+                  className="pl-4 pr-10 w-64 text-right"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+
+              {/* Add User Button (Example) */}
               <Button className="bg-nca-teal hover:bg-nca-teal-dark text-white gap-2">
                 <Plus className="h-4 w-4" />
                 إضافة مستخدم
               </Button>
+
+              {/* Create New Assessment Button (Dialog Trigger) */}
+              <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2 border-nca-teal text-nca-teal hover:bg-nca-teal hover:text-white">
+                    <Plus className="h-4 w-4" />
+                    إنشاء تقييم جديد
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto" dir="rtl">
+                  <DialogHeader>
+                    <DialogTitle>إنشاء تقييم جديد</DialogTitle>
+                    <DialogDescription>
+                      أدخل تفاصيل الجهة والمسؤولين لإنشاء تقييم جديد. الحقول المعلمة بـ <span className="text-red-500">*</span> مطلوبة.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {/* Form Content Starts Here */}
+                  <form onSubmit={handleSubmit} className="space-y-6 py-4">
+                    {/* Basic Company Info */}
+                    <fieldset className="space-y-4 border p-4 rounded-md">
+                      <legend className="text-lg font-medium px-2">معلومات اساسية عن الجهة</legend>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="companyNameAr" className="mb-2 block"> {/* Changed mb-1 to mb-2 */}
+                            الاسم الكامل للجهة (بالعربي) <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id="companyNameAr"
+                            value={companyNameAr}
+                            onChange={(e) => setCompanyNameAr(e.target.value)}
+                            required
+                            className="text-right"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="companyNameEn" className="mb-2 block"> {/* Changed mb-1 to mb-2 */}
+                            الاسم الكامل للجهة (بالإنجليزي) <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id="companyNameEn"
+                            value={companyNameEn}
+                            onChange={(e) => setCompanyNameEn(e.target.value)}
+                            required
+                            className="text-left"
+                            dir="ltr"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="logo" className="mb-2 block"> {/* Changed mb-1 to mb-2 */}
+                          شعار الجهة
+                        </Label>
+                        <Input
+                          id="logo"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-nca-teal-light file:text-nca-teal hover:file:bg-nca-teal-dark hover:file:text-white cursor-pointer"
+                        />
+                        {logoFile && <p className="text-xs text-gray-500 mt-1">الملف المحدد: {logoFile.name}</p>}
+                      </div>
+                    </fieldset>
+
+                    {/* Security Manager Info */}
+                    <fieldset className="space-y-4 border p-4 rounded-md">
+                      <legend className="text-lg font-medium px-2">معلومات المسؤول الأول عن الأمن السيبراني</legend>
+                      <div>
+                        <Label htmlFor="securityManager" className="mb-2 block"> {/* Changed mb-1 to mb-2 */}
+                          اختيار المسؤول <span className="text-red-500">*</span>
+                        </Label>
+                        <Select onValueChange={handleManagerChange} value={selectedSecurityManagerId} required>
+                          <SelectTrigger id="securityManager" className="w-full">
+                            <SelectValue placeholder="اختر مسؤول الأمن السيبراني..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {isLoading && <SelectItem value="loading" disabled>جاري تحميل المدراء...</SelectItem>}
+                            {fetchError && <SelectItem value="error" disabled>خطأ في تحميل المدراء</SelectItem>}
+                            {!isLoading && !fetchError && securityManagers.length === 0 && <SelectItem value="no-managers" disabled>لا يوجد مدراء أمن متاحون</SelectItem>}
+                            {securityManagers.map((manager) => (
+                              <SelectItem key={manager.id} value={manager.id}>
+                                {manager.nameAr || manager.name} ({manager.email})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Display Selected Manager Details */}
+                      {selectedSecurityManagerDetails && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-4 bg-gray-50 rounded border">
+                          <div>
+                            <Label className="block text-xs font-medium text-gray-500">الاسم (بالعربي)</Label>
+                            <p className="text-sm text-gray-800">{selectedSecurityManagerDetails.nameAr || '-'}</p>
+                          </div>
+                          <div>
+                            <Label className="block text-xs font-medium text-gray-500">الاسم (بالإنجليزي)</Label>
+                            <p className="text-sm text-gray-800">{selectedSecurityManagerDetails.name || '-'}</p>
+                          </div>
+                          <div>
+                            <Label className="block text-xs font-medium text-gray-500">البريد الإلكتروني</Label>
+                            <p className="text-sm text-gray-800">{selectedSecurityManagerDetails.email || '-'}</p>
+                          </div>
+                          <div>
+                            <Label className="block text-xs font-medium text-gray-500">رقم الجوال</Label>
+                            <p className="text-sm text-gray-800">{selectedSecurityManagerDetails.mobile || '-'}</p>
+                          </div>
+                          <div>
+                            <Label className="block text-xs font-medium text-gray-500">رقم الهاتف</Label>
+                            <p className="text-sm text-gray-800">{selectedSecurityManagerDetails.phone || '-'}</p>
+                          </div>
+                        </div>
+                      )}
+                    </fieldset>
+
+                    {/* Secondary Contact Info */}
+                    <fieldset className="space-y-4 border p-4 rounded-md">
+                      <legend className="text-lg font-medium px-2">معلومات شخص آخر (من ينوب عن المسؤول الأول)</legend>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="secondaryContactNameAr" className="mb-2 block"> {/* Changed mb-1 to mb-2 */}
+                            الاسم الكامل (بالعربي)
+                          </Label>
+                          <Input
+                            id="secondaryContactNameAr"
+                            value={secondaryContactNameAr}
+                            onChange={(e) => setSecondaryContactNameAr(e.target.value)}
+                            className="text-right"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="secondaryContactNameEn" className="mb-2 block"> {/* Changed mb-1 to mb-2 */}
+                            الاسم الكامل (بالإنجليزي)
+                          </Label>
+                          <Input
+                            id="secondaryContactNameEn"
+                            value={secondaryContactNameEn}
+                            onChange={(e) => setSecondaryContactNameEn(e.target.value)}
+                            className="text-left"
+                            dir="ltr"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="secondaryContactMobile" className="mb-2 block"> {/* Changed mb-1 to mb-2 */}
+                            رقم الجوال
+                          </Label>
+                          <Input
+                            id="secondaryContactMobile"
+                            type="tel"
+                            value={secondaryContactMobile}
+                            onChange={(e) => setSecondaryContactMobile(e.target.value)}
+                            className="text-left"
+                            dir="ltr"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="secondaryContactPhone" className="mb-2 block"> {/* Changed mb-1 to mb-2 */}
+                            رقم الهاتف
+                          </Label>
+                          <Input
+                            id="secondaryContactPhone"
+                            type="tel"
+                            value={secondaryContactPhone}
+                            onChange={(e) => setSecondaryContactPhone(e.target.value)}
+                            className="text-left"
+                            dir="ltr"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Label htmlFor="secondaryContactEmail" className="mb-2 block"> {/* Changed mb-1 to mb-2 */}
+                            البريد الإلكتروني <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id="secondaryContactEmail"
+                            type="email"
+                            value={secondaryContactEmail}
+                            onChange={(e) => setSecondaryContactEmail(e.target.value)}
+                            required
+                            className="text-left"
+                            dir="ltr"
+                          />
+                        </div>
+                      </div>
+                    </fieldset>
+
+                    {/* Submission Status/Error */}
+                    {submitStatus === 'error' && submitError && (
+                      <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md">{submitError}</p>
+                    )}
+                    {submitStatus === 'success' && (
+                      <p className="text-sm text-green-600 bg-green-100 p-3 rounded-md">تم إنشاء التقييم بنجاح.</p>
+                    )}
+
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>إلغاء</Button>
+                      <Button type="submit" className="bg-nca-teal hover:bg-nca-teal-dark text-white" disabled={submitStatus === 'loading'}>
+                        {submitStatus === 'loading' ? 'جاري الإنشاء...' : 'إنشاء التقييم'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                  {/* Form Content Ends Here */}
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
-          
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">42</div>
-                <Users className="h-6 w-6 text-nca-teal" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">إجمالي المستخدمين</div>
+            <Card> {/* Removed p-6 to use CardHeader/Content/Footer */}
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">إجمالي المستخدمين</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">42</div>
+                {/* <p className="text-xs text-muted-foreground">+2 from last month</p> */}
+              </CardContent>
             </Card>
 
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">18</div>
-                <FileText className="h-6 w-6 text-nca-teal" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">التقييمات النشطة</div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">التقييمات النشطة</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">18</div>
+                {/* <p className="text-xs text-muted-foreground">+5 this week</p> */}
+              </CardContent>
             </Card>
 
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">76%</div>
-                <Activity className="h-6 w-6 text-nca-teal" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">متوسط نسبة الامتثال</div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">متوسط نسبة الامتثال</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">76%</div>
+                {/* <p className="text-xs text-muted-foreground">Up from 72% last period</p> */}
+              </CardContent>
             </Card>
 
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">99.8%</div>
-                <Server className="h-6 w-6 text-nca-teal" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">توافر النظام</div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">توافر النظام</CardTitle>
+                <Server className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">99.8%</div>
+                {/* <p className="text-xs text-muted-foreground">Last 30 days</p> */}
+              </CardContent>
             </Card>
           </div>
 
           {/* User Management Section */}
-          <Card className="p-6 mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">إدارة المستخدمين</h2>
+          {/* Removed p-6 mb-6, using CardHeader/Content */}
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-xl font-semibold">إدارة المستخدمين</CardTitle>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Filter className="h-4 w-4" />
-                  تصفية
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Filter className="h-3.5 w-3.5" />
+                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">تصفية</span>
                 </Button>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Download className="h-4 w-4" />
-                  تصدير
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Download className="h-3.5 w-3.5" />
+                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">تصدير</span>
                 </Button>
               </div>
-            </div>
-            
-            <div className="overflow-x-auto">
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="text-right border-b border-gray-200">
@@ -217,15 +585,19 @@ export default function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
-            
+            {/* Pagination */}
             <div className="flex justify-center mt-4">
               <Button variant="outline" size="sm" className="mx-1">السابق</Button>
-              <Button variant="outline" size="sm" className="mx-1 bg-nca-teal text-white">1</Button>
+              <Button variant="outline" size="sm" className="mx-1 border-nca-teal text-nca-teal bg-nca-teal-light">1</Button>
               <Button variant="outline" size="sm" className="mx-1">2</Button>
               <Button variant="outline" size="sm" className="mx-1">3</Button>
               <Button variant="outline" size="sm" className="mx-1">التالي</Button>
             </div>
+            </CardContent>
           </Card>
+
+          {/* Assessment Form is now inside the Dialog triggered above */}
+
 
           {/* Two Column Layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
