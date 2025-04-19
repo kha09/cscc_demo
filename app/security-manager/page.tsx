@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react" // Added useEffect
+import { useState, useEffect } from "react"
 import Image from "next/image"
-import { Assessment, User } from "@prisma/client"; // Added Assessment, User types
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"; // Added Dialog components
-import { 
-  Bell, 
+import { Assessment, User, SensitiveSystemInfo } from "@prisma/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Removed DialogTrigger as it's not used directly here
+import {
+  Bell,
   User as UserIcon, // Aliased the User icon
   ClipboardList, 
   BarChart, 
@@ -16,23 +16,41 @@ import {
   Filter,
   Download,
   Calendar,
-  ChevronDown
+  ChevronDown,
+  Menu, // Added for sidebar toggle
+  Activity, // Added for sidebar icon
+  Server, // Added for sidebar icon
+  ListChecks, // Added for sidebar icon
+  ShieldCheck, // Added for sidebar icon
+  FileWarning, // Added for sidebar icon
+  LayoutDashboard
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select" // Added Select components
 // Import the form component
-import SensitiveSystemForm from "@/components/sensitive-system-form"; 
+import SensitiveSystemForm from "@/components/sensitive-system-form";
+
+// Define the type for the fetched sensitive system data
+// We only need id and systemName for the dropdown
+type SimpleSensitiveSystemInfo = Pick<SensitiveSystemInfo, 'id' | 'systemName'>;
+
 
 export default function SecurityManagerDashboardPage() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [assessments, setAssessments] = useState<Assessment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [sensitiveSystems, setSensitiveSystems] = useState<SimpleSensitiveSystemInfo[]>([]); // State for sensitive systems
+  const [isLoadingAssessments, setIsLoadingAssessments] = useState(true);
+  const [isLoadingSystems, setIsLoadingSystems] = useState(true); // Loading state for systems
   const [userId, setUserId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [assessmentsError, setAssessmentsError] = useState<string | null>(null); // Specific error for assessments
+  const [systemsError, setSystemsError] = useState<string | null>(null); // Specific error for systems
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
+
 
   // --- Temporary User ID Fetch ---
   // In a real app, get this from auth context/session
@@ -47,13 +65,18 @@ export default function SecurityManagerDashboardPage() {
         if (managers.length > 0) {
           setUserId(managers[0].id);
         } else {
-          setError("No Security Manager user found to display assessments for.");
-          setIsLoading(false); // Stop loading if no user found
+          setAssessmentsError("No Security Manager user found."); // Set specific error
+          setSystemsError("No Security Manager user found."); // Set specific error
+          setIsLoadingAssessments(false);
+          setIsLoadingSystems(false);
         }
       } catch (err: any) {
         console.error("Error fetching user ID:", err);
-        setError(err.message || "Failed to get user ID");
-        setIsLoading(false); // Stop loading on error
+        const errorMsg = err.message || "Failed to get user ID";
+        setAssessmentsError(errorMsg); // Set specific error
+        setSystemsError(errorMsg); // Set specific error
+        setIsLoadingAssessments(false);
+        setIsLoadingSystems(false);
       }
     };
     fetchUserId();
@@ -62,11 +85,12 @@ export default function SecurityManagerDashboardPage() {
 
   // Fetch assessments when userId is available
   useEffect(() => {
-    if (!userId) return; // Don't fetch if userId is not set
+    if (!userId) return;
 
+    // Fetch Assessments
     const fetchAssessments = async () => {
-      setIsLoading(true);
-      setError(null);
+      setIsLoadingAssessments(true);
+      setAssessmentsError(null);
       try {
         const response = await fetch(`/api/users/${userId}/assessments`);
         if (!response.ok) {
@@ -76,14 +100,37 @@ export default function SecurityManagerDashboardPage() {
         setAssessments(data);
       } catch (err: any) {
         console.error("Error fetching assessments:", err);
-        setError(err.message || "An unknown error occurred");
+        setAssessmentsError(err.message || "An unknown error occurred fetching assessments");
       } finally {
-        setIsLoading(false);
+        setIsLoadingAssessments(false);
+      }
+    };
+
+    // Fetch Sensitive Systems
+    const fetchSensitiveSystems = async () => {
+      setIsLoadingSystems(true);
+      setSystemsError(null);
+      try {
+        const response = await fetch(`/api/users/${userId}/sensitive-systems`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch sensitive systems: ${response.statusText}`);
+        }
+        // Assuming the API returns the full SensitiveSystemInfo, but we only need id and name
+        const data: SensitiveSystemInfo[] = await response.json();
+        // Map to the simpler type
+        setSensitiveSystems(data.map(system => ({ id: system.id, systemName: system.systemName })));
+      } catch (err: any) {
+        console.error("Error fetching sensitive systems:", err);
+        setSystemsError(err.message || "An unknown error occurred fetching systems");
+      } finally {
+        setIsLoadingSystems(false);
       }
     };
 
     fetchAssessments();
-  }, [userId]); // Re-run when userId changes
+    fetchSensitiveSystems(); // Fetch systems as well
+  }, [userId]);
+
 
   const handleOpenForm = (assessmentId: string) => {
     setSelectedAssessmentId(assessmentId);
@@ -111,58 +158,100 @@ export default function SecurityManagerDashboardPage() {
   };
 
   return (
+    // Removed ProtectedRoute for now as auth isn't fully implemented server-side
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
       {/* Header */}
       <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        {/* Using max-w-full for header content to span width */}
+        <div className="flex items-center justify-between">
           {/* Logo and Title - Right Side */}
           <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
-            <div className="relative h-16 w-16">
+            <div className="relative h-16 w-16"> {/* Adjusted size */}
               <Image
                 src="/static/image/logo.png" width={160} height={160}
                 alt="Logo"
-                
                 className="object-contain"
               />
             </div>
+            {/* Optional: Add Title next to logo if needed */}
+            {/* <span className="text-lg">منصة تقييم الأمن السيبراني</span> */}
           </div>
 
-          {/* Navigation - Center */}
-          <nav className="hidden md:flex items-center space-x-8 space-x-reverse">
-            <Link href="/dashboard" className="text-white hover:text-gray-300 px-3 py-2">
-              الرئيسية
-            </Link>
-            <Link href="#" className="text-white hover:text-gray-300 px-3 py-2">
-              التقارير
-            </Link>
-            <Link href="/assessment" className="text-white hover:text-gray-300 px-3 py-2">
-              التقييم
-            </Link>
-            <Link href="#" className="text-white hover:text-gray-300 px-3 py-2">
-              الدعم
-            </Link>
-            <Link href="/security-manager" className="text-white bg-nca-teal px-3 py-2 rounded">
-              مدير الأمن
-            </Link>
-          </nav>
+          {/* Center Spacer */}
+          <div className="flex-grow"></div>
 
-          {/* User Profile and Bell - Left Side */}
+          {/* User Profile, Bell, Sidebar Toggle - Left Side */}
           <div className="flex items-center space-x-4 space-x-reverse">
-            <Button variant="ghost" size="icon" className="text-white">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
               <Bell className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-white">
-              <UserIcon className="h-5 w-5" /> {/* Use the aliased icon */}
+            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
+              <UserIcon className="h-5 w-5" />
+            </Button>
+            {/* Sidebar Toggle Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-slate-700 md:hidden" // Show only on smaller screens
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            >
+              <Menu className="h-6 w-6" />
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+      {/* Main Layout with Sidebar */}
+      <div className="flex flex-row"> {/* Flex container for sidebar and main */}
+        {/* Sidebar */}
+        <aside className={`bg-slate-800 text-white p-4 sticky top-[76px] h-[calc(100vh-76px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+           {/* Toggle Button inside sidebar for larger screens */}
+           <div className={`flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
+             <Button
+               variant="ghost"
+               size="icon"
+               className="text-white hover:bg-slate-700"
+               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+             >
+               <Menu className="h-6 w-6" />
+             </Button>
+           </div>
+          <nav className="space-y-2">
+            {/* Links updated for Security Manager */}
+            <Link href="/security-manager" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <LayoutDashboard className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>لوحة المعلومات</span>
+            </Link>
+            <Link href="/security-manager#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <ShieldCheck className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقييمات المعينة</span>
+            </Link>
+             <Link href="/security-manager/system-info" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}> {/* Updated href */}
+              <Server className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>معلومات الأنظمة</span>
+            </Link>
+            <Link href="/security-manager#tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <ListChecks className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المهام</span>
+            </Link>
+            <Link href="/security-manager#risks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <FileWarning className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المخاطر</span>
+            </Link>
+            <Link href="/security-manager#reports" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <FileText className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقارير</span>
+            </Link>
+            {/* Add more relevant links */}
+          </nav>
+        </aside>
+
+        {/* Main Content Area */}
+        {/* Adjusted margin-right based on sidebar state */}
+        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
+          {/* Removed max-w-7xl and mx-auto from here */}
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">لوحة مدير الأمن</h1>
+            <h1 className="text-2xl font-bold text-slate-800">لوحة مدير الأمن</h1> {/* Title */}
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Search className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -180,47 +269,60 @@ export default function SecurityManagerDashboardPage() {
             </div>
           </div>
           
-          {/* Stats Cards */}
+          {/* Stats Cards - Using CardHeader/Content */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">18</div>
-                <ClipboardList className="h-6 w-6 text-nca-teal" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">التقييمات النشطة</div>
+             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">التقييمات المعينة</CardTitle>
+                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{assessments.length}</div>
+                {/* <p className="text-xs text-muted-foreground">+2 pending</p> */}
+              </CardContent>
             </Card>
 
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">76%</div>
-                <BarChart className="h-6 w-6 text-nca-teal" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">متوسط نسبة الامتثال</div>
+             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">متوسط نسبة الامتثال</CardTitle>
+                 <BarChart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">76%</div> {/* Placeholder */}
+                {/* <p className="text-xs text-muted-foreground">Up from 72%</p> */}
+              </CardContent>
             </Card>
 
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">12</div>
-                <AlertTriangle className="h-6 w-6 text-yellow-500" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">مخاطر متوسطة</div>
+             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">مخاطر متوسطة</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">12</div> {/* Placeholder */}
+                {/* <p className="text-xs text-muted-foreground">Requires attention</p> */}
+              </CardContent>
             </Card>
 
-            <Card className="p-6">
-              <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">5</div>
-                <AlertTriangle className="h-6 w-6 text-red-500" />
-              </div>
-              <div className="text-sm text-gray-600 mt-2">مخاطر عالية</div>
+             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">مخاطر عالية</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">5</div> {/* Placeholder */}
+                {/* <p className="text-xs text-muted-foreground">Immediate action needed</p> */}
+              </CardContent>
             </Card>
           </div>
 
-          
+          {/* Anchor for Assessments */}
+          <div id="assessments"></div> 
 
-          {/* Active Assessments Section */}
-          <Card className="p-6 mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold"> التقييمات النشطة والمنتهية</h2>
+          {/* Active Assessments Section - Using CardHeader/Content */}
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-xl font-semibold"> التقييمات المعينة</CardTitle>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="gap-2">
                   <Filter className="h-4 w-4" />
@@ -231,10 +333,10 @@ export default function SecurityManagerDashboardPage() {
                   تصدير
                 </Button>
               </div>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
                 <thead>
                   <tr className="text-right border-b border-gray-200">
                     <th className="pb-3 font-medium text-gray-700 pr-4">اسم الشركة (عربي)</th>
@@ -246,13 +348,13 @@ export default function SecurityManagerDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading ? (
+                  {isLoadingAssessments ? ( // Corrected variable name
                     <tr>
                       <td colSpan={5} className="text-center py-4">جاري تحميل التقييمات...</td>
                     </tr>
-                  ) : error ? (
+                  ) : assessmentsError ? ( // Corrected variable name
                      <tr>
-                      <td colSpan={5} className="text-center py-4 text-red-600">{error}</td>
+                      <td colSpan={5} className="text-center py-4 text-red-600">{assessmentsError}</td> {/* Corrected variable name */}
                     </tr>
                   ) : filteredAssessments.length === 0 ? (
                     <tr>
@@ -292,6 +394,7 @@ export default function SecurityManagerDashboardPage() {
                 </tbody>
               </table>
             </div>
+            </CardContent> {/* Add missing closing tag */}
           </Card>
 
           {/* Modal for Sensitive System Form */}
@@ -309,17 +412,53 @@ export default function SecurityManagerDashboardPage() {
               ) : (
                 <div className="p-4 text-center">لم يتم تحديد تقييم.</div>
               )}
-            </DialogContent>
-          </Dialog>
+            </DialogContent> {/* Correct closing tag */}
+          </Dialog> {/* Correct closing tag */}
+
+          {/* Anchor for System Info (Link target) */}
+          <div id="system-info"></div>
+          {/* Removed System Information Section Card */}
+
 
           {/* Two Column Layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Task Assignment */}
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">تعيين المهام</h2>
+            <Card> {/* Removed p-6 */}
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold">تعيين المهام</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+              {/* Select System Dropdown */}
+              <div className="mb-4">
+                 <div className="flex justify-between items-center mb-2">
+                   <span className="text-sm font-medium">اختر النظام</span>
+                 </div>
+                 <Select dir="rtl">
+                   <SelectTrigger className="w-full text-right">
+                     <SelectValue placeholder="اختر نظاماً..." />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {isLoadingSystems ? (
+                       <SelectItem value="loading" disabled>جاري تحميل الأنظمة...</SelectItem>
+                     ) : systemsError ? (
+                       <SelectItem value="error" disabled>خطأ: {systemsError}</SelectItem>
+                     ) : sensitiveSystems.length === 0 ? (
+                       <SelectItem value="no-systems" disabled>لا توجد أنظمة مدخلة.</SelectItem>
+                     ) : (
+                       sensitiveSystems.map((system) => (
+                         <SelectItem key={system.id} value={system.id}>
+                           {system.systemName}
+                         </SelectItem>
+                       ))
+                     )}
+                   </SelectContent>
+                 </Select>
+               </div>
+
+              {/* Select Control Dropdown */}
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">اختر الضابط</span>
+                  <span className="text-sm font-medium">اختر الضابط</span> {/* Keep label as is, but it means Control */}
                 </div>
                 <div className="relative">
                   <select className="w-full p-2 border rounded-md text-right pr-10 appearance-none bg-white">
@@ -357,15 +496,19 @@ export default function SecurityManagerDashboardPage() {
                   <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
               </div>
-              
-              <Button className="w-full bg-nca-teal text-white hover:bg-nca-teal-dark">
-                تعيين المهمة
-              </Button>
+                
+                <Button className="w-full bg-nca-teal text-white hover:bg-nca-teal-dark">
+                  تعيين المهمة
+                </Button>
+              </CardContent>
             </Card>
 
             {/* Risk Assessment */}
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">تقييم المخاطر</h2>
+            <Card> {/* Removed p-6 */}
+               <CardHeader>
+                 <CardTitle className="text-xl font-semibold">تقييم المخاطر</CardTitle>
+               </CardHeader>
+               <CardContent> {/* Added CardContent */}
               <div className="space-y-4">
                 <div className="border rounded-lg p-4 bg-red-50">
                   <div className="flex justify-between items-center mb-2">
@@ -395,16 +538,22 @@ export default function SecurityManagerDashboardPage() {
                   </div>
                 </div>
               </div>
-              
-              <Button variant="outline" className="w-full mt-4 text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white">
-                عرض جميع المخاطر
-              </Button>
+                
+                <Button variant="outline" className="w-full mt-4 text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white">
+                  عرض جميع المخاطر
+                </Button>
+               </CardContent>
             </Card>
           </div>
           
-          {/* Report Generation (Keep existing sections) */}
-          <Card className="p-6 mt-6">
-            <h2 className="text-xl font-semibold mb-4">إنشاء التقارير</h2>
+          {/* Anchor for Reports */}
+          <div id="reports"></div>
+          {/* Report Generation */}
+          <Card className="mt-6"> {/* Removed p-6 */}
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold">إنشاء التقارير</CardTitle>
+            </CardHeader>
+            <CardContent> {/* Added CardContent */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="border rounded-lg p-6 hover:border-nca-teal cursor-pointer transition-all">
                 <div className="flex justify-center mb-4">
@@ -436,19 +585,22 @@ export default function SecurityManagerDashboardPage() {
                 <p className="text-sm text-gray-600 text-center">تقرير تحليلي مع رسوم بيانية ومؤشرات أداء</p>
               </div>
             </div>
-            
-            <div className="mt-6 p-4 border rounded-lg bg-gray-50">
-              <h3 className="text-lg font-medium mb-3">إعدادات التقرير</h3>
-              <div className="flex justify-end mt-4">
-                <Button className="bg-nca-teal text-white hover:bg-nca-teal-dark gap-2">
-                  <Download className="h-4 w-4" />
-                  إنشاء التقرير
-                </Button>
+              
+              <div className="mt-6 p-4 border rounded-lg bg-gray-50">
+                <h3 className="text-lg font-medium mb-3">إعدادات التقرير</h3>
+                <div className="flex justify-end mt-4">
+                  <Button className="bg-nca-teal text-white hover:bg-nca-teal-dark gap-2">
+                    <Download className="h-4 w-4" />
+                    إنشاء التقرير
+                  </Button>
+                </div>
               </div>
-            </div>
+            </CardContent>
           </Card>
-        </div>
-      </main>
+          {/* End of main content sections */}
+        </main>
+      </div> {/* End Flex container */}
     </div>
+    // </ProtectedRoute>
   )
 }
