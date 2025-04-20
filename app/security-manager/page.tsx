@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef } from "react" // Added useRef
 import Image from "next/image"
-import { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client"; // Added Control
+import { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client"; // Re-added SensitiveSystemInfo, Control
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Removed DialogTrigger as it's not used directly here
 import {
   Bell,
@@ -52,6 +52,11 @@ type SimpleSensitiveSystemInfo = Pick<SensitiveSystemInfo, 'id' | 'systemName'>;
 // Define type for fetched control data (id, number, text)
 type SimpleControl = Pick<Control, 'id' | 'controlNumber' | 'controlText'>;
 
+// Type for task assignment feedback
+type TaskAssignmentMessage = {
+  type: 'success' | 'error';
+  text: string;
+} | null;
 
 export default function SecurityManagerDashboardPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -81,6 +86,12 @@ export default function SecurityManagerDashboardPage() {
 
   // State for the deadline date picker
   const [deadlineDate, setDeadlineDate] = useState<Date | undefined>(undefined);
+
+  // State for Task Assignment Form
+  const [selectedSystemId, setSelectedSystemId] = useState<string | undefined>(undefined);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | undefined>(undefined);
+  const [isAssigningTask, setIsAssigningTask] = useState(false);
+  const [taskAssignmentMessage, setTaskAssignmentMessage] = useState<TaskAssignmentMessage>(null);
 
 
   // --- Temporary User ID Fetch ---
@@ -250,6 +261,77 @@ export default function SecurityManagerDashboardPage() {
     setSelectedControls((prevSelected) =>
       prevSelected.filter((c) => c.id !== controlId)
     );
+  };
+
+  // Handler for Assign Task button click
+  const handleAssignTask = async () => {
+    setTaskAssignmentMessage(null); // Clear previous messages
+
+    // --- Input Validation ---
+    if (!selectedSystemId) {
+      setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار النظام.' });
+      return;
+    }
+    if (selectedControls.length === 0) {
+      setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار ضابط واحد على الأقل.' });
+      return;
+    }
+    if (!selectedDepartmentId) {
+      setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار القسم.' });
+      return;
+    }
+    if (!deadlineDate) {
+      setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار الموعد النهائي.' });
+      return;
+    }
+    if (!userId) {
+      // This should ideally not happen if the page loads correctly, but good to check
+      setTaskAssignmentMessage({ type: 'error', text: 'خطأ: لم يتم العثور على معرّف المستخدم.' });
+      return;
+    }
+    // --- End Input Validation ---
+
+    setIsAssigningTask(true);
+
+    const taskData = {
+      sensitiveSystemId: selectedSystemId,
+      departmentId: selectedDepartmentId,
+      controlIds: selectedControls.map(c => c.id),
+      deadline: deadlineDate.toISOString(), // Send as ISO string
+      assignedById: userId,
+    };
+
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(taskData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Task assignment error:", errorData);
+        // Try to provide a more specific error message
+        const message = errorData.message || (errorData.errors ? JSON.stringify(errorData.errors) : 'فشل تعيين المهمة.');
+        throw new Error(message);
+      }
+
+      // Success
+      setTaskAssignmentMessage({ type: 'success', text: 'تم تعيين المهمة بنجاح!' });
+      // Optionally reset form fields
+      setSelectedSystemId(undefined);
+      setSelectedDepartmentId(undefined);
+      setSelectedControls([]);
+      setDeadlineDate(undefined);
+
+    } catch (error: any) {
+      console.error("Error assigning task:", error);
+      setTaskAssignmentMessage({ type: 'error', text: error.message || 'حدث خطأ غير متوقع.' });
+    } finally {
+      setIsAssigningTask(false);
+    }
   };
 
 
@@ -532,12 +614,16 @@ export default function SecurityManagerDashboardPage() {
               {/* Select System Dropdown */}
               <div className="mb-4">
                  <div className="flex justify-between items-center mb-2">
-                   <span className="text-sm font-medium">اختر النظام</span>
-                 </div>
-                 <Select dir="rtl">
-                   <SelectTrigger className="w-full text-right">
-                     <SelectValue placeholder="اختر نظاماً..." />
-                   </SelectTrigger>
+                    <span className="text-sm font-medium">اختر النظام</span>
+                  </div>
+                  <Select
+                    dir="rtl"
+                    value={selectedSystemId}
+                    onValueChange={setSelectedSystemId} // Update state on change
+                  >
+                    <SelectTrigger className="w-full text-right">
+                      <SelectValue placeholder="اختر نظاماً..." />
+                    </SelectTrigger>
                    <SelectContent>
                      {isLoadingSystems ? (
                        <SelectItem value="loading" disabled>جاري تحميل الأنظمة...</SelectItem>
@@ -644,13 +730,17 @@ export default function SecurityManagerDashboardPage() {
               </div>
 
               <div className="mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">اختر القسم</span>
-                </div>
-                 <Select dir="rtl">
-                   <SelectTrigger className="w-full text-right">
-                     <SelectValue placeholder="اختر قسماً..." />
-                   </SelectTrigger>
+                 <div className="flex justify-between items-center mb-2">
+                   <span className="text-sm font-medium">اختر القسم</span>
+                 </div>
+                  <Select
+                    dir="rtl"
+                    value={selectedDepartmentId}
+                    onValueChange={setSelectedDepartmentId} // Update state on change
+                  >
+                    <SelectTrigger className="w-full text-right">
+                      <SelectValue placeholder="اختر قسماً..." />
+                    </SelectTrigger>
                    <SelectContent>
                      {isLoadingDepartments ? (
                        <SelectItem value="loading" disabled>جاري تحميل الأقسام...</SelectItem>
@@ -695,14 +785,25 @@ export default function SecurityManagerDashboardPage() {
                       initialFocus
                     />
                   </PopoverContent>
-                </Popover>
-              </div>
+                 </Popover>
+               </div>
 
-                <Button className="w-full bg-nca-teal text-white hover:bg-nca-teal-dark">
-                  تعيين المهمة
-                </Button>
-              </CardContent>
-            </Card>
+                 <Button
+                   className="w-full bg-nca-teal text-white hover:bg-nca-teal-dark disabled:opacity-50"
+                   onClick={handleAssignTask}
+                   disabled={isAssigningTask} // Disable button while loading
+                 >
+                   {isAssigningTask ? 'جاري التعيين...' : 'تعيين المهمة'}
+                 </Button>
+
+                 {/* Task Assignment Feedback */}
+                 {taskAssignmentMessage && (
+                   <div className={`mt-3 text-sm ${taskAssignmentMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                     {taskAssignmentMessage.text}
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
 
             {/* Risk Assessment */}
             <Card> {/* Removed p-6 */}

@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react" // Import useEffect
 import Image from "next/image"
+import { User as PrismaUser } from "@prisma/client"; // Import User type with alias
 import { 
   Bell, 
-  User, 
+  User as UserIcon, // Alias the icon import
   ClipboardList, 
   BarChart, 
   FileText, 
@@ -20,9 +21,113 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 
+// Define Task and Control types (adjust based on your actual Prisma schema if needed)
+interface Control {
+  id: string;
+  controlText: string;
+  // Add other relevant control fields if necessary
+}
+
+interface Task {
+  id: string;
+  deadline: string; // Or Date
+  status: string; // Or TaskStatus enum
+  sensitiveSystem: {
+    systemName: string;
+  };
+  controls: Control[]; // Array of controls associated with the task
+  createdAt: string; // Add createdAt
+  // Add other relevant task fields like progress if available
+}
+
+
 export default function DepartmentManagerDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  
+  const [tasks, setTasks] = useState<Task[]>([]) // State for tasks
+  const [isLoading, setIsLoading] = useState(true) // Loading state
+  const [error, setError] = useState<string | null>(null) // Error state
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null); // State for current user ID
+  const [currentUserDeptId, setCurrentUserDeptId] = useState<string | null>(null); // State for current user's department ID
+
+  // --- Fetch Current User (Department Manager) ---
+  // TODO: Replace with actual user ID from auth context/session
+  useEffect(() => {
+    const fetchDeptManager = async () => {
+      try {
+        // Placeholder: Fetch the first user with the DEPARTMENT_MANAGER role
+        // In a real app, you'd get the logged-in user's ID from the session
+        const response = await fetch('/api/users'); // Assuming this endpoint can filter or you find the first manager
+        if (!response.ok) throw new Error('Failed to fetch users');
+        const users: PrismaUser[] = await response.json(); // Corrected type annotation
+        const deptManager = users.find(user => user.role === 'DEPARTMENT_MANAGER'); // Find the first dept manager
+
+        if (deptManager) {
+          setCurrentUserId(deptManager.id);
+          // !!! Assumption: deptManager.department contains the ID. Needs schema fix ideally.
+          if (deptManager.department) {
+             setCurrentUserDeptId(deptManager.department);
+          } else {
+             setError("Current user is not associated with a department.");
+             setIsLoading(false); // Stop loading if department is missing
+          }
+        } else {
+          setError("No Department Manager user found.");
+          setIsLoading(false); // Stop loading if no manager found
+        }
+      } catch (err: any) {
+        console.error("Error fetching current user:", err);
+        setError(err.message || "Failed to get current user information.");
+        setIsLoading(false); // Stop loading on error
+      }
+    };
+    fetchDeptManager();
+  }, []);
+  // --- End Fetch Current User ---
+
+
+   useEffect(() => {
+    // Fetch Tasks for the current user's department
+    const fetchTasks = async () => {
+      // Only fetch if currentUserDeptId is available
+      if (!currentUserDeptId) {
+        // If still loading user info, wait. If error occurred fetching user, error is already set.
+        if (isLoading) return; // Still waiting for user/dept ID
+         // If not loading and no dept ID, it means user fetch failed or user has no dept.
+         // Error state should already be set by the user fetch effect.
+         // We set isLoading to false here to ensure the UI doesn't show "Loading tasks..." indefinitely.
+         setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+       try {
+         // Use the new dedicated endpoint
+         const response = await fetch(`/api/departments/${currentUserDeptId}/tasks`);
+
+         if (!response.ok) {
+          const errorData = await response.text(); // Read error response body
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorData}`);
+        }
+        const data: Task[] = await response.json();
+        setTasks(data);
+      } catch (e) {
+        console.error("Failed to fetch tasks:", e);
+        if (e instanceof Error) {
+            setError(`فشل في جلب المهام: ${e.message}`);
+        } else {
+             setError("فشل في جلب المهام بسبب خطأ غير معروف.");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, [currentUserDeptId, isLoading]); // Depend on currentUserDeptId and the main loading state
+
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
       {/* Header */}
@@ -65,7 +170,7 @@ export default function DepartmentManagerDashboardPage() {
               <Bell className="h-5 w-5" />
             </Button>
             <Button variant="ghost" size="icon" className="text-white">
-              <User className="h-5 w-5" />
+              <UserIcon className="h-5 w-5" /> {/* Use the aliased icon */}
             </Button>
           </div>
         </div>
@@ -150,66 +255,61 @@ export default function DepartmentManagerDashboardPage() {
                     <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th>
                     <th className="pb-3 font-medium text-gray-700">التقدم</th>
                     <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
+                    <th className="pb-3 font-medium text-gray-700">الحالة</th> {/* Added Status Column */}
+                    <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقييم الأنظمة الحساسة 2025</td>
-                    <td className="py-4">1-1-3-1 إجراء اختبار التحمل (Stress Testing) للتأكد من سعة المكونات المختلفة.                    </td>
-                    <td className="py-4">15 يناير 2025</td>
-                    <td className="py-4">15 مارس 2025</td>
-                    <td className="py-4">
-                      <div className="flex items-center">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">
-                          <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '75%' }}></div>
-                        </div>
-                        <span className="text-sm">75%</span>
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        عرض
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقييم الأنظمة الحساسة 2025</td>
-                    <td className="py-4">3-2-3-1 تأمين واجهة برمجة التطبيقات.                    </td>
-                    <td className="py-4">1 فبراير 2025</td>
-                    <td className="py-4">1 أبريل 2025</td>
-                    <td className="py-4">
-                      <div className="flex items-center">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">
-                          <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '45%' }}></div>
-                        </div>
-                        <span className="text-sm">45%</span>
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        عرض
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">تقييم الأنظمة الحساسة 2025</td>
-                    <td className="py-4">2-1-3-1 التأكد من تطبيق متطلبات استمرارية الأعمال.                    </td>
-                    <td className="py-4">10 فبراير 2025</td>
-                    <td className="py-4">10 أبريل 2025</td>
-                    <td className="py-4">
-                      <div className="flex items-center">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">
-                          <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '30%' }}></div>
-                        </div>
-                        <span className="text-sm">30%</span>
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        عرض
-                      </Button>
-                    </td>
-                  </tr>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-4">جاري تحميل المهام...</td>
+                    </tr>
+                  ) : error ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-4 text-red-600">{error}</td>
+                    </tr>
+                  ) : tasks.length === 0 ? (
+                     <tr>
+                      <td colSpan={7} className="text-center py-4">لا توجد مهام معينة لهذا القسم.</td>
+                    </tr>
+                  ) : (
+                    tasks.map((task) => (
+                      <tr key={task.id} className="border-b border-gray-100">
+                        <td className="py-4 pr-4">{task.sensitiveSystem?.systemName || 'غير محدد'}</td>
+                        {/* Combine control texts */}
+                        <td className="py-4">
+                          {task.controls?.map(control => control.controlText).join(', ') || 'لا توجد ضوابط'}
+                        </td>
+                        <td className="py-4">{new Date(task.createdAt).toLocaleDateString('ar-SA')}</td>
+                        <td className="py-4">{new Date(task.deadline).toLocaleDateString('ar-SA')}</td>
+                        <td className="py-4">
+                          {/* Placeholder for progress - needs logic */}
+                          <div className="flex items-center">
+                            <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">
+                              <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: '0%' }}></div> {/* Default to 0% */}
+                            </div>
+                            <span className="text-sm">0%</span>
+                          </div>
+                        </td>
+                         <td className="py-4">
+                           {/* Display task status - Add styling based on status */}
+                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                             task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                             task.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                             task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                             'bg-gray-100 text-gray-700' // Default/Overdue etc.
+                           }`}>
+                             {task.status} {/* You might want to map status keys to Arabic names */}
+                           </span>
+                         </td>
+                        <td className="py-4">
+                          <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
+                            عرض
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

@@ -25,6 +25,7 @@ model User {
 
   createdAssessments Assessment[] @relation("CreatedByAdmin") // Relation for assessments created by this admin
   managedAssessments Assessment[] @relation("ManagedBySecurityManager") // Relation for assessments managed by this security manager
+  assignedTasks      Task[]       @relation("AssignedTasks") // Tasks assigned by this user (Security Manager)
 }
 
 model Assessment {
@@ -81,6 +82,8 @@ model SensitiveSystemInfo {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tasks Task[] // Tasks related to this sensitive system
+
   @@index([assessmentId])
 }
 
@@ -93,6 +96,8 @@ model Control {
   controlText   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  tasks Task[] // Tasks associated with this control
 }
 
 // Optional Enum for ControlType if needed
@@ -106,6 +111,8 @@ model Department {
   name      String   @unique // Department name must be unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  tasks Task[] // Tasks assigned to this department
 }
 
 enum Role {
@@ -113,4 +120,36 @@ enum Role {
   SECURITY_MANAGER
   DEPARTMENT_MANAGER
   USER
+}
+
+// Enum for Task Status
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+// Model for Task Assignments
+model Task {
+  id                  String     @id @default(uuid())
+  deadline            DateTime
+  status              TaskStatus @default(PENDING)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  sensitiveSystemId   String
+  sensitiveSystem     SensitiveSystemInfo @relation(fields: [sensitiveSystemId], references: [id])
+
+  departmentId        String
+  department          Department @relation(fields: [departmentId], references: [id])
+
+  assignedById        String // Security Manager who assigned the task
+  assignedBy          User     @relation("AssignedTasks", fields: [assignedById], references: [id]) // Use the named relation
+
+  controls            Control[] // Many-to-many relation with Control
+
+  @@index([sensitiveSystemId])
+  @@index([departmentId])
+  @@index([assignedById])
 }
