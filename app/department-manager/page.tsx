@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react" // Import useEffect
+import { useState, useEffect } from "react"
 import Image from "next/image"
-import { User as PrismaUser } from "@prisma/client"; // Import User type with alias
-import { 
-  Bell, 
+import { User as PrismaUser } from "@prisma/client";
+import { z } from 'zod'; // Import Zod
+import {
+  Bell,
   User as UserIcon, // Alias the icon import
   ClipboardList, 
   BarChart, 
@@ -63,15 +64,26 @@ export default function DepartmentManagerDashboardPage() {
 
         if (deptManager) {
           setCurrentUserId(deptManager.id);
-          // !!! Assumption: deptManager.department contains the ID. Needs schema fix ideally.
-          if (deptManager.department) {
-             setCurrentUserDeptId(deptManager.department);
+
+          // Validate the department ID format before setting state
+          const deptId = deptManager.department;
+          if (deptId) {
+            const uuidSchema = z.string().uuid();
+            const validation = uuidSchema.safeParse(deptId);
+            if (validation.success) {
+              setCurrentUserDeptId(deptId);
+            } else {
+              // Set a more specific error if the format is wrong
+              setError(`Invalid Department ID format ('${deptId}') found for the current user. Please check user data.`);
+              setIsLoading(false);
+            }
           } else {
-             setError("Current user is not associated with a department.");
-             setIsLoading(false); // Stop loading if department is missing
+            // Handle case where department field is null or empty
+            setError("Current user is not associated with a department (department ID missing).");
+            setIsLoading(false);
           }
         } else {
-          setError("No Department Manager user found.");
+          setError("No user with the DEPARTMENT_MANAGER role found.");
           setIsLoading(false); // Stop loading if no manager found
         }
       } catch (err: any) {
