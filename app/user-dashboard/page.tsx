@@ -1,10 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react" // Added useEffect, useCallback
 import Image from "next/image"
-import { 
-  Bell, 
-  User, 
+// Import necessary types
+import type {
+  User as PrismaUser,
+  Task as PrismaTask,
+  Control as PrismaControl,
+  SensitiveSystemInfo as PrismaSensitiveSystemInfo,
+  ControlAssignment as PrismaControlAssignment,
+  TaskStatus
+} from "@prisma/client";
+import {
+  Bell,
+  User,
   ClipboardList, 
   AlertTriangle, 
   Search,
@@ -13,16 +22,130 @@ import {
   CheckCircle,
   Clock,
   Send,
-  Upload
+  Upload,
+  RefreshCw // Added for loading indicator
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card" // Added Card components
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+import { Badge, type BadgeProps } from "@/components/ui/badge"; // Added BadgeProps type
+
+// Frontend type definitions (similar to department-manager)
+interface FrontendUser extends Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'> {}
+
+interface FrontendControl extends Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText' | 'mainComponent' | 'subComponent' | 'controlType'> {}
+
+interface FrontendTask extends Pick<PrismaTask, 'id' | 'deadline' | 'status'> {
+  sensitiveSystem: Pick<PrismaSensitiveSystemInfo, 'systemName'> | null;
+}
+
+interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'createdAt' | 'updatedAt' | 'control' | 'task' | 'assignedUser'> {
+  control: FrontendControl;
+  task: FrontendTask; // Include relevant task details
+  // assignedUser is implicitly the current user, so maybe not needed here
+}
+
 
 export default function UserDashboardPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentUser, setCurrentUser] = useState<FrontendUser | null>(null);
+  const [assignedControls, setAssignedControls] = useState<FrontendControlAssignment[]>([]);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [isLoadingControls, setIsLoadingControls] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // --- Fetch Current User ---
+  // Placeholder: Fetch all users and find the first 'USER'. Replace with actual auth logic.
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      setIsLoadingUser(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/users?role=USER'); // Fetch only users with USER role
+        if (!response.ok) throw new Error(`Failed to fetch users: ${response.statusText}`);
+        const users: FrontendUser[] = await response.json();
+
+        // Find a user (e.g., the first one for demo purposes)
+        // In a real app, this would come from session/token
+        const user = users.length > 0 ? users[0] : null;
+
+        if (user) {
+          setCurrentUser(user);
+        } else {
+          setError("User not found or not logged in."); // Adjust error message
+        }
+      } catch (err: any) {
+        console.error("Error fetching current user:", err);
+        setError(err.message || "Failed to get current user information.");
+      } finally {
+        setIsLoadingUser(false);
+      }
+    };
+    fetchCurrentUser();
+  }, []);
+
+  // --- Fetch Assigned Controls for Current User ---
+  const fetchAssignedControls = useCallback(async () => {
+    if (!currentUser?.id) {
+      if (!isLoadingUser) setIsLoadingControls(false); // Stop loading if user fetch failed
+      return;
+    }
+
+    setIsLoadingControls(true);
+    // Don't clear user fetch errors
+    // setError(null);
+
+    try {
+      // Fetch control assignments for the current user
+      // We'll create this API endpoint next: /api/control-assignments?userId=...
+      const response = await fetch(`/api/control-assignments?userId=${currentUser.id}`, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch assigned controls: ${response.statusText}`);
+      }
+      const controlsData: FrontendControlAssignment[] = await response.json();
+      setAssignedControls(controlsData);
+      if (!error) setError(null); // Clear error only if controls fetch succeeds and no user error exists
+
+    } catch (e) {
+      console.error("Failed to fetch assigned controls:", e);
+      if (e instanceof Error) {
+          setError(`فشل في جلب الضوابط المعينة: ${e.message}`);
+      } else {
+           setError("فشل في جلب الضوابط المعينة بسبب خطأ غير معروف.");
+      }
+    } finally {
+      setIsLoadingControls(false);
+    }
+  }, [currentUser, isLoadingUser, error]); // Depend on user, loading status, and error
+
+  useEffect(() => {
+    fetchAssignedControls();
+  }, [fetchAssignedControls]); // Run when fetchAssignedControls changes
+
+  // Helper function to format date (copied from department-manager)
+  const formatDate = (dateString: string | Date | undefined) => {
+    if (!dateString) return 'غير محدد';
+    try {
+      return new Date(dateString).toLocaleDateString('ar-SA', {
+        year: 'numeric', month: 'long', day: 'numeric',
+      });
+    } catch (e) { return 'تاريخ غير صالح'; }
+  };
+
+  // Helper to map status to Badge variant and style (copied from department-manager)
+  // Explicitly type the return value
+  const getStatusBadgeProps = (status: TaskStatus | undefined): { variant: BadgeProps["variant"], className: string } => {
+    switch (status) {
+      case 'COMPLETED': return { variant: 'default', className: 'bg-green-100 text-green-700' };
+      case 'PENDING': return { variant: 'default', className: 'bg-yellow-100 text-yellow-700' };
+      case 'IN_PROGRESS': return { variant: 'default', className: 'bg-blue-100 text-blue-700' };
+      case 'OVERDUE': return { variant: 'default', className: 'bg-red-100 text-red-700' };
+      default: return { variant: 'secondary', className: 'bg-gray-100 text-gray-700' };
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
       {/* Header */}
@@ -74,8 +197,20 @@ export default function UserDashboardPage() {
       {/* Main Content */}
       <main className="p-6">
         <div className="max-w-7xl mx-auto">
+          {/* Display General Errors */}
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+              <strong className="font-bold">خطأ! </strong>
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">لوحة المستخدم - أحمد محمد</h1>
+            {/* Dynamically display user name */}
+            <h1 className="text-2xl font-bold text-slate-800">
+              لوحة المستخدم {currentUser ? `- ${currentUser.nameAr || currentUser.name}` : ''}
+              {isLoadingUser && ' (جاري التحميل...)'}
+            </h1>
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Search className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -88,46 +223,49 @@ export default function UserDashboardPage() {
               </div>
             </div>
           </div>
-          
-          {/* Stats Cards */}
+
+          {/* Stats Cards - Updated counts based on fetched assignedControls */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <Card className="p-6">
               <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">5</div>
+                <div className="text-3xl font-bold">{isLoadingControls ? '...' : assignedControls.length}</div>
                 <ClipboardList className="h-6 w-6 text-nca-teal" />
               </div>
-              <div className="text-sm text-gray-600 mt-2">المهام المسندة</div>
+              <div className="text-sm text-gray-600 mt-2">الضوابط المعينة</div>
             </Card>
 
             <Card className="p-6">
               <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">3</div>
+                {/* Calculated completed count */}
+                <div className="text-3xl font-bold">{isLoadingControls ? '...' : assignedControls.filter(c => c.status === 'COMPLETED').length}</div>
                 <CheckCircle className="h-6 w-6 text-green-500" />
               </div>
-              <div className="text-sm text-gray-600 mt-2">المهام المكتملة</div>
+              <div className="text-sm text-gray-600 mt-2">الضوابط المكتملة</div>
             </Card>
 
             <Card className="p-6">
               <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">2</div>
+                 {/* Calculated pending/in-progress count */}
+                <div className="text-3xl font-bold">{isLoadingControls ? '...' : assignedControls.filter(c => c.status === 'PENDING' || c.status === 'IN_PROGRESS').length}</div>
                 <Clock className="h-6 w-6 text-yellow-500" />
               </div>
-              <div className="text-sm text-gray-600 mt-2">المهام المعلقة</div>
+              <div className="text-sm text-gray-600 mt-2">الضوابط المعلقة</div>
             </Card>
 
             <Card className="p-6">
               <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">1</div>
+                 {/* Calculated overdue count */}
+                <div className="text-3xl font-bold">{isLoadingControls ? '...' : assignedControls.filter(c => c.status === 'OVERDUE').length}</div>
                 <AlertTriangle className="h-6 w-6 text-red-500" />
               </div>
-              <div className="text-sm text-gray-600 mt-2">مهام متأخرة</div>
+              <div className="text-sm text-gray-600 mt-2">ضوابط متأخرة</div>
             </Card>
           </div>
 
-          {/* My Tasks Section */}
+          {/* My Tasks Section - Updated to show assigned controls */}
           <Card className="p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">مهامي</h2>
+              <h2 className="text-xl font-semibold">الضوابط المعينة لي</h2>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="gap-2">
                   <Filter className="h-4 w-4" />
@@ -139,64 +277,46 @@ export default function UserDashboardPage() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="text-right border-b border-gray-200">
-                    <th className="pb-3 font-medium text-gray-700 pr-4">اسم المهمة</th>
-                    <th className="pb-3 font-medium text-gray-700">التقييم</th>
-                    <th className="pb-3 font-medium text-gray-700">تاريخ الإسناد</th>
-                    <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th>
-                    <th className="pb-3 font-medium text-gray-700">الحالة</th>
+                    {/* Updated Headers */}
+                    <th className="pb-3 font-medium text-gray-700 pr-4">الضابط</th>
+                    <th className="pb-3 font-medium text-gray-700">النظام</th>
+                    <th className="pb-3 font-medium text-gray-700">الموعد النهائي للمهمة</th>
+                    <th className="pb-3 font-medium text-gray-700">حالة الضابط</th>
                     <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">3-2-3-1 تأمين واجهة برمجة التطبيقات.	</td>
-                    <td className="py-4">تقييم الأنظمة الحساسة 2025	</td>
-                    <td className="py-4">15 يناير 2025</td>
-                    <td className="py-4">10 مارس 2025</td>
-                    <td className="py-4">
-                      <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-sm">متأخر</span>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        عرض
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">1-1-3-1 إجراء اختبار التحمل (Stress Testing) للتأكد من سعة المكونات المختلفة.	</td>
-                    <td className="py-4">تقييم الأنظمة الحساسة 2025	</td>
-                    <td className="py-4">20 يناير 2025</td>
-                    <td className="py-4">20 مارس 2025</td>
-                    <td className="py-4">
-                      <span className="bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full text-sm">قيد التنفيذ</span>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        عرض
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 pr-4">2-1-3-1 التأكد من تطبيق متطلبات استمرارية الأعمال.	</td>
-                    <td className="py-4">تقييم الأنظمة الحساسة 2025	</td>
-                    <td className="py-4">5 فبراير 2025</td>
-                    <td className="py-4">5 أبريل 2025</td>
-                    <td className="py-4">
-                      <span className="bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full text-sm">قيد التنفيذ</span>
-                    </td>
-                    <td className="py-4">
-                      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                        عرض
-                      </Button>
-                    </td>
-                  </tr>
-                  
-                  
+                  {isLoadingControls ? (
+                    <tr><td colSpan={5} className="text-center py-4"><RefreshCw className="h-6 w-6 animate-spin inline-block mr-2" /> جاري تحميل الضوابط...</td></tr>
+                  ) : assignedControls.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-4">لا توجد ضوابط معينة لك حاليًا.</td></tr>
+                  ) : (
+                    assignedControls.map((assignment) => (
+                      <tr key={assignment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4 pr-4" title={assignment.control.controlText}>
+                          {assignment.control.controlNumber}
+                        </td>
+                        <td className="py-4">{assignment.task.sensitiveSystem?.systemName || 'غير محدد'}</td>
+                        <td className="py-4">{formatDate(assignment.task.deadline)}</td>
+                        <td className="py-4">
+                          <Badge {...getStatusBadgeProps(assignment.status)}>
+                            {assignment.status} {/* TODO: Translate status */}
+                          </Badge>
+                        </td>
+                        <td className="py-4">
+                          {/* TODO: Add action, e.g., link to task details/submission page */}
+                          <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
+                            عرض التفاصيل
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
