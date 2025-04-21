@@ -52,6 +52,56 @@ export async function PUT(request: Request, { params }: { params: { userId: stri
   }
 }
 
+// PATCH handler specifically for updating the department (or other partial updates)
+export async function PATCH(request: Request, { params }: { params: { userId: string } }) {
+    const { userId } = params;
+    // TODO: Add authentication and authorization check (ensure dept manager or admin)
+
+    try {
+        const body = await request.json();
+
+        // Simple validation for this specific use case (updating department)
+        if (typeof body.department !== 'string' && body.department !== null) {
+             return NextResponse.json({ message: "Invalid input: 'department' must be a string or null." }, { status: 400 });
+        }
+
+        // Check if user exists
+        const userExists = await prisma.user.findUnique({ where: { id: userId } });
+        if (!userExists) {
+          return NextResponse.json({ message: 'User not found' }, { status: 404 });
+        }
+
+        // Update only the department field
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: {
+                department: body.department, // Update the department
+            },
+             // Select fields to return, excluding password
+            select: {
+                id: true,
+                name: true,
+                nameAr: true,
+                email: true,
+                role: true,
+                department: true,
+                createdAt: true,
+                updatedAt: true,
+            }
+        });
+
+        return NextResponse.json(updatedUser);
+
+    } catch (error: any) {
+        console.error(`Failed to partially update user ${userId}:`, error);
+        if (error.code === 'P2025') {
+            return NextResponse.json({ message: 'User not found' }, { status: 404 });
+        }
+        return NextResponse.json({ message: 'Internal Server Error: Failed to update user department' }, { status: 500 });
+    }
+}
+
+
 // DELETE handler for deleting a user
 export async function DELETE(request: Request, { params }: { params: { userId: string } }) {
   const { userId } = params;

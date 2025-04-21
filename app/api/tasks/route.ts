@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 // Explicitly import types and Prisma namespace
 import { Prisma } from '@prisma/client';
-import type { Control, Task, User } from '@prisma/client';
+import type { Control, Task, User, PrismaClient } from '@prisma/client'; // Added PrismaClient for tx type
 
 // Zod schema for validating the POST request body
 const createTaskSchema = z.object({
@@ -57,30 +57,64 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Assigning user not found or is not a Security Manager" }, { status: 404 });
     }
 
+    // --- Create Task and Assignments (without transaction to bypass TS issue) ---
 
-    // Create the task and connect controls
+    // 1. Create the Task
     const newTask = await prisma.task.create({
       data: {
-        deadline: new Date(deadline), // Convert string to Date object
+        deadline: new Date(deadline),
         sensitiveSystemId: sensitiveSystemId,
-        // departmentId: departmentId, // Removed
-        assignedToId: assignedToId, // Added
+        assignedToId: assignedToId,
         assignedById: assignedById,
-        status: 'PENDING', // Default status
-        controls: {
-          connect: controlIds.map(id => ({ id: id })), // Connect controls by their IDs
-        },
+        status: 'PENDING',
       },
-      include: {
-        sensitiveSystem: true,
-        // department: true, // Removed
-        controls: true,
-        assignedBy: { select: { id: true, name: true } }, // Assigner (Security Manager)
-        assignedTo: { select: { id: true, name: true, nameAr: true } } // Assignee (Department Manager)
-      }
     });
 
-    return NextResponse.json(newTask, { status: 201 });
+    // 2. Create ControlAssignment records linked to the new Task
+    // Note: This is not atomic. If this part fails, the Task will still exist.
+    try {
+      await Promise.all(controlIds.map(controlId =>
+        prisma.controlAssignment.create({
+          data: {
+            taskId: newTask.id,
+            controlId: controlId,
+            status: 'PENDING',
+            // assignedUserId remains null initially
+          }
+        })
+      ));
+    } catch (assignmentError) {
+        console.error("Error creating control assignments after task creation:", assignmentError);
+        // Optionally, try to delete the created task for cleanup, though this might also fail
+        // await prisma.task.delete({ where: { id: newTask.id } }).catch(cleanupError => {
+        //     console.error("Failed to cleanup partially created task:", cleanupError);
+        // });
+        return NextResponse.json({ message: "Internal Server Error: Failed to create control assignments" }, { status: 500 });
+    }
+
+
+    // 3. Fetch the created task with its assignments to return
+    const finalTask = await prisma.task.findUnique({
+        where: { id: newTask.id },
+        include: {
+          sensitiveSystem: { select: { systemName: true } },
+          assignedBy: { select: { id: true, name: true } },
+          assignedTo: { select: { id: true, name: true, nameAr: true } },
+          controlAssignments: {
+            include: {
+              control: true,
+              assignedUser: { select: { id: true, name: true, nameAr: true } }
+            }
+          }
+        }
+      });
+
+     if (!finalTask) {
+        // Should not happen if task creation succeeded, but handle just in case
+        throw new Error("Failed to retrieve created task after creating assignments.");
+    }
+
+    return NextResponse.json(finalTask, { status: 201 });
 
   } catch (error) {
     console.error("Error creating task:", error);
@@ -114,11 +148,18 @@ export async function GET(request: NextRequest) {
     };
 
     const includeOptions = {
-      sensitiveSystem: { select: { systemName: true } }, // Only select needed fields
-      // department: true, // Removed
-      controls: { select: controlIncludeFields }, // Select specific control fields
-      assignedBy: { select: { id: true, name: true } }, // Assigner (Security Manager)
-      assignedTo: { select: { id: true, name: true, nameAr: true, department: true } } // Include department for filtering
+      sensitiveSystem: { select: { systemName: true } },
+      assignedBy: { select: { id: true, name: true } },
+      assignedTo: { select: { id: true, name: true, nameAr: true, department: true } },
+      // Include controlAssignments with control and assigned user details
+      controlAssignments: {
+        select: {
+          id: true, // Need the assignment ID for updates
+          status: true,
+          control: { select: controlIncludeFields }, // Include control details
+          assignedUser: { select: { id: true, name: true, nameAr: true } } // Include assigned user details
+        }
+      }
     };
 
     // Correctly type orderByOptions

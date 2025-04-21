@@ -121,11 +121,13 @@ export default function DepartmentManagerDashboardPage() {
         const teamData: FrontendUser[] = await teamResponse.json();
         setTeamMembers(teamData);
 
-        // Fetch Available Users (Users with role USER and no department)
-        // Adjust the API endpoint/query params as needed based on your API implementation
-        const availableResponse = await fetch(`/api/users?role=USER&unassigned=true`); // Assuming an 'unassigned' flag or similar
+        // Fetch Available Users (ALL users with role USER)
+        const availableResponse = await fetch(`/api/users?role=USER`); // Removed unassigned=true
         if (!availableResponse.ok) throw new Error(`Failed to fetch available users: ${availableResponse.statusText}`);
-        const availableData: FrontendUser[] = await availableResponse.json();
+        const allUserData: FrontendUser[] = await availableResponse.json();
+        // Filter out users already in the current team from the "available" list shown in the modal
+        const currentTeamMemberIds = new Set(teamData.map(member => member.id));
+        const availableData = allUserData.filter(user => !currentTeamMemberIds.has(user.id));
         setAvailableUsers(availableData);
 
     } catch (err: any) {

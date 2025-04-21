@@ -27,6 +27,7 @@ model User {
   managedAssessments Assessment[] @relation("ManagedBySecurityManager") // Relation for assessments managed by this security manager
   assignedTasks      Task[]       @relation("AssignedTasks") // Tasks assigned *by* this user (Security Manager)
   responsibleTasks   Task[]       @relation("ResponsibleTasks") // Tasks assigned *to* this user (Department Manager)
+  controlAssignments ControlAssignment[] // Assignments given TO this user
 }
 
 model Assessment {
@@ -98,7 +99,8 @@ model Control {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tasks Task[] // Tasks associated with this control
+  // tasks Task[] // Removed old relation
+  controlAssignments ControlAssignment[] // Assignments related to this control
 }
 
 // Optional Enum for ControlType if needed
@@ -151,10 +153,33 @@ model Task {
   assignedToId        String? // Department Manager responsible for the task (optional for now, but should be required by logic)
   assignedTo          User?    @relation("ResponsibleTasks", fields: [assignedToId], references: [id])
 
-  controls            Control[] // Many-to-many relation with Control
+  // controls            Control[] // Removed direct many-to-many relation
+
+  controlAssignments ControlAssignment[] // Relation to the new assignment model
 
   @@index([sensitiveSystemId])
-  // @@index([departmentId]) // Remove index
   @@index([assignedById])
-  @@index([assignedToId]) // Add index for the new relation
+  @@index([assignedToId])
+}
+
+// New model for assigning individual controls within a task to users
+model ControlAssignment {
+  id            String     @id @default(uuid())
+  taskId        String
+  controlId     String
+  assignedUserId String?    // The specific user this control is assigned to (can be null initially)
+  status        TaskStatus @default(PENDING) // Status for this specific control assignment
+  // Add fields for evidence if needed later, e.g.:
+  // evidenceNotes    String?
+  // evidenceFilePath String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  task          Task    @relation(fields: [taskId], references: [id])
+  control       Control @relation(fields: [controlId], references: [id])
+  assignedUser  User?   @relation(fields: [assignedUserId], references: [id]) // Relation to the assigned user
+
+  @@index([taskId])
+  @@index([controlId])
+  @@index([assignedUserId])
 }
