@@ -50,14 +50,19 @@ interface FrontendTask extends Pick<PrismaTask, 'id' | 'deadline' | 'status'> {
   sensitiveSystem: Pick<PrismaSensitiveSystemInfo, 'systemName'> | null;
 }
 
-interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'createdAt' | 'updatedAt' | 'control' | 'task' | 'assignedUser'> {
-  control: FrontendControl;
-  task: FrontendTask; // Include relevant task details
-  // Include new fields from schema, make them optional as they might not be fetched initially or exist
-  notes?: string | null;
-  correctiveActions?: string | null;
-  expectedComplianceDate?: Date | string | null; // Allow string initially from fetch, convert later
-  complianceLevel?: ComplianceLevel | null;
+// Define the interface explicitly to avoid Omit conflicts
+interface FrontendControlAssignment {
+  id: string;
+  status: TaskStatus;
+  taskId: string;
+  controlId: string;
+  assignedUserId: string | null;
+  notes?: string | null; // Optional
+  correctiveActions?: string | null; // Optional
+  expectedComplianceDate?: Date | string | null; // Optional, allow string from fetch
+  complianceLevel?: ComplianceLevel | null; // Optional
+  control: FrontendControl; // Relation
+  task: FrontendTask; // Relation
 }
 
 // Type for the modal form data
@@ -86,6 +91,7 @@ export default function UserDashboardPage() {
     complianceLevel: "",
   });
   const [isSaving, setIsSaving] = useState(false); // State for save button loading
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false); // State for date picker popover
 
   // --- Fetch Current User ---
   // Placeholder: Fetch all users and find the first 'USER'. Replace with actual auth logic.
@@ -590,8 +596,13 @@ export default function UserDashboardPage() {
       </main>
 
       {/* Details Modal */}
+      {/* Pass isDatePickerOpen state to inert attribute */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="sm:max-w-[600px] text-right" dir="rtl">
+        <DialogContent
+          className="sm:max-w-[600px] text-right"
+          dir="rtl"
+          // inert={isDatePickerOpen} // Removed this line to fix date picker interaction
+        >
           <DialogHeader>
             <DialogTitle>تفاصيل الضابط: {selectedAssignment?.control?.controlNumber}</DialogTitle>
             <DialogDescription>
@@ -638,11 +649,12 @@ export default function UserDashboardPage() {
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="expectedComplianceDate" className="text-right col-span-1">
                 تاريخ الالتزام المتوقع
-              </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
+               </Label>
+               {/* Control the Popover open state */}
+               <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen} modal={false}>
+                 <PopoverTrigger asChild>
+                   <Button
+                     variant={"outline"}
                     className={cn(
                       "col-span-3 justify-start text-right font-normal",
                       !modalFormData.expectedComplianceDate && "text-muted-foreground"
@@ -656,8 +668,9 @@ export default function UserDashboardPage() {
                     )}
                   </Button>
                 </PopoverTrigger>
-                {/* Stop propagation inside PopoverContent */}
-                <PopoverContent className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+                {/* Stop propagation inside PopoverContent - Removed stopPropagation */}
+                <PopoverContent
+                  className="w-auto p-0">
                   <Calendar
                     mode="single"
                     selected={modalFormData.expectedComplianceDate}
