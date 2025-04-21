@@ -1,12 +1,19 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react" // Added useCallback
+import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
-import type { User as PrismaUser, Task as PrismaTask, Control as PrismaControl, SensitiveSystemInfo as PrismaSensitiveSystemInfo, Department as PrismaDepartment } from "@prisma/client"; // Use type imports, added Department
-// No longer need Zod here
+// Import necessary types from Prisma
+import type {
+  User as PrismaUser,
+  Task as PrismaTask,
+  Control as PrismaControl,
+  SensitiveSystemInfo as PrismaSensitiveSystemInfo,
+  ControlAssignment as PrismaControlAssignment, // Import ControlAssignment
+  TaskStatus // Import TaskStatus enum
+} from "@prisma/client";
 import {
   Bell,
-  PlusCircle, // Added for Add button
+  PlusCircle,
   User as UserIcon,
   ClipboardList,
   BarChart,
@@ -17,76 +24,97 @@ import {
   Download,
   CheckCircle,
   Users,
-  UserPlus // Added for Add User icon
+  UserPlus,
+  RefreshCw,
+  ChevronDown, // Added for expanding task details
+  ChevronUp // Added for collapsing task details
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card" // Added more Card components
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"; // Import Dialog components, added DialogTrigger
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components for assigning tasks
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+// Removed Tooltip import as it seems unused and causes errors
+import { Badge } from "@/components/ui/badge"; // Added Badge for status
+import React from "react"; // Import React for Fragment
 
-// Define User type for frontend use - Use 'department' (string) instead of 'departmentId'
-interface FrontendUser extends Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'> {
-  // Add any other fields needed for display
+// Define User type for frontend use
+interface FrontendUser extends Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'> {}
+
+// Define ControlAssignment type for frontend use
+interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'createdAt' | 'updatedAt' | 'control' | 'assignedUser'> {
+  control: Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText' | 'mainComponent' | 'subComponent' | 'controlType'>;
+  assignedUser: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null; // Make assignedUser required but nullable
 }
 
-// Define a more specific Task type for the frontend, including nested data
-// This uses Prisma's generated types for better type safety
-interface FrontendTask extends Omit<PrismaTask, 'deadline' | 'createdAt' | 'updatedAt' | 'sensitiveSystem' | 'controls' | 'assignedTo'> {
-  deadline: string; // Keep as string if API returns it this way
-  createdAt: string; // Keep as string
+// Define Task type for frontend use, including controlAssignments
+interface FrontendTask extends Omit<PrismaTask, 'deadline' | 'createdAt' | 'updatedAt' | 'sensitiveSystem' | 'assignedTo' | 'controlAssignments'> {
+  deadline: string;
+  createdAt: string;
   sensitiveSystem: Pick<PrismaSensitiveSystemInfo, 'systemName'> | null;
-  controls: PrismaControl[];
-  assignedTo?: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null; // Include assignedTo details
-  progress?: number | null; // Added missing progress field
+  assignedTo: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null; // Manager responsible for the task
+  controlAssignments: FrontendControlAssignment[]; // Use the new interface
+  // progress?: number | null; // Progress might be calculated or fetched differently now
 }
 
 
 export default function DepartmentManagerDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [tasks, setTasks] = useState<FrontendTask[]>([]); // Tasks assigned TO the manager
-  const [teamTasks, setTeamTasks] = useState<FrontendTask[]>([]); // Tasks assigned to team members
-  const [teamMembers, setTeamMembers] = useState<FrontendUser[]>([]); // Users in the manager's department
-  const [availableUsers, setAvailableUsers] = useState<FrontendUser[]>([]); // Users with role USER not in this dept
+  // State now holds tasks assigned to the manager, which contain control assignments
+  const [managerTasks, setManagerTasks] = useState<FrontendTask[]>([]);
+  // Separate state for assignments specifically for team members might be useful for the "Team Tasks" view
+  // Or we can filter managerTasks.flatMap(t => t.controlAssignments)
+  const [teamMembers, setTeamMembers] = useState<FrontendUser[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<FrontendUser[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<FrontendUser | null>(null); // Store full user object
+  const [currentUser, setCurrentUser] = useState<FrontendUser | null>(null);
+  const [assignmentStatus, setAssignmentStatus] = useState<{ [key: string]: 'loading' | 'error' | 'success' }>({}); // Track status per assignment ID
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set()); // Track expanded tasks
 
   // State for modals
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedTaskForModal, setSelectedTaskForModal] = useState<FrontendTask | null>(null);
+  // Modal now shows details of a Task, focusing on its ControlAssignments
+  const [selectedTaskForDetailsModal, setSelectedTaskForDetailsModal] = useState<FrontendTask | null>(null);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [isAssignTaskModalOpen, setIsAssignTaskModalOpen] = useState(false);
-  const [selectedTaskToAssign, setSelectedTaskToAssign] = useState<FrontendTask | null>(null);
-  const [selectedUserToAssign, setSelectedUserToAssign] = useState<string>(""); // Store user ID
+  // Removed state related to the old incorrect assignment modal
 
+
+  // --- Toggle Task Expansion ---
+  const toggleTaskExpansion = (taskId: string) => {
+    setExpandedTasks((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
 
   // --- Fetch Current User (Department Manager) ---
-  // TODO: Replace placeholder fetch with actual auth context logic
+  // (This useEffect remains largely the same)
   useEffect(() => {
     const fetchDeptManager = async () => {
-      setIsLoadingUsers(true); // Start loading user data
+      setIsLoadingUsers(true);
       setError(null);
       try {
-        // **PLACEHOLDER LOGIC - REPLACE WITH AUTH**
-        // Fetch all users and find the first DEPARTMENT_MANAGER
         const response = await fetch('/api/users');
         if (!response.ok) throw new Error(`Failed to fetch users: ${response.statusText}`);
         const users: PrismaUser[] = await response.json();
         const deptManager = users.find(user => user.role === 'DEPARTMENT_MANAGER');
-        // **END PLACEHOLDER**
 
         if (deptManager) {
-          // Correctly map PrismaUser to FrontendUser
           setCurrentUser({
             id: deptManager.id,
             name: deptManager.name,
             nameAr: deptManager.nameAr,
             email: deptManager.email,
             role: deptManager.role,
-            department: deptManager.department // Use department (string | null)
+            department: deptManager.department
           });
         } else {
           setError("Logged-in user is not a Department Manager or user not found.");
@@ -94,188 +122,199 @@ export default function DepartmentManagerDashboardPage() {
       } catch (err: any) {
         console.error("Error fetching current user:", err);
         setError(err.message || "Failed to get current user information.");
-      } finally {
-         // We set loading false after fetching team/available users
       }
+      // Loading state handled by fetchUsers now
     };
     fetchDeptManager();
-  }, []); // Run once on mount
+  }, []);
 
   // --- Fetch Team Members and Available Users ---
+  // (This useCallback remains largely the same)
   const fetchUsers = useCallback(async () => {
-    // Use currentUser.department (string) for fetching
     if (!currentUser?.department) {
-        // Don't fetch if we don't have the manager or their department name yet
-        // If there was an error fetching the manager, the error state is already set.
-        setIsLoadingUsers(false); // Stop user loading if we can't proceed
+        setIsLoadingUsers(false);
         return;
     }
-
     setIsLoadingUsers(true);
-    setError(null); // Clear previous errors specific to user fetching
+    // Don't clear main error here, let task fetching handle its errors
+    // setError(null);
 
     try {
-        // Fetch Team Members (Users in the same department) - Use 'department' query param
         const teamResponse = await fetch(`/api/users?department=${currentUser.department}&role=USER`);
         if (!teamResponse.ok) throw new Error(`Failed to fetch team members: ${teamResponse.statusText}`);
         const teamData: FrontendUser[] = await teamResponse.json();
         setTeamMembers(teamData);
 
-        // Fetch Available Users (ALL users with role USER)
-        const availableResponse = await fetch(`/api/users?role=USER`); // Removed unassigned=true
+        const availableResponse = await fetch(`/api/users?role=USER`);
         if (!availableResponse.ok) throw new Error(`Failed to fetch available users: ${availableResponse.statusText}`);
         const allUserData: FrontendUser[] = await availableResponse.json();
-        // Filter out users already in the current team from the "available" list shown in the modal
         const currentTeamMemberIds = new Set(teamData.map(member => member.id));
         const availableData = allUserData.filter(user => !currentTeamMemberIds.has(user.id));
         setAvailableUsers(availableData);
 
     } catch (err: any) {
         console.error("Error fetching team/available users:", err);
-        // Keep existing error if it was from fetching the manager, otherwise set new error
-        if (!error) {
+        if (!error) { // Only set error if no other error exists
             setError(err.message || "Failed to fetch user lists.");
         }
     } finally {
-        setIsLoadingUsers(false); // Finish loading user data
+        setIsLoadingUsers(false);
     }
-  }, [currentUser, error]); // Depend on currentUser and the error state
+  }, [currentUser, error]); // Keep dependencies
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]); // Run fetchUsers when it changes (i.e., when currentUser is set)
+  }, [fetchUsers]);
 
 
-   // --- Fetch Tasks (Assigned to Manager and Team) ---
-   useEffect(() => {
-    const fetchAllTasks = async () => {
-      // Only fetch if currentUser and department are available
-      if (!currentUser?.id || !currentUser.department) {
-        if (!isLoadingUsers && !error) { // Only set loading false if user loading finished without errors
-             setIsLoadingTasks(false);
-        }
-        return;
+   // --- Fetch Tasks (Assigned to Manager) ---
+   // Renamed fetchAllTasks to fetchManagerTasks for clarity
+   const fetchManagerTasks = useCallback(async () => {
+    if (!currentUser?.id) {
+      if (!isLoadingUsers && !error) {
+           setIsLoadingTasks(false);
       }
+      return;
+    }
 
-      setIsLoadingTasks(true);
-      // Don't reset the main error state here, as user fetching might have failed
-      // setError(null); // Let's manage task-specific errors separately if needed
+    setIsLoadingTasks(true);
+    // Clear previous task-specific errors, but not user errors
+    // setError(null); // Maybe introduce a taskError state? For now, let's overwrite.
 
-      try {
-        // 1. Fetch tasks assigned directly TO the current manager
-        const managerTasksResponse = await fetch(`/api/tasks?assignedToId=${currentUser.id}`);
-        if (!managerTasksResponse.ok) {
-          throw new Error(`Failed to fetch manager tasks: ${managerTasksResponse.statusText}`);
-        }
-        const managerTasksData: FrontendTask[] = await managerTasksResponse.json();
-        setTasks(managerTasksData); // Tasks for the manager themselves
-
-        // 2. Fetch tasks assigned to ANYONE in the manager's department
-        //    (This might include the manager again, filter if needed, or adjust API)
-        //    Requires an API endpoint like /api/tasks?department=... (or adjust API if it expects ID)
-        //    Assuming /api/tasks needs adjustment to accept department name string
-        const teamTasksResponse = await fetch(`/api/tasks?department=${currentUser.department}`); // Use department string
-         if (!teamTasksResponse.ok) {
-           throw new Error(`Failed to fetch team tasks: ${teamTasksResponse.statusText}`);
-         }
-         const teamTasksData: FrontendTask[] = await teamTasksResponse.json();
-         // Filter out tasks assigned to the manager if you only want team member tasks
-         setTeamTasks(teamTasksData.filter(task => task.assignedTo?.id !== currentUser.id));
-
-
-      } catch (e) {
-        console.error("Failed to fetch tasks:", e);
-        // Set error only if there wasn't a more critical user fetch error
-        if (!error && e instanceof Error) {
-            setError(`فشل في جلب المهام: ${e.message}`);
-        } else if (!error) {
-             setError("فشل في جلب المهام بسبب خطأ غير معروف.");
-        }
-      } finally {
-        setIsLoadingTasks(false);
+    try {
+      // Fetch tasks assigned directly TO the current manager, including control assignments
+      // Add cache: 'no-store' to prevent caching
+      const response = await fetch(`/api/tasks?assignedToId=${currentUser.id}`, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch manager tasks: ${response.statusText}`);
       }
-    };
+      // Ensure the fetched data matches the updated FrontendTask interface
+      const tasksData: FrontendTask[] = await response.json();
 
-    fetchAllTasks();
-  // Depend on currentUser.id, currentUser.department, isLoadingUsers, and error state
-  }, [currentUser, isLoadingUsers, error]);
+      // Log the fetched data structure for debugging
+      console.log("Fetched Manager Tasks Data:", JSON.stringify(tasksData, null, 2));
+
+      setManagerTasks(tasksData);
+      // Clear general error if task fetch succeeds
+      setError(null);
+
+    } catch (e) {
+      console.error("Failed to fetch tasks:", e);
+      if (e instanceof Error) {
+          setError(`فشل في جلب المهام: ${e.message}`);
+      } else {
+           setError("فشل في جلب المهام بسبب خطأ غير معروف.");
+      }
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  // Depend on currentUser.id, isLoadingUsers, and error state
+  }, [currentUser, isLoadingUsers, error]); // Added error dependency
+
+  useEffect(() => {
+    fetchManagerTasks();
+  }, [fetchManagerTasks]); // Run when fetchManagerTasks changes
 
 
   // --- Add User to Team ---
+  // (This function remains the same)
   const handleAddUserToTeam = async (userId: string) => {
-    // Use currentUser.department (string)
     if (!currentUser?.department) {
       setError("لا يمكن إضافة المستخدم: لم يتم تحديد قسم المدير.");
       return;
     }
-
     try {
-      // Send 'department' (string) in the body
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ department: currentUser.department }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || `Failed to add user to team: ${response.statusText}`);
       }
-
-      // Refresh user lists after successful addition
-      fetchUsers(); // Re-run the user fetching logic
-      setIsAddUserModalOpen(false); // Close modal on success
-
+      fetchUsers();
+      setIsAddUserModalOpen(false);
     } catch (err: any) {
       console.error("Error adding user to team:", err);
       setError(err.message || "حدث خطأ أثناء إضافة المستخدم للفريق.");
-      // Optionally keep the modal open on error: // setIsAddUserModalOpen(false);
     }
   };
 
-  // --- Assign Task to User ---
-  const handleAssignTask = async () => {
-    if (!selectedTaskToAssign || !selectedUserToAssign) {
-        setError("الرجاء تحديد مهمة ومستخدم لتعيينها.");
-        return;
-    }
+  // --- Assign Control to User ---
+  const handleAssignControl = async (assignmentId: string, userId: string | null) => {
+    setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'loading' }));
+    setError(null); // Clear general errors when attempting assignment
 
     try {
-        const response = await fetch(`/api/tasks/${selectedTaskToAssign.id}`, { // Assuming PATCH /api/tasks/:taskId
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ assignedToId: selectedUserToAssign }),
+      const response = await fetch(`/api/control-assignments/${assignmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignedUserId: userId }), // Send null to unassign
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        // Set the main error state to display the issue
+        setError(errorData.message || `Failed to assign control: ${response.statusText}`);
+        setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'error' })); // Also set specific assignment status to error
+        return; // Stop execution if the API call failed
+      }
+
+      // If response is OK (status 2xx)
+
+      // --- START: Local State Update ---
+      // Update the local state optimistically instead of refetching
+      setManagerTasks(currentTasks => {
+        return currentTasks.map(task => {
+          // Find the task containing the assignment
+          const assignmentIndex = task.controlAssignments.findIndex(a => a.id === assignmentId);
+          if (assignmentIndex === -1) {
+            return task; // Not the task we're looking for
+          }
+
+          // Create a new assignment object with the updated user ID
+          const updatedAssignment = {
+            ...task.controlAssignments[assignmentIndex],
+            assignedUserId: userId,
+            // Find the user object from teamMembers to update assignedUser (important for display)
+            assignedUser: userId ? teamMembers.find(u => u.id === userId) ?? null : null
+          };
+
+          // Create a new assignments array for the task
+          const newAssignments = [
+            ...task.controlAssignments.slice(0, assignmentIndex),
+            updatedAssignment,
+            ...task.controlAssignments.slice(assignmentIndex + 1),
+          ];
+
+          // Return a new task object with the updated assignments
+          return { ...task, controlAssignments: newAssignments };
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `Failed to assign task: ${response.statusText}`);
-        }
-
-        // Refresh tasks (both manager's and team's)
-        // Consider a more targeted refresh if possible
-         const managerTasksResponse = await fetch(`/api/tasks?assignedToId=${currentUser?.id}`);
-         const managerTasksData: FrontendTask[] = await managerTasksResponse.json();
-         setTasks(managerTasksData);
-
-         // Assuming /api/tasks is updated to accept department name string
-         const teamTasksResponse = await fetch(`/api/tasks?department=${currentUser?.department}`);
-         const teamTasksData: FrontendTask[] = await teamTasksResponse.json();
-         setTeamTasks(teamTasksData.filter(task => task.assignedTo?.id !== currentUser?.id));
+      });
+      // --- END: Local State Update ---
 
 
-        setIsAssignTaskModalOpen(false); // Close modal
-        setSelectedTaskToAssign(null);
-        setSelectedUserToAssign("");
+      setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'success' }));
+
+      // Optional: Clear success status after a few seconds
+      setTimeout(() => setAssignmentStatus(prev => {
+          const newStatus = { ...prev };
+          delete newStatus[assignmentId]; // Remove the status entry
+          return newStatus;
+      }), 3000);
+
 
     } catch (err: any) {
-        console.error("Error assigning task:", err);
-        setError(err.message || "حدث خطأ أثناء تعيين المهمة.");
+      console.error("Error assigning control:", err);
+      setError(err.message || "حدث خطأ أثناء تعيين الضابط.");
+      setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'error' }));
     }
-};
+  };
 
 
   // Helper function to format date
+  // (This function remains the same)
   const formatDate = (dateString: string | Date | undefined) => {
     if (!dateString) return 'غير محدد';
     try {
@@ -285,21 +324,17 @@ export default function DepartmentManagerDashboardPage() {
     } catch (e) { return 'تاريخ غير صالح'; }
   };
 
-  // Function to open the details modal
+  // Function to open the details modal (now shows Task details with assignments)
   const handleOpenDetailsModal = (task: FrontendTask) => {
-    setSelectedTaskForModal(task);
+    setSelectedTaskForDetailsModal(task);
     setIsDetailsModalOpen(true);
   };
 
-  // Function to open assign task modal
-  const handleOpenAssignTaskModal = (task: FrontendTask) => {
-    setSelectedTaskToAssign(task);
-    setSelectedUserToAssign(task.assignedTo?.id || ""); // Pre-select current assignee if any
-    setIsAssignTaskModalOpen(true);
-  };
+  // Removed handleOpenAssignTaskModal
 
 
   // --- Render Logic ---
+  // Removed duplicate function declarations from here
   const renderUserList = (users: FrontendUser[], actionButton?: (user: FrontendUser) => React.ReactNode) => {
     if (isLoadingUsers) return <p>جاري تحميل المستخدمين...</p>;
     if (!users || users.length === 0) return <p>لا يوجد مستخدمون لعرضهم.</p>;
@@ -458,44 +493,112 @@ export default function DepartmentManagerDashboardPage() {
                 <tbody>
                   {isLoadingTasks ? (
                     <tr><td colSpan={6} className="text-center py-4">جاري تحميل المهام...</td></tr>
-                  ) : tasks.length === 0 ? (
+                  ) : managerTasks.length === 0 ? ( // Use managerTasks
                     <tr><td colSpan={6} className="text-center py-4">لا توجد مهام معينة لك.</td></tr>
                   ) : (
-                    tasks.map((task) => (
-                      <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    managerTasks.map((task: FrontendTask) => ( // Use managerTasks and add type
+                     <React.Fragment key={task.id}>
+                      <tr className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-4 pr-4">{task.sensitiveSystem?.systemName || 'غير محدد'}</td>
-                        <td className="py-4 max-w-xs truncate" title={task.controls?.map(c => `${c.controlNumber}: ${c.controlText}`).join(', ') || ''}>
-                          {task.controls?.map(c => c.controlNumber).join(', ') || 'لا توجد'}
+                        {/* Display count of controls instead of list */}
+                        <td className="py-4">
+                          {task.controlAssignments?.length ?? 0} ضوابط
                         </td>
                         <td className="py-4">{formatDate(task.deadline)}</td>
                         <td className="py-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          {/* Use Badge component for status */}
+                          <Badge variant={task.status === 'COMPLETED' ? 'default' : task.status === 'PENDING' ? 'default' : 'secondary'} className={
                             task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
                             task.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
                             task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
                             task.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700'}`}>
+                            'bg-gray-100 text-gray-700' // Fallback style
+                          }>
                             {task.status} {/* TODO: Map status keys to Arabic */}
-                          </span>
+                          </Badge>
                         </td>
                         <td className="py-4">
+                          {/* Progress calculation might need adjustment based on controlAssignments */}
                           <div className="flex items-center">
                             <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">
-                              <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${task.progress || 0}%` }}></div>
+                              {/* Placeholder progress */}
+                              <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `0%` }}></div>
                             </div>
-                            <span className="text-sm">{task.progress || 0}%</span>
+                            <span className="text-sm">0%</span> {/* Placeholder */}
                           </div>
                         </td>
-                        <td className="py-4 pl-4">
-                          <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900" onClick={() => handleOpenDetailsModal(task)}>
-                            عرض
-                          </Button>
-                          {/* Add Assign Button */}
-                           <Button variant="ghost" size="sm" className="text-nca-teal hover:text-nca-teal-dark mr-2" onClick={() => handleOpenAssignTaskModal(task)}>
-                             تعيين
+                        {/* Actions Column */}
+                        <td className="py-4 pl-4 space-x-2">
+                           {/* Expand/Collapse Button */}
+                           <Button variant="ghost" size="icon" onClick={() => toggleTaskExpansion(task.id)} className="text-slate-600 hover:text-slate-900">
+                             {expandedTasks.has(task.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                            </Button>
-                        </td>
-                      </tr>
+                           {/* Details Button (Optional - can be removed if details are shown inline) */}
+                           {/* <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900" onClick={() => handleOpenDetailsModal(task)}>
+                             عرض التفاصيل
+                           </Button> */}
+                         </td>
+                       </tr>
+                       {/* Expanded Row for Control Assignments */}
+                       {expandedTasks.has(task.id) && (
+                         <tr className="bg-gray-50 border-b border-gray-200">
+                           <td colSpan={6} className="p-4">
+                             <h4 className="font-semibold mb-2 text-sm">تعيين الضوابط:</h4>
+                             <div className="space-y-3">
+                               {task.controlAssignments.length > 0 ? (
+                                 task.controlAssignments.map((assignment: FrontendControlAssignment) => ( // Add type
+                                   <div key={assignment.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-md bg-white">
+                                     <div className="flex-1 mb-2 sm:mb-0 sm:mr-4">
+                                       <p className="font-medium text-sm" title={assignment.control.controlText}>
+                                         {assignment.control.controlNumber} - {assignment.control.controlText}
+                                       </p>
+                                       {/* Map Badge variants */}
+                                       <Badge variant={assignment.status === 'COMPLETED' ? 'default' : assignment.status === 'PENDING' ? 'default' : 'secondary'} className={`mt-1 ${
+                                           assignment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                           assignment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                           assignment.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                                           assignment.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                                           'bg-gray-100 text-gray-700' // Fallback style
+                                       }`}>
+                                         {assignment.status} {/* TODO: Translate status */}
+                                       </Badge>
+                                     </div>
+                                     {/* Restore the Select component */}
+                                     <div className="w-full sm:w-auto flex items-center space-x-2 space-x-reverse">
+                                       <Select // This is the assignment dropdown
+                                        // Removed key prop - rely on state update from fetchManagerTasks
+                                        dir="rtl"
+                                        value={assignment.assignedUserId ?? "UNASSIGNED"} // Use "UNASSIGNED" for null/undefined
+                                        onValueChange={(value) => handleAssignControl(assignment.id, value === "UNASSIGNED" ? null : value)} // Check for "UNASSIGNED"
+                                        disabled={assignmentStatus[assignment.id] === 'loading'}
+                                      >
+                                        <SelectTrigger className="w-full sm:w-[200px] text-right">
+                                          <SelectValue placeholder="اختر مستخدم..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="UNASSIGNED">-- غير معين --</SelectItem> {/* Use "UNASSIGNED" value */}
+                                          {teamMembers.map((user: FrontendUser) => ( // Add type
+                                            <SelectItem key={user.id} value={user.id}>
+                                              {user.nameAr || user.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      {/* Status indicators */}
+                                      {assignmentStatus[assignment.id] === 'loading' && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
+                                      {assignmentStatus[assignment.id] === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                                      {assignmentStatus[assignment.id] === 'error' && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <p className="text-sm text-gray-500">لا توجد ضوابط محددة لهذه المهمة.</p>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                     </React.Fragment>
                     ))
                   )}
                 </tbody>
@@ -569,66 +672,61 @@ export default function DepartmentManagerDashboardPage() {
             </Card>
 
 
-            {/* Team Tasks Card */}
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">مهام الفريق</h2>
-              <div className="space-y-4 max-h-[400px] overflow-y-auto">
-                {isLoadingTasks ? (
-                  <p>جاري تحميل مهام الفريق...</p>
-                ) : teamTasks.length === 0 ? (
-                  <p className="text-center text-gray-500 py-4">لا توجد مهام معينة لأعضاء الفريق حاليًا.</p>
-                ) : (
-                  teamTasks.map((task) => (
-                    <div key={task.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium max-w-[70%] truncate" title={task.sensitiveSystem?.systemName || 'مهمة عامة'}>
-                           {task.sensitiveSystem?.systemName || 'مهمة عامة'} ({task.controls?.map(c => c.controlNumber).join(', ') || 'ضوابط غير محددة'})
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                          task.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                          task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                          task.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                          'bg-gray-100 text-gray-700'}`}>
-                          {task.status} {/* TODO: Map status */}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">
-                        المسؤول: {task.assignedTo?.nameAr || task.assignedTo?.name || <span className="text-red-500">غير معين</span>}
-                      </p>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500">تاريخ الاستحقاق: {formatDate(task.deadline)}</span>
-                        <div>
-                          <Button variant="outline" size="sm" className="text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white ml-2" onClick={() => handleOpenDetailsModal(task)}>
-                            تفاصيل
-                          </Button>
-                           <Button variant="outline" size="sm" className="text-blue-600 border-blue-600 hover:bg-blue-600 hover:text-white" onClick={() => handleOpenAssignTaskModal(task)}>
-                             إعادة تعيين
-                           </Button>
+            {/* Team Tasks Card - Updated to show assigned controls */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold">مهام أعضاء الفريق</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4 max-h-[400px] overflow-y-auto">
+                {isLoadingTasks || isLoadingUsers ? (
+                  <p>جاري تحميل المهام والمستخدمين...</p>
+                ) : (() => {
+                    // Prepare data: Map assignments to include their parent task details
+                    const teamAssignments = managerTasks.flatMap((task: FrontendTask) =>
+                      task.controlAssignments
+                        .filter((assignment: FrontendControlAssignment) => assignment.assignedUserId && assignment.assignedUserId !== currentUser?.id)
+                        .map((assignment: FrontendControlAssignment) => ({ ...assignment, taskDeadline: task.deadline, taskSystemName: task.sensitiveSystem?.systemName })) // Include parent task info
+                    );
+
+                    if (teamAssignments.length === 0) {
+                      return <p className="text-center text-gray-500 py-4">لا توجد ضوابط معينة لأعضاء الفريق حاليًا.</p>;
+                    }
+
+                    // Use the properties added to the assignment object
+                    return teamAssignments.map(assignment => (
+                      <div key={assignment.id} className="border rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-1">
+                          {/* Use assignment.taskSystemName */}
+                          <span className="text-sm font-medium truncate" title={`${assignment.taskSystemName} - ${assignment.control.controlNumber}`}>
+                            {assignment.taskSystemName} - {assignment.control.controlNumber}
+                          </span>
+                          {/* Map Badge variants correctly */}
+                          <Badge variant={assignment.status === 'COMPLETED' ? 'default' : assignment.status === 'PENDING' ? 'default' : 'secondary'} className={`text-xs ${
+                              assignment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                              assignment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                              assignment.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                              assignment.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700' // Fallback style
+                          }`}>
+                            {assignment.status} {/* TODO: Translate */}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-600 mb-2 truncate" title={assignment.control.controlText}>
+                          {assignment.control.controlText}
+                        </p>
+                        <div className="flex justify-between items-center text-xs text-gray-500">
+                          <span>المسؤول: {assignment.assignedUser?.nameAr || assignment.assignedUser?.name || 'غير معروف'}</span>
+                          {/* Use assignment.taskDeadline */}
+                          <span>الاستحقاق: {formatDate(assignment.taskDeadline)}</span>
                         </div>
                       </div>
-                       {/* Progress Bar */}
-                       <div className="mt-2">
-                         <div className="flex justify-between items-center mb-1">
-                           <span className="text-xs text-gray-500">التقدم</span>
-                           <span className="text-xs font-medium">{task.progress || 0}%</span>
-                         </div>
-                         <div className="w-full bg-gray-200 rounded-full h-1.5">
-                           <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${task.progress || 0}%` }}></div>
-                         </div>
-                       </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              {/* Optional Footer */}
-              {/* <Button variant="outline" className="w-full mt-4 text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white">
-                عرض جميع مهام الفريق
-              </Button> */}
+                    ));
+                  })()}
+              </CardContent>
             </Card>
-          </div>
+          </div> {/* Close the two-column grid div */}
 
-          {/* Compliance Status (remains the same) */}
+          {/* Compliance Status Card */}
           {/* ... */}
            <Card className="p-6 mt-6">
              <h2 className="text-xl font-semibold mb-4">حالة الامتثال للقسم</h2>
@@ -717,26 +815,26 @@ export default function DepartmentManagerDashboardPage() {
 
       {/* Task Details Modal (remains the same) */}
       {/* ... */}
+       {/* Task Details Modal - Updated to show Control Assignments */}
        <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
          <DialogContent className="text-right sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-           {/* Add text-right to header and content */}
            <DialogHeader className="text-right">
-             <DialogTitle>تفاصيل ضوابط المهمة</DialogTitle>
+             <DialogTitle>تفاصيل المهمة والضوابط</DialogTitle>
              <DialogDescription>
-               النظام: {selectedTaskForModal?.sensitiveSystem?.systemName || 'غير محدد'}
+               النظام: {selectedTaskForDetailsModal?.sensitiveSystem?.systemName ?? 'غير محدد'} {/* Use nullish coalescing */}
+               <br />
+               الموعد النهائي: {formatDate(selectedTaskForDetailsModal?.deadline)}
              </DialogDescription>
            </DialogHeader>
            <div className="grid gap-4 py-4 text-right">
-             {selectedTaskForModal?.controls && selectedTaskForModal.controls.length > 0 ? (
-               selectedTaskForModal.controls.map((control) => (
-                 <div key={control.id} className="border rounded-md p-3 space-y-1 text-right">
-                   <p><span className="font-semibold">رقم الضابط:</span> {control.controlNumber}</p>
-                   <p><span className="font-semibold">نص الضابط:</span> {control.controlText}</p>
-                   <p><span className="font-semibold">نوع الضابط:</span> {control.controlType}</p>
-                   <p><span className="font-semibold">المكون الرئيسي:</span> {control.mainComponent}</p>
-                   {control.subComponent && (
-                     <p><span className="font-semibold">المكون الفرعي:</span> {control.subComponent}</p>
-                   )}
+             <h4 className="font-semibold">الضوابط المعينة:</h4>
+             {/* Add null check for selectedTaskForDetailsModal */}
+             {selectedTaskForDetailsModal?.controlAssignments && selectedTaskForDetailsModal.controlAssignments.length > 0 ? (
+               selectedTaskForDetailsModal.controlAssignments.map((assignment: FrontendControlAssignment) => ( // Add type
+                 <div key={assignment.id} className="border rounded-md p-3 space-y-1 text-right">
+                   <p><span className="font-semibold">الضابط:</span> {assignment.control.controlNumber} - {assignment.control.controlText}</p>
+                   <p><span className="font-semibold">الحالة:</span> {assignment.status}</p> {/* TODO: Translate */}
+                   <p><span className="font-semibold">المستخدم المسؤول:</span> {assignment.assignedUser?.nameAr || assignment.assignedUser?.name || 'غير معين'}</p>
                  </div>
                ))
              ) : (
@@ -744,52 +842,12 @@ export default function DepartmentManagerDashboardPage() {
              )}
            </div>
            <DialogFooter>
-             <Button onClick={() => setIsDetailsModalOpen(false)}>إغلاق</Button>
+             <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>إغلاق</Button>
            </DialogFooter>
          </DialogContent>
        </Dialog>
 
-       {/* Assign Task Modal */}
-       <Dialog open={isAssignTaskModalOpen} onOpenChange={setIsAssignTaskModalOpen}>
-         <DialogContent className="text-right sm:max-w-[450px]">
-           <DialogHeader>
-             <DialogTitle>تعيين مهمة لمستخدم</DialogTitle>
-             <DialogDescription>
-               اختر مستخدمًا من فريقك لتعيين هذه المهمة إليه.
-               <br />
-               <span className="font-semibold">المهمة:</span> {selectedTaskToAssign?.sensitiveSystem?.systemName || 'مهمة عامة'} ({selectedTaskToAssign?.controls?.map(c => c.controlNumber).join(', ')})
-             </DialogDescription>
-           </DialogHeader>
-           <div className="py-4">
-             <Select dir="rtl" value={selectedUserToAssign} onValueChange={setSelectedUserToAssign}>
-               <SelectTrigger>
-                 <SelectValue placeholder="اختر مستخدم..." />
-               </SelectTrigger>
-               <SelectContent>
-                 {teamMembers.length > 0 ? (
-                   teamMembers.map((user) => (
-                     <SelectItem key={user.id} value={user.id}>
-                       {user.nameAr || user.name} ({user.email})
-                     </SelectItem>
-                   ))
-                 ) : (
-                   <SelectItem value="-" disabled>لا يوجد أعضاء فريق متاحون</SelectItem>
-                 )}
-               </SelectContent>
-             </Select>
-           </div>
-           <DialogFooter>
-             <Button variant="outline" onClick={() => setIsAssignTaskModalOpen(false)}>إلغاء</Button>
-             <Button
-                onClick={handleAssignTask}
-                disabled={!selectedUserToAssign || isLoadingTasks} // Disable if no user selected or tasks are loading
-                className="bg-nca-teal hover:bg-nca-teal-dark text-white"
-             >
-                {isLoadingTasks ? 'جاري التعيين...' : 'تعيين المهمة'}
-             </Button>
-           </DialogFooter>
-         </DialogContent>
-       </Dialog>
+       {/* Removed the old Assign Task Modal */}
 
     </div>
   )

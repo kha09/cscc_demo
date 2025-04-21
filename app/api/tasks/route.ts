@@ -153,11 +153,10 @@ export async function GET(request: NextRequest) {
       assignedTo: { select: { id: true, name: true, nameAr: true, department: true } },
       // Include controlAssignments with control and assigned user details
       controlAssignments: {
-        select: {
-          id: true, // Need the assignment ID for updates
-          status: true,
-          control: { select: controlIncludeFields }, // Include control details
-          assignedUser: { select: { id: true, name: true, nameAr: true } } // Include assigned user details
+        include: { // Changed from select to include
+          control: { select: controlIncludeFields }, // Still select specific control fields
+          assignedUser: { select: { id: true, name: true, nameAr: true } } // Still select specific user fields
+          // We include the assignment itself fully by default now
         }
       }
     };
