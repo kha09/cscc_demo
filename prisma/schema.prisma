@@ -179,7 +179,20 @@ model ControlAssignment {
   control       Control @relation(fields: [controlId], references: [id])
   assignedUser  User?   @relation(fields: [assignedUserId], references: [id]) // Relation to the assigned user
 
-  @@index([taskId])
-  @@index([controlId])
+  notes                  String?    // الملاحظات
+  correctiveActions      String?    // إجراءات التصحيح
+  expectedComplianceDate DateTime?  // تاريخ الالتزام المتوقع
+  complianceLevel        ComplianceLevel? // مستوى الالتزام
+
+  // @@index([taskId]) // Removed duplicate
+  // @@index([controlId]) // Removed duplicate
   @@index([assignedUserId])
+}
+
+// Enum for Compliance Level
+enum ComplianceLevel {
+  NOT_IMPLEMENTED       // غير مطبق
+  PARTIALLY_IMPLEMENTED // مطبق جزئيًا
+  IMPLEMENTED           // مطبق كليًا
+  NOT_APPLICABLE        // لا ينطبق
 }

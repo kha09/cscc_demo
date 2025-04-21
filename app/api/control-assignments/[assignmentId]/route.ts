@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { Prisma, TaskStatus } from '@prisma/client'; // Import Prisma namespace AND TaskStatus enum
+import { Prisma, TaskStatus, ComplianceLevel } from '@prisma/client'; // Import ComplianceLevel enum
 
 // Zod schema for validating the PATCH request body
 const updateControlAssignmentSchema = z.object({
-  assignedUserId: z.string().uuid({ message: "Invalid Assigned User ID" }).nullable(), // Allow assigning or unassigning
-  status: z.nativeEnum(TaskStatus).optional(), // Allow updating status as well - Use imported TaskStatus
-  // Add other fields like evidenceNotes, evidenceFilePath if needed later
+  assignedUserId: z.string().uuid({ message: "Invalid Assigned User ID" }).nullable().optional(), // Allow assigning/unassigning, make optional
+  status: z.nativeEnum(TaskStatus).optional(), // Allow updating status
+  notes: z.string().optional().nullable(), // الملاحظات
+  correctiveActions: z.string().optional().nullable(), // إجراءات التصحيح
+  expectedComplianceDate: z.string().datetime({ message: "Invalid date format for expected compliance date" }).optional().nullable(), // تاريخ الالتزام المتوقع (string from client)
+  complianceLevel: z.nativeEnum(ComplianceLevel).optional().nullable(), // مستوى الالتزام
 });
 
 // PATCH handler to update a specific ControlAssignment
@@ -31,9 +34,18 @@ export async function PATCH(
       return NextResponse.json({ errors: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { assignedUserId, status } = validation.data;
+    // Destructure all potential fields from validated data
+    const {
+        assignedUserId,
+        status,
+        notes,
+        correctiveActions,
+        expectedComplianceDate,
+        complianceLevel
+    } = validation.data;
 
-    // TODO: Add authorization check: Ensure the user making the request is the Department Manager
+    // TODO: Add authorization check: Ensure the user making the request is the assigned user for this assignment,
+    // or their manager, or an Admin/Security Manager.
     // responsible for the parent Task, or an Admin/Security Manager.
 
     // Check if the assignment exists
@@ -63,25 +75,42 @@ export async function PATCH(
       // if (userExists.department !== managerDepartment) { ... }
     }
 
-    // Prepare data for update
+    // Prepare data for update - only include fields that are present in the request body
     const updateData: Prisma.ControlAssignmentUpdateInput = {};
-    if (assignedUserId !== undefined) { // Check if the key exists (even if null)
+
+    // Handle assignedUserId update
+    if ('assignedUserId' in body) { // Check if the key exists in the original body
       if (assignedUserId === null) {
-        // Disconnect the user if null is explicitly passed
         updateData.assignedUser = { disconnect: true };
-      } else {
+      } else if (assignedUserId) {
         // Connect the user if a valid ID is passed
         updateData.assignedUser = { connect: { id: assignedUserId } };
       }
-    }
-    if (status) {
-        updateData.status = status;
-        // If assigning a user, maybe default status to IN_PROGRESS?
-        // if (assignedUserId && !status) {
-        //     updateData.status = 'IN_PROGRESS';
-        // }
+      // If assignedUserId is undefined in validation.data but was in body, it means it wasn't provided or was invalid - do nothing
     }
 
+    // Handle other fields
+    if (status !== undefined) {
+        updateData.status = status;
+    }
+    if (notes !== undefined) {
+        updateData.notes = notes;
+    }
+    if (correctiveActions !== undefined) {
+        updateData.correctiveActions = correctiveActions;
+    }
+    if (expectedComplianceDate !== undefined) {
+        // Convert string date to Date object, or null if null was passed
+        updateData.expectedComplianceDate = expectedComplianceDate ? new Date(expectedComplianceDate) : null;
+    }
+    if (complianceLevel !== undefined) {
+        updateData.complianceLevel = complianceLevel;
+    }
+
+    // Check if there's anything to update
+    if (Object.keys(updateData).length === 0) {
+        return NextResponse.json({ message: "No valid fields provided for update" }, { status: 400 });
+    }
 
     // Update the ControlAssignment
     const updatedAssignment = await prisma.controlAssignment.update({

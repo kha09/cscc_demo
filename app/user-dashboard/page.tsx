@@ -23,13 +23,23 @@ import {
   Clock,
   Send,
   Upload,
-  RefreshCw // Added for loading indicator
+  RefreshCw, // Added for loading indicator
+  CalendarIcon // Added for date picker
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card" // Added Card components
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { Badge, type BadgeProps } from "@/components/ui/badge"; // Added BadgeProps type
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"; // Added Dialog
+import { Label } from "@/components/ui/label"; // Added Label
+import { Textarea } from "@/components/ui/textarea"; // Added Textarea
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Added Popover for Calendar
+import { Calendar } from "@/components/ui/calendar"; // Added Calendar
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select
+import { cn } from "@/lib/utils"; // Added cn utility
+import { format } from "date-fns"; // Added date-fns for formatting
+import { ComplianceLevel } from "@prisma/client"; // Import ComplianceLevel enum
 
 // Frontend type definitions (similar to department-manager)
 interface FrontendUser extends Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'> {}
@@ -43,7 +53,19 @@ interface FrontendTask extends Pick<PrismaTask, 'id' | 'deadline' | 'status'> {
 interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'createdAt' | 'updatedAt' | 'control' | 'task' | 'assignedUser'> {
   control: FrontendControl;
   task: FrontendTask; // Include relevant task details
-  // assignedUser is implicitly the current user, so maybe not needed here
+  // Include new fields from schema, make them optional as they might not be fetched initially or exist
+  notes?: string | null;
+  correctiveActions?: string | null;
+  expectedComplianceDate?: Date | string | null; // Allow string initially from fetch, convert later
+  complianceLevel?: ComplianceLevel | null;
+}
+
+// Type for the modal form data
+interface ModalFormData {
+    notes: string;
+    correctiveActions: string;
+    expectedComplianceDate: Date | undefined;
+    complianceLevel: ComplianceLevel | ""; // Use "" for unselected state in Select
 }
 
 
@@ -54,6 +76,16 @@ export default function UserDashboardPage() {
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isLoadingControls, setIsLoadingControls] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<FrontendControlAssignment | null>(null);
+  // Initialize modal form data state
+  const [modalFormData, setModalFormData] = useState<ModalFormData>({
+    notes: "",
+    correctiveActions: "",
+    expectedComplianceDate: undefined,
+    complianceLevel: "",
+  });
+  const [isSaving, setIsSaving] = useState(false); // State for save button loading
 
   // --- Fetch Current User ---
   // Placeholder: Fetch all users and find the first 'USER'. Replace with actual auth logic.
@@ -142,6 +174,97 @@ export default function UserDashboardPage() {
       case 'IN_PROGRESS': return { variant: 'default', className: 'bg-blue-100 text-blue-700' };
       case 'OVERDUE': return { variant: 'default', className: 'bg-red-100 text-red-700' };
       default: return { variant: 'secondary', className: 'bg-gray-100 text-gray-700' };
+    }
+  };
+
+
+  // --- Modal Handling ---
+
+  // Function to open the details modal and populate form data
+  const handleOpenDetailsModal = (assignment: FrontendControlAssignment) => {
+    setSelectedAssignment(assignment);
+    // Populate form state from the selected assignment's data
+    setModalFormData({
+      notes: assignment.notes ?? "",
+      correctiveActions: assignment.correctiveActions ?? "",
+      // Ensure expectedComplianceDate is a Date object or undefined
+      expectedComplianceDate: assignment.expectedComplianceDate ? new Date(assignment.expectedComplianceDate) : undefined,
+      complianceLevel: assignment.complianceLevel ?? "",
+    });
+    setIsDetailsModalOpen(true);
+  };
+
+  // Generic handler for text input changes in the modal
+  const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setModalFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handler for date changes
+  const handleModalDateChange = (date: Date | undefined) => {
+    setModalFormData(prev => ({ ...prev, expectedComplianceDate: date }));
+  };
+
+  // Handler for select changes (Compliance Level)
+  const handleModalSelectChange = (value: string) => {
+    // Ensure the value is a valid ComplianceLevel or reset to ""
+    const level = Object.values(ComplianceLevel).includes(value as ComplianceLevel)
+      ? value as ComplianceLevel
+      : "";
+    setModalFormData(prev => ({ ...prev, complianceLevel: level }));
+  };
+
+  // Placeholder for saving data
+  const handleSaveDetails = async () => {
+    if (!selectedAssignment) return;
+
+    setIsSaving(true);
+    setError(null); // Clear previous errors
+
+    console.log("Saving data for assignment:", selectedAssignment.id);
+    console.log("Form data:", modalFormData);
+
+    // TODO: Implement API call using PATCH /api/control-assignments/[assignmentId]
+    // Convert date back to ISO string or keep as Date depending on API expectation
+    const payload = {
+        ...modalFormData,
+        // Send date as ISO string if it exists, otherwise null
+        expectedComplianceDate: modalFormData.expectedComplianceDate?.toISOString() ?? null,
+        // Send complianceLevel or null if it's an empty string
+        complianceLevel: modalFormData.complianceLevel === "" ? null : modalFormData.complianceLevel,
+    };
+
+    try {
+        const response = await fetch(`/api/control-assignments/${selectedAssignment.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Failed to save details: ${response.statusText}`);
+        }
+
+        // --- Optimistic Update ---
+        // Update the local state immediately on success
+        setAssignedControls(prevControls =>
+            prevControls.map(control =>
+                control.id === selectedAssignment.id
+                    ? { ...control, ...payload, expectedComplianceDate: modalFormData.expectedComplianceDate } // Update with new data (keep Date object locally)
+                    : control
+            )
+        );
+        // --- End Optimistic Update ---
+
+        setIsDetailsModalOpen(false); // Close modal on success
+
+    } catch (err: any) {
+        console.error("Error saving details:", err);
+        setError(err.message || "Failed to save compliance details.");
+        // Keep modal open on error
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -309,8 +432,13 @@ export default function UserDashboardPage() {
                           </Badge>
                         </td>
                         <td className="py-4">
-                          {/* TODO: Add action, e.g., link to task details/submission page */}
-                          <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
+                          {/* Updated button to open modal */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-slate-600 hover:text-slate-900"
+                            onClick={() => handleOpenDetailsModal(assignment)} // Pass assignment data
+                          >
                             عرض التفاصيل
                           </Button>
                         </td>
@@ -460,6 +588,117 @@ export default function UserDashboardPage() {
           </Card>
         </div>
       </main>
+
+      {/* Details Modal */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="sm:max-w-[600px] text-right" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تفاصيل الضابط: {selectedAssignment?.control?.controlNumber}</DialogTitle>
+            <DialogDescription>
+              {selectedAssignment?.control?.controlText}
+            </DialogDescription>
+          </DialogHeader>
+          {/* Display Error within Modal */}
+          {error && isDetailsModalOpen && (
+             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+               <strong className="font-bold">خطأ! </strong>
+               <span className="block sm:inline">{error}</span>
+             </div>
+           )}
+          <div className="grid gap-4 py-4">
+            {/* Notes */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="notes" className="text-right col-span-1">
+                الملاحظات
+              </Label>
+              <Textarea
+                id="notes"
+                name="notes"
+                value={modalFormData.notes}
+                onChange={handleModalInputChange}
+                className="col-span-3 h-24"
+                placeholder="أضف ملاحظاتك هنا..."
+              />
+            </div>
+            {/* Corrective Actions */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="correctiveActions" className="text-right col-span-1">
+                إجراءات التصحيح
+              </Label>
+              <Textarea
+                id="correctiveActions"
+                name="correctiveActions"
+                value={modalFormData.correctiveActions}
+                onChange={handleModalInputChange}
+                className="col-span-3 h-24"
+                placeholder="صف الإجراءات التصحيحية المتخذة أو المخطط لها..."
+              />
+            </div>
+            {/* Expected Compliance Date */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="expectedComplianceDate" className="text-right col-span-1">
+                تاريخ الالتزام المتوقع
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "col-span-3 justify-start text-right font-normal",
+                      !modalFormData.expectedComplianceDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {modalFormData.expectedComplianceDate ? (
+                      format(modalFormData.expectedComplianceDate, "PPP")
+                    ) : (
+                      <span>اختر تاريخًا</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                {/* Stop propagation inside PopoverContent */}
+                <PopoverContent className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+                  <Calendar
+                    mode="single"
+                    selected={modalFormData.expectedComplianceDate}
+                    onSelect={handleModalDateChange}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            {/* Compliance Level */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="complianceLevel" className="text-right col-span-1">
+                مستوى الالتزام
+              </Label>
+              <Select
+                value={modalFormData.complianceLevel}
+                onValueChange={handleModalSelectChange}
+                dir="rtl"
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="اختر مستوى..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ComplianceLevel.NOT_IMPLEMENTED}>غير مطبق - Not Implemented</SelectItem>
+                  <SelectItem value={ComplianceLevel.PARTIALLY_IMPLEMENTED}>مطبق جزئيًا - Partially Implemented</SelectItem>
+                  <SelectItem value={ComplianceLevel.IMPLEMENTED}>مطبق كليًا - Implemented</SelectItem>
+                  <SelectItem value={ComplianceLevel.NOT_APPLICABLE}>لا ينطبق - Not Applicable</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)} disabled={isSaving}>
+              إلغاء
+            </Button>
+            <Button onClick={handleSaveDetails} disabled={isSaving}>
+              {isSaving ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> جاري الحفظ...</> : 'حفظ التغييرات'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
