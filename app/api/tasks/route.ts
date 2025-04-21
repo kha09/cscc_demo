@@ -1,15 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server'; // Import NextRequest
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { Control, Task } from '@prisma/client'; // Added Task type import
+// Explicitly import types
+import type { Control, Task, User } from '@prisma/client';
 
-// Zod schema for validating the request body
+// Zod schema for validating the POST request body
 const createTaskSchema = z.object({
   sensitiveSystemId: z.string().uuid({ message: "Invalid Sensitive System ID" }),
-  departmentId: z.string().uuid({ message: "Invalid Department ID" }),
+  // departmentId: z.string().uuid({ message: "Invalid Department ID" }), // Removed
+  assignedToId: z.string().uuid({ message: "Invalid Assigned To User ID (Department Manager)" }), // Added
   controlIds: z.array(z.string().uuid({ message: "Invalid Control ID in array" })).min(1, { message: "At least one control must be selected" }),
   deadline: z.string().datetime({ message: "Invalid deadline date format" }),
-  assignedById: z.string().uuid({ message: "Invalid Assigned By User ID" }), // Assuming this comes from authenticated session later
+  assignedById: z.string().uuid({ message: "Invalid Assigned By User ID (Security Manager)" }), // Assuming this comes from authenticated session later
 });
 
 export async function POST(request: Request) {
@@ -22,14 +24,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { sensitiveSystemId, departmentId, controlIds, deadline, assignedById } = validation.data;
+    // Destructure updated fields
+    const { sensitiveSystemId, assignedToId, controlIds, deadline, assignedById } = validation.data;
 
     // TODO: In a real app, verify assignedById matches the authenticated user (Security Manager)
 
-    // Verify existence of related entities (optional but good practice)
-    const [systemExists, departmentExists, controlsExist, assignerExists] = await Promise.all([
+    // Verify existence of related entities (optional but good practice) - Updated checks
+    const [systemExists, assigneeExists, controlsExist, assignerExists] = await Promise.all([
       prisma.sensitiveSystemInfo.findUnique({ where: { id: sensitiveSystemId } }),
-      prisma.department.findUnique({ where: { id: departmentId } }),
+      // prisma.department.findUnique({ where: { id: departmentId } }), // Removed department check
+      prisma.user.findUnique({ where: { id: assignedToId, role: 'DEPARTMENT_MANAGER' } }), // Check if assignee is a Department Manager
       prisma.control.findMany({ where: { id: { in: controlIds } } }),
       prisma.user.findUnique({ where: { id: assignedById, role: 'SECURITY_MANAGER' } }) // Ensure assigner is a Security Manager
     ]);
@@ -37,11 +41,14 @@ export async function POST(request: Request) {
     if (!systemExists) {
       return NextResponse.json({ message: "Sensitive System not found" }, { status: 404 });
     }
-    if (!departmentExists) {
-      return NextResponse.json({ message: "Department not found" }, { status: 404 });
+    // if (!departmentExists) { // Removed department check
+    //   return NextResponse.json({ message: "Department not found" }, { status: 404 });
+    // }
+    if (!assigneeExists) { // Added assignee check
+      return NextResponse.json({ message: "Assigned user (Department Manager) not found or does not have the correct role" }, { status: 404 });
     }
     if (controlsExist.length !== controlIds.length) {
-        const foundIds = controlsExist.map((c: Control) => c.id); // Added type for 'c'
+        const foundIds = controlsExist.map((c: Control) => c.id);
         const missingIds = controlIds.filter(id => !foundIds.includes(id));
       return NextResponse.json({ message: `One or more Controls not found: ${missingIds.join(', ')}` }, { status: 404 });
     }
@@ -55,7 +62,8 @@ export async function POST(request: Request) {
       data: {
         deadline: new Date(deadline), // Convert string to Date object
         sensitiveSystemId: sensitiveSystemId,
-        departmentId: departmentId,
+        // departmentId: departmentId, // Removed
+        assignedToId: assignedToId, // Added
         assignedById: assignedById,
         status: 'PENDING', // Default status
         controls: {
@@ -63,10 +71,11 @@ export async function POST(request: Request) {
         },
       },
       include: {
-        sensitiveSystem: true, // Include related data if needed in the response
-        department: true,
+        sensitiveSystem: true,
+        // department: true, // Removed
         controls: true,
-        assignedBy: { select: { id: true, name: true } } // Select specific user fields
+        assignedBy: { select: { id: true, name: true } }, // Assigner (Security Manager)
+        assignedTo: { select: { id: true, name: true, nameAr: true } } // Assignee (Department Manager)
       }
     });
 
@@ -84,48 +93,50 @@ export async function POST(request: Request) {
 }
 
 
-// GET handler to fetch tasks, optionally filtered by departmentId
+// GET handler to fetch tasks, optionally filtered by assignedToId (Department Manager ID)
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const departmentId = searchParams.get('departmentId');
+  const assignedToId = searchParams.get('assignedToId'); // Changed parameter name
 
   try {
     let tasks: Task[]; // Define tasks with Task[] type
 
-    if (departmentId) {
-      // Validate departmentId format (optional but good practice)
-      if (!z.string().uuid().safeParse(departmentId).success) {
-        return NextResponse.json({ message: "Invalid Department ID format" }, { status: 400 });
+    const includeOptions = {
+      sensitiveSystem: true,
+      // department: true, // Removed
+      controls: true,
+      assignedBy: { select: { id: true, name: true } }, // Assigner (Security Manager)
+      assignedTo: { select: { id: true, name: true, nameAr: true } } // Assignee (Department Manager)
+    };
+
+    const orderByOptions = {
+      createdAt: 'desc', // Optional: order by creation date
+    };
+
+    if (assignedToId) {
+      // Validate assignedToId format (UUID)
+      if (!z.string().uuid().safeParse(assignedToId).success) {
+        return NextResponse.json({ message: "Invalid Assigned To User ID format" }, { status: 400 });
       }
 
-      // Fetch tasks for a specific department
+      // Fetch tasks for a specific Department Manager
       tasks = await prisma.task.findMany({
-        where: { departmentId: departmentId },
-        include: {
-          sensitiveSystem: true,
-          department: true,
-          controls: true,
-          assignedBy: { select: { id: true, name: true } },
-        },
-        orderBy: {
-          createdAt: 'desc', // Optional: order by creation date
-        },
+        where: { assignedToId: assignedToId }, // Filter by assignedToId
+        include: includeOptions,
+        orderBy: orderByOptions,
       });
     } else {
-      // Fetch all tasks if no departmentId is provided
-      // Consider adding pagination or limiting results in a real application
+      // Fetch all tasks if no assignedToId is provided
+      // WARNING: In a real application, this should be restricted or paginated.
+      // Fetching all tasks might expose sensitive data or be inefficient.
+      // Consider adding role-based access control here.
       tasks = await prisma.task.findMany({
-        include: {
-          sensitiveSystem: true,
-          department: true,
-          controls: true,
-          assignedBy: { select: { id: true, name: true } },
-        },
-         orderBy: {
-          createdAt: 'desc',
-        },
+        include: includeOptions,
+        orderBy: orderByOptions,
       });
     }
+
+    // TODO: Add validation for the fetched tasks structure if needed
 
     return NextResponse.json(tasks);
 

@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { User as PrismaUser } from "@prisma/client";
-import { z } from 'zod'; // Import Zod
+import type { User as PrismaUser, Task as PrismaTask, Control as PrismaControl, SensitiveSystemInfo as PrismaSensitiveSystemInfo } from "@prisma/client"; // Use type imports
+// No longer need Zod here
 import {
   Bell,
-  User as UserIcon, // Alias the icon import
+  User as UserIcon,
   ClipboardList, 
   BarChart, 
   FileText, 
@@ -22,33 +22,26 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 
-// Define Task and Control types (adjust based on your actual Prisma schema if needed)
-interface Control {
-  id: string;
-  controlText: string;
-  // Add other relevant control fields if necessary
-}
-
-interface Task {
-  id: string;
-  deadline: string; // Or Date
-  status: string; // Or TaskStatus enum
-  sensitiveSystem: {
-    systemName: string;
-  };
-  controls: Control[]; // Array of controls associated with the task
-  createdAt: string; // Add createdAt
-  // Add other relevant task fields like progress if available
+// Define a more specific Task type for the frontend, including nested data
+// This uses Prisma's generated types for better type safety
+interface FrontendTask extends Omit<PrismaTask, 'deadline' | 'createdAt' | 'updatedAt' | 'sensitiveSystem' | 'controls'> {
+  deadline: string; // Keep as string for initial state, format later
+  createdAt: string;
+  sensitiveSystem: Pick<PrismaSensitiveSystemInfo, 'systemName'> | null; // Allow null
+  controls: Pick<PrismaControl, 'id' | 'controlText'>[];
+  // Add assignedTo if needed for display
+  // assignedTo?: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null;
 }
 
 
 export default function DepartmentManagerDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [tasks, setTasks] = useState<Task[]>([]) // State for tasks
+  // Use the correct FrontendTask type for the state
+  const [tasks, setTasks] = useState<FrontendTask[]>([]) // State for tasks
   const [isLoading, setIsLoading] = useState(true) // Loading state
-  const [error, setError] = useState<string | null>(null) // Error state
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null); // State for current user ID
-  const [currentUserDeptId, setCurrentUserDeptId] = useState<string | null>(null); // State for current user's department ID
+  const [error, setError] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null); // State for current user ID (logged-in Dept Manager)
+  // const [currentUserDeptName, setCurrentUserDeptName] = useState<string | null>(null); // No longer needed
 
   // --- Fetch Current User (Department Manager) ---
   // TODO: Replace with actual user ID from auth context/session
@@ -60,30 +53,15 @@ export default function DepartmentManagerDashboardPage() {
         const response = await fetch('/api/users'); // Assuming this endpoint can filter or you find the first manager
         if (!response.ok) throw new Error('Failed to fetch users');
         const users: PrismaUser[] = await response.json(); // Corrected type annotation
-        const deptManager = users.find(user => user.role === 'DEPARTMENT_MANAGER'); // Find the first dept manager
+        // IMPORTANT: In a real app, you MUST get the logged-in user's ID from the session/auth context.
+        // This placeholder fetches the *first* DEPARTMENT_MANAGER found, which is incorrect for multi-user scenarios.
+        const deptManager = users.find(user => user.role === 'DEPARTMENT_MANAGER');
 
         if (deptManager) {
-          setCurrentUserId(deptManager.id);
-
-          // Validate the department ID format before setting state
-          const deptId = deptManager.department;
-          if (deptId) {
-            const uuidSchema = z.string().uuid();
-            const validation = uuidSchema.safeParse(deptId);
-            if (validation.success) {
-              setCurrentUserDeptId(deptId);
-            } else {
-              // Set a more specific error if the format is wrong
-              setError(`Invalid Department ID format ('${deptId}') found for the current user. Please check user data.`);
-              setIsLoading(false);
-            }
-          } else {
-            // Handle case where department field is null or empty
-            setError("Current user is not associated with a department (department ID missing).");
-            setIsLoading(false);
-          }
+          setCurrentUserId(deptManager.id); // Set the ID of the found manager
+          // No need to fetch department name anymore
         } else {
-          setError("No user with the DEPARTMENT_MANAGER role found.");
+          setError("Logged-in user is not a Department Manager or user not found."); // Updated error
           setIsLoading(false); // Stop loading if no manager found
         }
       } catch (err: any) {
@@ -98,15 +76,14 @@ export default function DepartmentManagerDashboardPage() {
 
 
    useEffect(() => {
-    // Fetch Tasks for the current user's department
+    // Fetch Tasks assigned TO the current user (Department Manager)
     const fetchTasks = async () => {
-      // Only fetch if currentUserDeptId is available
-      if (!currentUserDeptId) {
+      // Only fetch if currentUserId (the logged-in Department Manager's ID) is available
+      if (!currentUserId) {
         // If still loading user info, wait. If error occurred fetching user, error is already set.
-        if (isLoading) return; // Still waiting for user/dept ID
-         // If not loading and no dept ID, it means user fetch failed or user has no dept.
+        if (isLoading) return; // Still waiting for user ID
+         // If not loading and no user ID, it means user fetch failed or user is not a Dept Manager.
          // Error state should already be set by the user fetch effect.
-         // We set isLoading to false here to ensure the UI doesn't show "Loading tasks..." indefinitely.
          setIsLoading(false);
         return;
       }
@@ -115,17 +92,25 @@ export default function DepartmentManagerDashboardPage() {
       setError(null);
 
        try {
-         // Use the new dedicated endpoint
-         const response = await fetch(`/api/departments/${currentUserDeptId}/tasks`);
+         // Fetch tasks assigned to the current user ID
+         const response = await fetch(`/api/tasks?assignedToId=${currentUserId}`);
 
          if (!response.ok) {
           const errorData = await response.text(); // Read error response body
-          throw new Error(`HTTP error! status: ${response.status}, message: ${errorData}`);
+          // Provide a more specific error message based on status code if possible
+          let errorMessage = `HTTP error! status: ${response.status}`;
+          try {
+            const parsedError = JSON.parse(errorData);
+            errorMessage += `, message: ${parsedError.message || errorData}`;
+          } catch {
+            errorMessage += `, message: ${errorData}`;
+          }
+          throw new Error(errorMessage);
         }
-        const data: Task[] = await response.json();
+        const data: FrontendTask[] = await response.json(); // Use the frontend-specific type
         setTasks(data);
       } catch (e) {
-        console.error("Failed to fetch tasks:", e);
+        console.error("Failed to fetch assigned tasks:", e);
         if (e instanceof Error) {
             setError(`فشل في جلب المهام: ${e.message}`);
         } else {
@@ -137,7 +122,24 @@ export default function DepartmentManagerDashboardPage() {
     };
 
     fetchTasks();
-  }, [currentUserDeptId, isLoading]); // Depend on currentUserDeptId and the main loading state
+  // Depend on currentUserId. Also include isLoading in dependency array if fetchTasks sets it.
+  }, [currentUserId, isLoading]);
+
+
+  // Helper function to format date (already exists, ensure it's used)
+  const formatDate = (dateString: string | Date | undefined) => {
+    if (!dateString) return 'غير محدد';
+    try {
+      // Use 'en-CA' for YYYY-MM-DD format which is less ambiguous, or keep 'ar-SA' for locale-specific format
+      return new Date(dateString).toLocaleDateString('ar-SA', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch (e) {
+      return 'تاريخ غير صالح';
+    }
+  };
 
 
   return (
@@ -261,40 +263,54 @@ export default function DepartmentManagerDashboardPage() {
               <table className="w-full">
                 <thead>
                   <tr className="text-right border-b border-gray-200">
-                    <th className="pb-3 font-medium text-gray-700 pr-4">اسم التقييم</th>
-                    <th className="pb-3 font-medium text-gray-700">المهمة</th>
-                    <th className="pb-3 font-medium text-gray-700">تاريخ البدء</th>
+                    {/* Updated Headers */}
+                    <th className="pb-3 font-medium text-gray-700 pr-4">النظام</th>
+                    <th className="pb-3 font-medium text-gray-700">الضوابط</th>
+                    {/* <th className="pb-3 font-medium text-gray-700">تاريخ البدء</th> */}
                     <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th>
+                    <th className="pb-3 font-medium text-gray-700">الحالة</th>
                     <th className="pb-3 font-medium text-gray-700">التقدم</th>
-                    <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
-                    <th className="pb-3 font-medium text-gray-700">الحالة</th> {/* Added Status Column */}
-                    <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
+                    <th className="pb-3 font-medium text-gray-700 pl-4">الإجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-4">جاري تحميل المهام...</td>
+                      <td colSpan={6} className="text-center py-4">جاري تحميل المهام...</td>
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-4 text-red-600">{error}</td>
+                      <td colSpan={6} className="text-center py-4 text-red-600">{error}</td>
                     </tr>
                   ) : tasks.length === 0 ? (
                      <tr>
-                      <td colSpan={7} className="text-center py-4">لا توجد مهام معينة لهذا القسم.</td>
+                      {/* Updated message */}
+                      <td colSpan={6} className="text-center py-4">لا توجد مهام معينة لك.</td>
                     </tr>
                   ) : (
                     tasks.map((task) => (
-                      <tr key={task.id} className="border-b border-gray-100">
+                      <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        {/* Updated Data Mapping */}
                         <td className="py-4 pr-4">{task.sensitiveSystem?.systemName || 'غير محدد'}</td>
-                        {/* Combine control texts */}
-                        <td className="py-4">
-                          {task.controls?.map(control => control.controlText).join(', ') || 'لا توجد ضوابط'}
+                        {/* Explicitly type 'control' parameter */}
+                        <td className="py-4 max-w-xs truncate" title={task.controls?.map((control: Pick<PrismaControl, 'id' | 'controlText'>) => control.controlText).join(', ') || ''}>
+                          {task.controls?.map((control: Pick<PrismaControl, 'id' | 'controlText'>) => control.controlText).join(', ') || 'لا توجد ضوابط'}
                         </td>
-                        <td className="py-4">{new Date(task.createdAt).toLocaleDateString('ar-SA')}</td>
-                        <td className="py-4">{new Date(task.deadline).toLocaleDateString('ar-SA')}</td>
-                        <td className="py-4">
+                        {/* <td className="py-4">{formatDate(task.createdAt)}</td> */}
+                        <td className="py-4">{formatDate(task.deadline)}</td>
+                         <td className="py-4">
+                           {/* Display task status - Add styling based on status */}
+                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                             task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                             task.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                             task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                             task.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : // Added Overdue style
+                             'bg-gray-100 text-gray-700' // Default
+                           }`}>
+                             {task.status} {/* TODO: Map status keys to Arabic names */}
+                           </span>
+                         </td>
+                         <td className="py-4">
                           {/* Placeholder for progress - needs logic */}
                           <div className="flex items-center">
                             <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">

@@ -2,10 +2,11 @@
 
 "use client"
 
-import { useState, useEffect, useRef } from "react" // Added useRef
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
-import { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client"; // Re-added SensitiveSystemInfo, Control
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Removed DialogTrigger as it's not used directly here
+// Explicitly import types from the generated client
+import type { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Bell,
   User as UserIcon, // Aliased the User icon
@@ -52,6 +53,9 @@ type SimpleSensitiveSystemInfo = Pick<SensitiveSystemInfo, 'id' | 'systemName'>;
 // Define type for fetched control data (id, number, text)
 type SimpleControl = Pick<Control, 'id' | 'controlNumber' | 'controlText'>;
 
+// Define type for Department Manager user data
+type DepartmentManager = Pick<User, 'id' | 'name' | 'nameAr'>; // Add other fields if needed
+
 // Type for task assignment feedback
 type TaskAssignmentMessage = {
   type: 'success' | 'error';
@@ -81,15 +85,22 @@ export default function SecurityManagerDashboardPage() {
 
   // State variables for departments
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
-  const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
-  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(true); // Keep for now, might remove later if not needed elsewhere
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null); // Keep for now
+
+  // State for Department Managers
+  const [departmentManagers, setDepartmentManagers] = useState<DepartmentManager[]>([]);
+  const [isLoadingDeptManagers, setIsLoadingDeptManagers] = useState(true);
+  const [deptManagersError, setDeptManagersError] = useState<string | null>(null);
+
 
   // State for the deadline date picker
   const [deadlineDate, setDeadlineDate] = useState<Date | undefined>(undefined);
 
   // State for Task Assignment Form
   const [selectedSystemId, setSelectedSystemId] = useState<string | undefined>(undefined);
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | undefined>(undefined);
+  // const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | undefined>(undefined); // Remove old state
+  const [selectedDepartmentManagerId, setSelectedDepartmentManagerId] = useState<string | undefined>(undefined); // Add new state
   const [isAssigningTask, setIsAssigningTask] = useState(false);
   const [taskAssignmentMessage, setTaskAssignmentMessage] = useState<TaskAssignmentMessage>(null);
 
@@ -193,27 +204,35 @@ export default function SecurityManagerDashboardPage() {
       }
     };
 
-    // Fetch Departments function
-    const fetchDepartments = async () => {
-      setIsLoadingDepartments(true);
-      setDepartmentsError(null);
+    // Fetch Department Managers function
+    const fetchDepartmentManagers = async () => {
+      setIsLoadingDeptManagers(true);
+      setDeptManagersError(null);
       try {
-        const response = await fetch('/api/departments');
+        // Assuming a general /api/users endpoint can filter by role, or create a specific one
+        // For now, let's assume /api/users returns all and we filter client-side
+        // TODO: Ideally, create a dedicated API endpoint like /api/users/department-managers
+        const response = await fetch('/api/users');
         if (!response.ok) {
-          throw new Error(`Failed to fetch departments: ${response.statusText}`);
+          throw new Error(`Failed to fetch users: ${response.statusText}`);
         }
-        const data: { id: string; name: string }[] = await response.json();
-        setDepartments(data);
+        const allUsers: User[] = await response.json();
+        const managers = allUsers
+          .filter(user => user.role === 'DEPARTMENT_MANAGER')
+          .map(user => ({ id: user.id, name: user.name, nameAr: user.nameAr })); // Map to simpler type
+        setDepartmentManagers(managers);
       } catch (err: any) {
-        console.error("Error fetching departments:", err);
-        setDepartmentsError(err.message || "An unknown error occurred fetching departments");
+        console.error("Error fetching department managers:", err);
+        setDeptManagersError(err.message || "An unknown error occurred fetching department managers");
       } finally {
-        setIsLoadingDepartments(false);
+        setIsLoadingDeptManagers(false);
       }
     };
 
+
     fetchControls();
-    fetchDepartments(); // Fetch departments on mount as well
+    // fetchDepartments(); // Remove call to the deleted function
+    fetchDepartmentManagers(); // Fetch department managers
   }, []); // Empty dependency array means run once on mount
 
 
@@ -276,8 +295,12 @@ export default function SecurityManagerDashboardPage() {
       setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار ضابط واحد على الأقل.' });
       return;
     }
-    if (!selectedDepartmentId) {
-      setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار القسم.' });
+    // if (!selectedDepartmentId) { // Remove old check
+    //   setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار القسم.' });
+    //   return;
+    // }
+    if (!selectedDepartmentManagerId) { // Add new check
+      setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار مدير القسم.' });
       return;
     }
     if (!deadlineDate) {
@@ -295,10 +318,11 @@ export default function SecurityManagerDashboardPage() {
 
     const taskData = {
       sensitiveSystemId: selectedSystemId,
-      departmentId: selectedDepartmentId,
+      // departmentId: selectedDepartmentId, // Remove old field
+      assignedToId: selectedDepartmentManagerId, // Add new field for the assigned manager
       controlIds: selectedControls.map(c => c.id),
       deadline: deadlineDate.toISOString(), // Send as ISO string
-      assignedById: userId,
+      assignedById: userId, // The Security Manager assigning the task
     };
 
     try {
@@ -322,7 +346,8 @@ export default function SecurityManagerDashboardPage() {
       setTaskAssignmentMessage({ type: 'success', text: 'تم تعيين المهمة بنجاح!' });
       // Optionally reset form fields
       setSelectedSystemId(undefined);
-      setSelectedDepartmentId(undefined);
+      // setSelectedDepartmentId(undefined); // Remove old reset
+      setSelectedDepartmentManagerId(undefined); // Reset new field
       setSelectedControls([]);
       setDeadlineDate(undefined);
 
@@ -729,29 +754,31 @@ export default function SecurityManagerDashboardPage() {
                 )}
               </div>
 
+              {/* Select Department Manager Dropdown */}
               <div className="mb-4">
                  <div className="flex justify-between items-center mb-2">
-                   <span className="text-sm font-medium">اختر القسم</span>
+                   <span className="text-sm font-medium">اختر مدير القسم</span> {/* Changed Label */}
                  </div>
                   <Select
                     dir="rtl"
-                    value={selectedDepartmentId}
-                    onValueChange={setSelectedDepartmentId} // Update state on change
+                    value={selectedDepartmentManagerId} // Use new state variable
+                    onValueChange={setSelectedDepartmentManagerId} // Update new state variable
                   >
                     <SelectTrigger className="w-full text-right">
-                      <SelectValue placeholder="اختر قسماً..." />
+                      <SelectValue placeholder="اختر مدير القسم..." /> {/* Changed Placeholder */}
                     </SelectTrigger>
                    <SelectContent>
-                     {isLoadingDepartments ? (
-                       <SelectItem value="loading" disabled>جاري تحميل الأقسام...</SelectItem>
-                     ) : departmentsError ? (
-                       <SelectItem value="error" disabled>خطأ: {departmentsError}</SelectItem>
-                     ) : departments.length === 0 ? (
-                       <SelectItem value="no-departments" disabled>لا توجد أقسام.</SelectItem>
+                     {isLoadingDeptManagers ? (
+                       <SelectItem value="loading" disabled>جاري تحميل المدراء...</SelectItem>
+                     ) : deptManagersError ? (
+                       <SelectItem value="error" disabled>خطأ: {deptManagersError}</SelectItem>
+                     ) : departmentManagers.length === 0 ? (
+                       <SelectItem value="no-managers" disabled>لا يوجد مدراء أقسام.</SelectItem>
                      ) : (
-                       departments.map((dept) => (
-                         <SelectItem key={dept.id} value={dept.id}>
-                           {dept.name}
+                       departmentManagers.map((manager) => (
+                         <SelectItem key={manager.id} value={manager.id}>
+                           {/* Display Arabic name if available, otherwise fallback to English name */}
+                           {manager.nameAr || manager.name}
                          </SelectItem>
                        ))
                      )}
@@ -759,6 +786,7 @@ export default function SecurityManagerDashboardPage() {
                  </Select>
               </div>
 
+              {/* Deadline Date Picker */}
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">الموعد النهائي</span>

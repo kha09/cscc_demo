@@ -25,7 +25,8 @@ model User {
 
   createdAssessments Assessment[] @relation("CreatedByAdmin") // Relation for assessments created by this admin
   managedAssessments Assessment[] @relation("ManagedBySecurityManager") // Relation for assessments managed by this security manager
-  assignedTasks      Task[]       @relation("AssignedTasks") // Tasks assigned by this user (Security Manager)
+  assignedTasks      Task[]       @relation("AssignedTasks") // Tasks assigned *by* this user (Security Manager)
+  responsibleTasks   Task[]       @relation("ResponsibleTasks") // Tasks assigned *to* this user (Department Manager)
 }
 
 model Assessment {
@@ -112,7 +113,7 @@ model Department {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tasks Task[] // Tasks assigned to this department
+  // tasks Task[] // Remove this - Tasks are no longer directly linked to Department
 }
 
 enum Role {
@@ -141,15 +142,19 @@ model Task {
   sensitiveSystemId   String
   sensitiveSystem     SensitiveSystemInfo @relation(fields: [sensitiveSystemId], references: [id])
 
-  departmentId        String
-  department          Department @relation(fields: [departmentId], references: [id])
+  // departmentId        String // No longer assigning directly to department ID
+  // department          Department @relation(fields: [departmentId], references: [id]) // Remove relation
 
   assignedById        String // Security Manager who assigned the task
-  assignedBy          User     @relation("AssignedTasks", fields: [assignedById], references: [id]) // Use the named relation
+  assignedBy          User     @relation("AssignedTasks", fields: [assignedById], references: [id])
+
+  assignedToId        String? // Department Manager responsible for the task (optional for now, but should be required by logic)
+  assignedTo          User?    @relation("ResponsibleTasks", fields: [assignedToId], references: [id])
 
   controls            Control[] // Many-to-many relation with Control
 
   @@index([sensitiveSystemId])
-  @@index([departmentId])
+  // @@index([departmentId]) // Remove index
   @@index([assignedById])
+  @@index([assignedToId]) // Add index for the new relation
 }
