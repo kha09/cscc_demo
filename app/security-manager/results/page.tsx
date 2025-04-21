@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from "react";
 import dynamic from 'next/dynamic';
+import Image from "next/image";
+import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { AlertCircle, Loader2 } from "lucide-react";
-import type { User } from "@prisma/client"; // Import User type if needed for userId fetching
+import { Button } from "@/components/ui/button";
+import { AlertCircle, Loader2, Bell, User as UserIcon, Menu, LayoutDashboard, ShieldCheck, Server, Building, ListChecks, FileWarning, FileText, BarChart } from "lucide-react";
+import type { User } from "@prisma/client"; // Import User type
 
 // Dynamically import ApexCharts to avoid SSR issues
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
+
+// --- Analytics Specific Types and Constants ---
 
 // Define the expected structure of the fetched analytics data item
 interface AnalyticsAssignment {
@@ -67,44 +72,61 @@ const complianceLevelOrder: ComplianceLevel[] = [
   ComplianceLevel.NOT_APPLICABLE,
 ];
 
+// --- Component ---
 
 export default function SecurityManagerResultsPage() {
+  // State for layout
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // State for analytics data
   const [userId, setUserId] = useState<string | null>(null);
   const [analyticsData, setAnalyticsData] = useState<ProcessedAnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- Temporary User ID Fetch (same as dashboard) ---
+  // --- User ID Fetch (Common logic) ---
   useEffect(() => {
     const fetchUserId = async () => {
+      // Reset loading/error states related to analytics when user ID fetch starts
+      setIsLoading(true);
+      setError(null);
+      setAnalyticsData(null);
       try {
         const response = await fetch('/api/users/security-managers');
         if (!response.ok) throw new Error('Failed to fetch security managers');
         const managers: User[] = await response.json();
         if (managers.length > 0) {
           setUserId(managers[0].id);
+          // Keep setIsLoading(true) here, data fetching starts in the next effect
         } else {
           setError("No Security Manager user found.");
-          setIsLoading(false);
+          setIsLoading(false); // Stop loading if no user found
         }
       } catch (err: any) {
         console.error("Error fetching user ID:", err);
         setError(err.message || "Failed to get user ID");
-        setIsLoading(false);
+        setIsLoading(false); // Stop loading on error
       }
     };
     fetchUserId();
   }, []);
-  // --- End Temporary User ID Fetch ---
+  // --- End User ID Fetch ---
 
-  // Fetch and process analytics data when userId is available
+  // --- Analytics Data Fetch and Processing ---
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+        // If userId is null (either initially or after failed fetch), don't attempt to fetch data
+        if (!isLoading && !error) { // Only set loading false if it wasn't already set by error/no user
+           // This case might not be strictly necessary if the initial state handles it
+        }
+        return;
+    }
+
 
     const fetchAnalyticsData = async () => {
-      setIsLoading(true);
+      // setIsLoading(true); // Already set true by userId fetch or initial state
       setError(null);
-      setAnalyticsData(null); // Clear previous data
+      setAnalyticsData(null);
 
       try {
         const response = await fetch(`/api/control-assignments/analytics?securityManagerId=${userId}`);
@@ -116,54 +138,32 @@ export default function SecurityManagerResultsPage() {
 
         // Process the data
         const processedData: ProcessedAnalyticsData = {};
-
         rawAssignments.forEach(assignment => {
           const component = assignment.control.mainComponent;
           const level = assignment.complianceLevel;
-
-          if (!component) return; // Skip if mainComponent is missing
-
-          // Initialize component data if it doesn't exist
+          if (!component) return;
           if (!processedData[component]) {
             processedData[component] = {
               total: 0,
-              levels: {
-                [ComplianceLevel.NOT_IMPLEMENTED]: 0,
-                [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0,
-                [ComplianceLevel.IMPLEMENTED]: 0,
-                [ComplianceLevel.NOT_APPLICABLE]: 0,
-              },
-              percentages: { // Initialize percentages
-                [ComplianceLevel.NOT_IMPLEMENTED]: 0,
-                [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0,
-                [ComplianceLevel.IMPLEMENTED]: 0,
-                [ComplianceLevel.NOT_APPLICABLE]: 0,
-              }
+              levels: { [ComplianceLevel.NOT_IMPLEMENTED]: 0, [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0, [ComplianceLevel.IMPLEMENTED]: 0, [ComplianceLevel.NOT_APPLICABLE]: 0 },
+              percentages: { [ComplianceLevel.NOT_IMPLEMENTED]: 0, [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0, [ComplianceLevel.IMPLEMENTED]: 0, [ComplianceLevel.NOT_APPLICABLE]: 0 }
             };
           }
-
-          // Increment total count for the component
           processedData[component].total++;
-
-          // Increment count for the specific compliance level, if valid
           if (level && complianceLevelLabels[level]) {
             processedData[component].levels[level]++;
           }
-          // Optionally handle null or unexpected levels if needed
         });
 
-        // Calculate percentages for each component
+        // Calculate percentages
         Object.keys(processedData).forEach(component => {
           const componentData = processedData[component];
           if (componentData.total > 0) {
             complianceLevelOrder.forEach(level => {
-              componentData.percentages[level] = parseFloat(
-                ((componentData.levels[level] / componentData.total) * 100).toFixed(1) // 1 decimal place
-              );
+              componentData.percentages[level] = parseFloat(((componentData.levels[level] / componentData.total) * 100).toFixed(1));
             });
           }
         });
-
 
         setAnalyticsData(processedData);
 
@@ -171,214 +171,197 @@ export default function SecurityManagerResultsPage() {
         console.error("Error fetching or processing analytics data:", err);
         setError(err.message || "An unknown error occurred.");
       } finally {
-        setIsLoading(false);
+        setIsLoading(false); // Stop loading after fetch attempt (success or fail)
       }
     };
 
     fetchAnalyticsData();
   }, [userId]); // Re-run when userId changes
+  // --- End Analytics Data Fetch ---
 
-  // --- Render Logic ---
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-[calc(100vh-150px)]" dir="rtl">
-        <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
-        <span className="ml-2">جاري تحميل البيانات...</span>
-      </div>
-    );
-  }
 
-  if (error) {
-    return (
-      <div className="flex justify-center items-center h-[calc(100vh-150px)] text-red-600" dir="rtl">
-        <AlertCircle className="h-6 w-6" />
-        <span className="ml-2">خطأ: {error}</span>
-      </div>
-    );
-  }
+  // --- Chart Options ---
+  const mainComponents = analyticsData ? Object.keys(analyticsData).sort() : [];
 
-  if (!analyticsData || Object.keys(analyticsData).length === 0) {
-    return (
-      <div className="text-center py-10 text-gray-600" dir="rtl">
-        لا توجد بيانات نتائج لعرضها.
-      </div>
-    );
-  }
-
-  // Get sorted list of main components
-  const mainComponents = Object.keys(analyticsData).sort();
-
-  // Prepare data for the overall stacked bar chart
-  const stackedBarSeries = complianceLevelOrder.map(level => ({
+  const stackedBarSeries = analyticsData ? complianceLevelOrder.map(level => ({
     name: complianceLevelLabels[level],
     data: mainComponents.map(component => analyticsData[component]?.percentages[level] || 0)
-  }));
+  })) : [];
 
   const stackedBarOptions: ApexCharts.ApexOptions = {
-    chart: {
-      type: 'bar',
-      stacked: true,
-      stackType: '100%', // Stack to 100%
-      toolbar: { show: true },
-      fontFamily: 'inherit', // Use website font
-      // Removed invalid rtl: true property
-    },
-    plotOptions: {
-      bar: {
-        horizontal: false, // Vertical bars
-      },
-    },
-    xaxis: {
-      categories: mainComponents, // Main components on X-axis
-      labels: {
-         style: {
-            fontFamily: 'inherit',
-         }
-      }
-    },
-    yaxis: {
-      labels: {
-        formatter: (val) => `${val.toFixed(0)}%`, // Show percentage on Y-axis
-         style: {
-            fontFamily: 'inherit',
-         }
-      }
-    },
+    chart: { type: 'bar', stacked: true, stackType: '100%', toolbar: { show: true }, fontFamily: 'inherit' },
+    plotOptions: { bar: { horizontal: false } },
+    xaxis: { categories: mainComponents, labels: { style: { fontFamily: 'inherit' } } },
+    yaxis: { labels: { formatter: (val) => `${val.toFixed(0)}%`, style: { fontFamily: 'inherit' } } },
     colors: complianceLevelOrder.map(level => complianceLevelColors[level]),
-    legend: {
-      position: 'top',
-      horizontalAlign: 'center',
-      fontFamily: 'inherit',
-      markers: {
-        offsetX: 5 // Adjust marker position for RTL
-      }
-    },
-    tooltip: {
-      y: {
-        formatter: (val) => `${val.toFixed(1)}%` // Show percentage in tooltip
-      },
-      style: {
-         fontFamily: 'inherit',
-      }
-    },
-    dataLabels: {
-      enabled: false, // Disable data labels on bars for cleaner look
-    },
-    grid: {
-      borderColor: '#e7e7e7',
-      row: {
-        colors: ['#f3f3f3', 'transparent'], // Zebra striping
-        opacity: 0.5
-      },
-    },
+    legend: { position: 'top', horizontalAlign: 'center', fontFamily: 'inherit', markers: { offsetX: 5 } },
+    tooltip: { y: { formatter: (val) => `${val.toFixed(1)}%` }, style: { fontFamily: 'inherit' } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: '#e7e7e7', row: { colors: ['#f3f3f3', 'transparent'], opacity: 0.5 } },
+  };
+  // --- End Chart Options ---
+
+
+  // --- Render Logic ---
+  const renderAnalyticsContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center h-[calc(100vh-200px)]"> {/* Adjusted height */}
+          <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
+          <span className="mr-2">جاري تحميل البيانات...</span> {/* Use mr-2 for RTL */}
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="flex justify-center items-center h-[calc(100vh-200px)] text-red-600"> {/* Adjusted height */}
+          <AlertCircle className="h-6 w-6" />
+          <span className="mr-2">خطأ: {error}</span> {/* Use mr-2 for RTL */}
+        </div>
+      );
+    }
+
+    if (!analyticsData || mainComponents.length === 0) {
+      return (
+        <div className="text-center py-10 text-gray-600">
+          لا توجد بيانات نتائج لعرضها.
+        </div>
+      );
+    }
+
+    // Actual chart rendering
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-slate-800">نتائج الامتثال</h1>
+
+        {/* Overall Stacked Bar Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold">نظرة عامة على الامتثال حسب المكون الرئيسي</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Chart options={stackedBarOptions} series={stackedBarSeries} type="bar" height={350} width="100%" />
+          </CardContent>
+        </Card>
+
+        {/* Individual Doughnut Charts per Component */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {mainComponents.map((component) => {
+            const componentData = analyticsData[component];
+            if (!componentData) return null;
+
+            const doughnutSeries = complianceLevelOrder.map(level => componentData.levels[level]);
+            const doughnutLabels = complianceLevelOrder.map(level => complianceLevelLabels[level]);
+            const doughnutColors = complianceLevelOrder.map(level => complianceLevelColors[level]);
+
+            const doughnutOptions: ApexCharts.ApexOptions = {
+              chart: { type: 'donut', fontFamily: 'inherit' },
+              labels: doughnutLabels,
+              colors: doughnutColors,
+              legend: { position: 'bottom', fontFamily: 'inherit' },
+              tooltip: { y: { formatter: (val) => `${val} (${((val / componentData.total) * 100).toFixed(1)}%)` }, style: { fontFamily: 'inherit' } },
+              dataLabels: { enabled: true, formatter: (val) => `${parseFloat(val as string).toFixed(1)}%`, style: { fontFamily: 'inherit' } },
+              plotOptions: { pie: { donut: { labels: { show: true, total: { show: true, label: 'الإجمالي', formatter: () => componentData.total.toString() } } } } },
+              responsive: [{ breakpoint: 480, options: { chart: { width: 200 }, legend: { position: 'bottom' } } }]
+            };
+
+            return (
+              <Card key={component}>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold truncate" title={component}>{component}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Chart options={doughnutOptions} series={doughnutSeries} type="donut" height={300} width="100%" />
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
 
   return (
-    <div className="p-6 space-y-6" dir="rtl">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">نتائج الامتثال</h1>
+    <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
+      {/* Header */}
+      <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
+        <div className="flex items-center justify-between">
+          {/* Logo and Title */}
+          <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
+            <div className="relative h-16 w-16">
+              <Image src="/static/image/logo.png" width={160} height={160} alt="Logo" className="object-contain" />
+            </div>
+          </div>
+          {/* Spacer */}
+          <div className="flex-grow"></div>
+          {/* User Icons & Toggle */}
+          <div className="flex items-center space-x-4 space-x-reverse">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
+              <UserIcon className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700 md:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+              <Menu className="h-6 w-6" />
+            </Button>
+          </div>
+        </div>
+      </header>
 
-      {/* Overall Stacked Bar Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold">نظرة عامة على الامتثال حسب المكون الرئيسي</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Chart
-            options={stackedBarOptions}
-            series={stackedBarSeries}
-            type="bar"
-            height={350}
-            width="100%"
-          />
-        </CardContent>
-      </Card>
+      {/* Main Layout with Sidebar */}
+      <div className="flex flex-row">
+        {/* Sidebar */}
+        <aside className={`bg-slate-800 text-white p-4 sticky top-[76px] h-[calc(100vh-76px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+          <div className={`flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+              <Menu className="h-6 w-6" />
+            </Button>
+          </div>
+          <nav className="space-y-2">
+            {/* Sidebar Links - Copied from dashboard */}
+            <Link href="/security-manager" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <LayoutDashboard className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>لوحة المعلومات</span>
+            </Link>
+            {/* <Link href="/security-manager#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <ShieldCheck className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقييمات المعينة</span>
+            </Link> */}
+             <Link href="/security-manager/system-info" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Server className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>معلومات الأنظمة</span>
+            </Link>
+            {/* <Link href="/security-manager/departments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Building className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة الأقسام</span>
+            </Link> */}
+            {/* <Link href="/security-manager#tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <ListChecks className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المهام</span>
+            </Link> */}
+            {/* <Link href="/security-manager#risks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <FileWarning className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المخاطر</span>
+            </Link> */}
+            {/* <Link href="/security-manager#reports" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <FileText className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقارير</span>
+            </Link> */}
+            <Link href="/security-manager/results" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <BarChart className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
+            </Link>
+          </nav>
+        </aside>
 
-      {/* Individual Doughnut Charts per Component */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mainComponents.map((component) => {
-          const componentData = analyticsData[component];
-          if (!componentData) return null;
-
-          const doughnutSeries = complianceLevelOrder.map(level => componentData.levels[level]);
-          const doughnutLabels = complianceLevelOrder.map(level => complianceLevelLabels[level]);
-          const doughnutColors = complianceLevelOrder.map(level => complianceLevelColors[level]);
-
-          const doughnutOptions: ApexCharts.ApexOptions = {
-            chart: {
-              type: 'donut',
-              fontFamily: 'inherit',
-            },
-            labels: doughnutLabels,
-            colors: doughnutColors,
-            legend: {
-              position: 'bottom',
-              fontFamily: 'inherit',
-            },
-            tooltip: {
-               y: {
-                  formatter: (val) => `${val} (${((val / componentData.total) * 100).toFixed(1)}%)`
-               },
-               style: {
-                  fontFamily: 'inherit',
-               }
-            },
-            dataLabels: {
-              enabled: true,
-              formatter: function (val, opts) {
-                // Show percentage on the slices
-                return `${parseFloat(val as string).toFixed(1)}%`
-              },
-               style: {
-                  fontFamily: 'inherit',
-               }
-            },
-            plotOptions: {
-              pie: {
-                donut: {
-                  labels: {
-                    show: true,
-                    total: {
-                      show: true,
-                      label: 'الإجمالي',
-                      formatter: () => componentData.total.toString()
-                    }
-                  }
-                }
-              }
-            },
-            responsive: [{
-              breakpoint: 480,
-              options: {
-                chart: {
-                  width: 200
-                },
-                legend: {
-                  position: 'bottom'
-                }
-              }
-            }]
-          };
-
-          return (
-            <Card key={component}>
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold truncate" title={component}>
-                  {component}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Chart
-                  options={doughnutOptions}
-                  series={doughnutSeries}
-                  type="donut"
-                  height={300}
-                  width="100%"
-                />
-              </CardContent>
-            </Card>
-          );
-        })}
+        {/* Main Content Area */}
+        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
+          {/* Render the analytics content, loading, or error state */}
+          {renderAnalyticsContent()}
+        </main>
       </div>
     </div>
   );
