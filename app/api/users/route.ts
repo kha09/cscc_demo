@@ -1,27 +1,64 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma'; // Corrected import
-import bcrypt from 'bcryptjs'; // Import bcrypt
-import { Role } from '@prisma/client'; // Import Role enum for validation
+import { NextRequest, NextResponse } from 'next/server'; // Import NextRequest
+import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
+import { Role, Prisma } from '@prisma/client'; // Import Role enum and Prisma for types
 
-export async function GET() {
+// GET handler to fetch users with filtering
+export async function GET(request: NextRequest) { // Use NextRequest to access searchParams
   try {
-    // TODO: Add authentication and authorization check to ensure only admins can access this
-    // For now, fetching all users without checks for demonstration
+    // TODO: Add authentication and authorization check
+
+    const { searchParams } = new URL(request.url);
+    const department = searchParams.get('department');
+    const roleParam = searchParams.get('role');
+    const unassigned = searchParams.get('unassigned');
+
+    let whereClause: Prisma.UserWhereInput = {};
+
+    if (department) {
+      whereClause.department = department;
+    }
+
+    if (roleParam && Object.values(Role).includes(roleParam as Role)) {
+      whereClause.role = roleParam as Role;
+    }
+
+    if (unassigned === 'true') {
+      // If unassigned=true is requested, filter for users with department set to null
+      // This overrides any specific department filter if both are present (adjust logic if needed)
+      whereClause.department = null;
+    } else if (department) {
+        // Only apply department filter if unassigned is not 'true'
+        whereClause.department = department;
+    }
+
+
     const users = await prisma.user.findMany({
-      // Optionally select specific fields or order them if needed
-      // select: { id: true, name: true, email: true, role: true, department: true, jobTitle: true },
+      where: whereClause,
+      // Select only necessary fields to avoid sending sensitive data like password
+      select: {
+        id: true,
+        name: true,
+        nameAr: true,
+        email: true,
+        role: true,
+        department: true,
+        createdAt: true,
+        updatedAt: true,
+        // Explicitly exclude password
+      },
       orderBy: { createdAt: 'desc' },
     });
+
     return NextResponse.json(users);
   } catch (error) {
     console.error('Failed to fetch users:', error);
-    // Avoid sending detailed error messages to the client in production
     return NextResponse.json({ message: 'Internal Server Error: Failed to fetch users' }, { status: 500 });
   }
 }
 
 // POST handler to create a new user
-export async function POST(request: Request) {
+export async function POST(request: Request) { // Keep Request type here for body parsing
   try {
     // TODO: Add authentication and authorization check (ensure only ADMIN can create users)
 

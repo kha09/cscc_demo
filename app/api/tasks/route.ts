@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-// Explicitly import types
+// Explicitly import types and Prisma namespace
+import { Prisma } from '@prisma/client';
 import type { Control, Task, User } from '@prisma/client';
 
 // Zod schema for validating the POST request body
@@ -93,50 +94,62 @@ export async function POST(request: Request) {
 }
 
 
-// GET handler to fetch tasks, optionally filtered by assignedToId (Department Manager ID)
+// GET handler to fetch tasks, optionally filtered by assignedToId or assigned user's department
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const assignedToId = searchParams.get('assignedToId'); // Changed parameter name
+  const assignedToId = searchParams.get('assignedToId');
+  const department = searchParams.get('department'); // Added department parameter
 
   try {
-    let tasks: Task[]; // Define tasks with Task[] type
+    let whereClause: Prisma.TaskWhereInput = {}; // Use Prisma type for where clause
+
+    // Define the fields to include for controls
+    const controlIncludeFields = {
+        id: true,
+        controlNumber: true,
+        controlText: true,
+        controlType: true,
+        mainComponent: true,
+        subComponent: true,
+    };
 
     const includeOptions = {
-      sensitiveSystem: true,
+      sensitiveSystem: { select: { systemName: true } }, // Only select needed fields
       // department: true, // Removed
-      controls: true,
+      controls: { select: controlIncludeFields }, // Select specific control fields
       assignedBy: { select: { id: true, name: true } }, // Assigner (Security Manager)
-      assignedTo: { select: { id: true, name: true, nameAr: true } } // Assignee (Department Manager)
+      assignedTo: { select: { id: true, name: true, nameAr: true, department: true } } // Include department for filtering
     };
 
-    const orderByOptions = {
-      createdAt: 'desc', // Optional: order by creation date
+    // Correctly type orderByOptions
+    const orderByOptions: Prisma.TaskOrderByWithRelationInput = {
+      createdAt: 'desc',
     };
 
+    // Apply filters based on query parameters
     if (assignedToId) {
       // Validate assignedToId format (UUID)
       if (!z.string().uuid().safeParse(assignedToId).success) {
         return NextResponse.json({ message: "Invalid Assigned To User ID format" }, { status: 400 });
       }
-
-      // Fetch tasks for a specific Department Manager
-      tasks = await prisma.task.findMany({
-        where: { assignedToId: assignedToId }, // Filter by assignedToId
-        include: includeOptions,
-        orderBy: orderByOptions,
-      });
-    } else {
-      // Fetch all tasks if no assignedToId is provided
-      // WARNING: In a real application, this should be restricted or paginated.
-      // Fetching all tasks might expose sensitive data or be inefficient.
-      // Consider adding role-based access control here.
-      tasks = await prisma.task.findMany({
-        include: includeOptions,
-        orderBy: orderByOptions,
-      });
+      whereClause.assignedToId = assignedToId;
+    } else if (department) {
+      // Filter by the department of the assigned user
+      whereClause.assignedTo = {
+        department: department,
+      };
+      // Optionally, you might want to ensure the assigned user is not null
+      // whereClause.assignedToId = { not: null };
     }
+    // If neither assignedToId nor department is provided, whereClause remains empty, fetching all tasks.
+    // WARNING: Fetching all tasks without restriction is generally not recommended.
+    // Consider adding role-based access or pagination.
 
-    // TODO: Add validation for the fetched tasks structure if needed
+    const tasks = await prisma.task.findMany({
+      where: whereClause,
+      include: includeOptions,
+      orderBy: orderByOptions,
+    });
 
     return NextResponse.json(tasks);
 
