@@ -14,11 +14,11 @@ import {
   Plus,
   Filter,
   Download,
-  Upload, // Added for logo input styling
+  // Upload, // Removed unused import
   Menu, // Added for sidebar toggle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"; // Removed unused CardFooter
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -128,8 +128,9 @@ export default function AdminDashboardPage() {
         }
         const data: SecurityManager[] = await response.json();
         setSecurityManagers(data);
-      } catch (err: any) {
-        setFetchError(err.message); // Use dedicated fetch error state
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+        setFetchError(errorMessage); // Use dedicated fetch error state
         console.error("Error fetching security managers:", err);
       } finally {
         setIsLoading(false);
@@ -152,8 +153,9 @@ export default function AdminDashboardPage() {
         }
         const data: UserData[] = await response.json();
         setAllUsers(data);
-      } catch (err: any) {
-        setUsersError(err.message);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+        setUsersError(errorMessage);
         console.error("Error fetching all users:", err);
       } finally {
         setUsersLoading(false);
@@ -174,8 +176,9 @@ export default function AdminDashboardPage() {
       }
       const data: UserData[] = await response.json();
       setAllUsers(data);
-    } catch (err: any) {
-      setUsersError(err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      setUsersError(errorMessage);
       console.error("Error fetching all users:", err);
     } finally {
       setUsersLoading(false);
@@ -241,9 +244,10 @@ export default function AdminDashboardPage() {
         setEditSubmitStatus('idle');
       }, 1500); // Close dialog after success message
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Update error:", err);
-      setEditSubmitError(err.message || "An unexpected error occurred.");
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred.";
+      setEditSubmitError(errorMessage);
       setEditSubmitStatus('error');
     }
   };
@@ -303,9 +307,10 @@ export default function AdminDashboardPage() {
             setAddSubmitStatus('idle');
         }, 1500); // Close dialog after success message
 
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("Add user error:", err);
-        setAddSubmitError(err.message || "حدث خطأ غير متوقع أثناء إنشاء المستخدم.");
+        const errorMessage = err instanceof Error ? err.message : "حدث خطأ غير متوقع أثناء إنشاء المستخدم.";
+        setAddSubmitError(errorMessage);
         setAddSubmitStatus('error');
     }
   };
@@ -348,9 +353,10 @@ export default function AdminDashboardPage() {
       }, 1500);
 
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Delete error:", err);
-      setDeleteError(err.message || "An unexpected error occurred.");
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred.";
+      setDeleteError(errorMessage);
       setDeleteStatus('error');
       // Keep dialog open on error to show message
     }
@@ -447,9 +453,10 @@ export default function AdminDashboardPage() {
         setSubmitStatus('idle');
       }, 2000); // Keep success message visible for 2 seconds
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Submission error:", err);
-      setSubmitError(err.message || "حدث خطأ غير متوقع أثناء إنشاء التقييم."); // Use dedicated submit error state
+      const errorMessage = err instanceof Error ? err.message : "حدث خطأ غير متوقع أثناء إنشاء التقييم.";
+      setSubmitError(errorMessage); // Use dedicated submit error state
       setSubmitStatus('error');
     }
   };

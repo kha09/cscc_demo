@@ -39,15 +39,15 @@ export async function PUT(request: Request, { params }: { params: { userId: stri
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: validation.data, // Use validated data
-    });
+     });
 
-    return NextResponse.json(updatedUser);
-  } catch (error: any) {
-    console.error(`Failed to update user ${userId}:`, error);
-    // Check for specific Prisma errors, e.g., record not found
-    if (error.code === 'P2025') {
-        return NextResponse.json({ message: 'User not found' }, { status: 404 });
-    }
+     return NextResponse.json(updatedUser);
+   } catch (error: unknown) {
+     console.error(`Failed to update user ${userId}:`, error);
+     // Check for specific Prisma errors, e.g., record not found
+     if (error instanceof Error && 'code' in error && error.code === 'P2025') {
+         return NextResponse.json({ message: 'User not found' }, { status: 404 });
+     }
     return NextResponse.json({ message: 'Internal Server Error: Failed to update user' }, { status: 500 });
   }
 }
@@ -90,13 +90,13 @@ export async function PATCH(request: Request, { params }: { params: { userId: st
             }
         });
 
-        return NextResponse.json(updatedUser);
+         return NextResponse.json(updatedUser);
 
-    } catch (error: any) {
-        console.error(`Failed to partially update user ${userId}:`, error);
-        if (error.code === 'P2025') {
-            return NextResponse.json({ message: 'User not found' }, { status: 404 });
-        }
+     } catch (error: unknown) {
+         console.error(`Failed to partially update user ${userId}:`, error);
+         if (error instanceof Error && 'code' in error && error.code === 'P2025') {
+             return NextResponse.json({ message: 'User not found' }, { status: 404 });
+         }
         return NextResponse.json({ message: 'Internal Server Error: Failed to update user department' }, { status: 500 });
     }
 }
@@ -116,19 +116,19 @@ export async function DELETE(request: Request, { params }: { params: { userId: s
 
     await prisma.user.delete({
       where: { id: userId },
-    });
+     });
 
-    return NextResponse.json({ message: 'User deleted successfully' }, { status: 200 }); // Or 204 No Content
-  } catch (error: any) {
-    console.error(`Failed to delete user ${userId}:`, error);
-     // Check for specific Prisma errors, e.g., record not found
-    if (error.code === 'P2025') {
-        return NextResponse.json({ message: 'User not found' }, { status: 404 });
-    }
-    // Handle potential foreign key constraint errors if user is linked elsewhere
-    if (error.code === 'P2003') {
-       return NextResponse.json({ message: 'Cannot delete user: They are linked to other records (e.g., assessments).' }, { status: 409 }); // Conflict
-    }
+     return NextResponse.json({ message: 'User deleted successfully' }, { status: 200 }); // Or 204 No Content
+   } catch (error: unknown) {
+     console.error(`Failed to delete user ${userId}:`, error);
+      // Check for specific Prisma errors, e.g., record not found
+     if (error instanceof Error && 'code' in error && error.code === 'P2025') {
+         return NextResponse.json({ message: 'User not found' }, { status: 404 });
+     }
+     // Handle potential foreign key constraint errors if user is linked elsewhere
+     if (error instanceof Error && 'code' in error && error.code === 'P2003') {
+        return NextResponse.json({ message: 'Cannot delete user: They are linked to other records (e.g., assessments).' }, { status: 409 }); // Conflict
+     }
     return NextResponse.json({ message: 'Internal Server Error: Failed to delete user' }, { status: 500 });
   }
 }

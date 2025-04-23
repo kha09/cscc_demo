@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 // Explicitly import types and Prisma namespace
 import { Prisma } from '@prisma/client';
-import type { Control, Task, User, PrismaClient } from '@prisma/client'; // Added PrismaClient for tx type
+import type { Control } from '@prisma/client'; // Removed unused Task, User, PrismaClient
 
 // Zod schema for validating the POST request body
 const createTaskSchema = z.object({
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
   const department = searchParams.get('department'); // Added department parameter
 
   try {
-    let whereClause: Prisma.TaskWhereInput = {}; // Use Prisma type for where clause
+    const whereClause: Prisma.TaskWhereInput = {}; // Use Prisma type for where clause, changed let to const
 
     // Define the fields to include for controls
     const controlIncludeFields = {
@@ -144,18 +144,19 @@ export async function GET(request: NextRequest) {
         controlText: true,
         controlType: true,
         mainComponent: true,
-        subComponent: true,
-    };
+         subComponent: true,
+      };
 
-    const includeOptions = {
-      sensitiveSystem: {
-        select: {
-          systemName: true,
-          assessment: { // Include the nested assessment
-            select: {
-              assessmentName: true, // Select only the name
-            }
-          }
+      // Use include for sensitiveSystem, then select within it
+      const includeOptions = {
+        sensitiveSystem: {     // Include sensitiveSystem relation
+          select: {            // Select specific fields from sensitiveSystem
+            systemName: true,
+           assessment: {        // Include the assessment relation within sensitiveSystem
+             select: {
+               id: true, // Try selecting 'id' instead of 'assessmentName'
+             }
+           }
         }
       },
       assignedBy: { select: { id: true, name: true } },
