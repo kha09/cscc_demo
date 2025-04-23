@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Loader2, Bell, User as UserIcon, Menu, LayoutDashboard, ShieldCheck, Server, Building, ListChecks, FileWarning, FileText, BarChart } from "lucide-react";
+import { AlertCircle, Loader2, Bell, User as UserIcon, Menu, LayoutDashboard, Server, BarChart } from "lucide-react"; // Removed ShieldCheck, Building, ListChecks, FileWarning, FileText
 import type { User } from "@prisma/client"; // Import User type
 
 // Dynamically import ApexCharts to avoid SSR issues
@@ -102,9 +102,10 @@ export default function SecurityManagerResultsPage() {
           setError("No Security Manager user found.");
           setIsLoading(false); // Stop loading if no user found
         }
-      } catch (err: any) {
+      } catch (err: unknown) { // Changed any to unknown
         console.error("Error fetching user ID:", err);
-        setError(err.message || "Failed to get user ID");
+        const errorMsg = err instanceof Error ? err.message : "Failed to get user ID"; // Added type check
+        setError(errorMsg);
         setIsLoading(false); // Stop loading on error
       }
     };
@@ -167,16 +168,17 @@ export default function SecurityManagerResultsPage() {
 
         setAnalyticsData(processedData);
 
-      } catch (err: any) {
+      } catch (err: unknown) { // Changed any to unknown
         console.error("Error fetching or processing analytics data:", err);
-        setError(err.message || "An unknown error occurred.");
+        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred."; // Added type check
+        setError(errorMsg);
       } finally {
         setIsLoading(false); // Stop loading after fetch attempt (success or fail)
       }
     };
 
     fetchAnalyticsData();
-  }, [userId]); // Re-run when userId changes
+  }, [userId, error, isLoading]); // Added error and isLoading to dependencies
   // --- End Analytics Data Fetch ---
 
 

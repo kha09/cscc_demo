@@ -279,7 +279,7 @@ export default function SecurityManagerDashboardPage() {
         month: 'long',
         day: 'numeric',
       });
-    } catch (e) {
+    } catch (_e) { // Prefixed unused variable
       return 'Invalid Date';
     }
   };

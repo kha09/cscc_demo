@@ -3,21 +3,21 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { User, SensitiveSystemInfo } from "@prisma/client"; // Import necessary types
-import { 
-  Bell, 
-  User as UserIcon, 
-  Search,
+import {
+  Bell,
+  User as UserIcon,
+  // Search, // Removed unused import
   Menu,
   Server, // Sidebar icon
-  FileText, // Sidebar icon
-  FileWarning, // Sidebar icon
+  // FileText, // Removed unused import
+  // FileWarning, // Removed unused import
   LayoutDashboard, // Sidebar icon
-  ListChecks, // Sidebar icon
-  ShieldCheck, // Sidebar icon
+  // ListChecks, // Removed unused import
+  // ShieldCheck, // Removed unused import
   BarChart // Added for Results link
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card"; // Removed unused CardTitle
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 

@@ -88,7 +88,7 @@ export default function DepartmentManagerDashboardPage() {
   // State for modals
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   // Modal now shows details of a Task, focusing on its ControlAssignments
-  const [selectedTaskForDetailsModal, setSelectedTaskForDetailsModal] = useState<FrontendTask | null>(null);
+  const [selectedTaskForDetailsModal] = useState<FrontendTask | null>(null); // Removed unused setter
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   // Removed state related to the old incorrect assignment modal
 
