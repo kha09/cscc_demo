@@ -37,15 +37,15 @@ export default function ManageDepartmentsPage() {
     const [addError, setAddError] = useState<string | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true); // State for sidebar
 
-    const { user } = useAuth(); // Get user info for role checks if needed
-    const router = useRouter();
+    const { user: _user } = useAuth(); // Prefixed unused user
+    const _router = useRouter(); // Prefixed unused router
 
     // Optional: Redirect if not a security manager (or admin)
     // useEffect(() => {
-    //     if (user && user.role !== 'SECURITY_MANAGER' && user.role !== 'ADMIN') {
-    //         router.push('/unauthorized'); // Or your login/home page
+    //     if (_user && _user.role !== 'SECURITY_MANAGER' && _user.role !== 'ADMIN') { // Use _user
+    //         _router.push('/unauthorized'); // Or your login/home page // Use _router
     //     }
-    // }, [user, router]);
+    // }, [_user, _router]); // Use _user, _router
 
     // Fetch departments on component mount
     useEffect(() => {
@@ -125,7 +125,7 @@ export default function ManageDepartmentsPage() {
                 try {
                     const result = await response.json();
                     errorMsg = result.message || errorMsg;
-                } catch (_) {
+                } catch (_err) { // Prefixed unused variable
                     // Ignore if response body is not JSON or empty
                 }
                  throw new Error(errorMsg);
@@ -143,7 +143,7 @@ export default function ManageDepartmentsPage() {
     };
 
     // Optional: Add loading state check for user role if implementing redirection
-    // if (!user) return <div>Loading user data...</div>;
+    // if (!_user) return <div>Loading user data...</div>; // Use _user
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">

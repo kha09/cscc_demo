@@ -12,27 +12,27 @@ import {
   TaskStatus // Ensure this is a value import
 } from "@prisma/client";
 // Keep other type imports if needed using 'import type'
-// Example: import type { SomeOtherType } from "@prisma/client";
-import {
-  Bell,
-  PlusCircle,
-  User as UserIcon,
-  ClipboardList,
-  BarChart,
-  FileText,
-  AlertTriangle,
-  Search,
-  Filter,
-  Download,
-  CheckCircle,
-  Users,
-  UserPlus,
+ // Example: import type { SomeOtherType } from "@prisma/client";
+ import {
+   Bell,
+   // PlusCircle, // Removed unused import
+   User as UserIcon,
+   ClipboardList,
+   BarChart,
+   FileText,
+   AlertTriangle,
+   Search,
+   // Filter, // Removed unused import
+   // Download, // Removed unused import
+   CheckCircle,
+   Users,
+   UserPlus,
   RefreshCw,
   ChevronDown, // Added for expanding task details
   ChevronUp // Added for collapsing task details
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card" // Removed unused CardFooter
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -44,7 +44,7 @@ import { Label } from "@/components/ui/label"; // Added Label import
 import React, { ChangeEvent } from "react"; // Import React for Fragment and ChangeEvent
 
 // Define User type for frontend use
-interface FrontendUser extends Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'> {}
+type FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'>;
 
 // Define ControlAssignment type for frontend use, including notes
 interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'createdAt' | 'updatedAt' | 'control' | 'assignedUser'> {
@@ -184,9 +184,10 @@ export default function DepartmentManagerDashboardPage() {
           return newStatus;
       }), 3000);
 
-    } catch (err: any) {
+    } catch (err: unknown) { // Changed any to unknown
       console.error("Error saving notes/status:", err);
-      setError(err.message || "حدث خطأ أثناء حفظ الملاحظات والحالة.");
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      setError(errorMessage || "حدث خطأ أثناء حفظ الملاحظات والحالة.");
       setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'saving-error' })); // Use specific error status
        setTimeout(() => setAssignmentStatus(prev => {
           const newStatus = { ...prev };
@@ -221,9 +222,10 @@ export default function DepartmentManagerDashboardPage() {
         } else {
           setError("Logged-in user is not a Department Manager or user not found.");
         }
-      } catch (err: any) {
+      } catch (err: unknown) { // Changed any to unknown
         console.error("Error fetching current user:", err);
-        setError(err.message || "Failed to get current user information.");
+        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+        setError(errorMessage || "Failed to get current user information.");
       }
       // Loading state handled by fetchUsers now
     };
@@ -254,10 +256,11 @@ export default function DepartmentManagerDashboardPage() {
         const availableData = allUserData.filter(user => !currentTeamMemberIds.has(user.id));
         setAvailableUsers(availableData);
 
-    } catch (err: any) {
+    } catch (err: unknown) { // Changed any to unknown
         console.error("Error fetching team/available users:", err);
         if (!error) { // Only set error if no other error exists
-            setError(err.message || "Failed to fetch user lists.");
+            const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+            setError(errorMessage || "Failed to fetch user lists.");
         }
     } finally {
         setIsLoadingUsers(false);
@@ -300,7 +303,7 @@ export default function DepartmentManagerDashboardPage() {
       // Clear general error if task fetch succeeds
       setError(null);
 
-    } catch (e) {
+    } catch (e: unknown) { // Changed catch variable type
       console.error("Failed to fetch tasks:", e);
       if (e instanceof Error) {
           setError(`فشل في جلب المهام: ${e.message}`);
@@ -337,9 +340,10 @@ export default function DepartmentManagerDashboardPage() {
       }
       fetchUsers();
       setIsAddUserModalOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) { // Changed any to unknown
       console.error("Error adding user to team:", err);
-      setError(err.message || "حدث خطأ أثناء إضافة المستخدم للفريق.");
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      setError(errorMessage || "حدث خطأ أثناء إضافة المستخدم للفريق.");
     }
   };
 
@@ -407,9 +411,10 @@ export default function DepartmentManagerDashboardPage() {
       }), 3000);
 
 
-    } catch (err: any) {
+    } catch (err: unknown) { // Changed any to unknown
       console.error("Error assigning control:", err);
-      setError(err.message || "حدث خطأ أثناء تعيين الضابط.");
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      setError(errorMessage || "حدث خطأ أثناء تعيين الضابط.");
       setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'error' }));
     }
   };
@@ -423,7 +428,7 @@ export default function DepartmentManagerDashboardPage() {
       return new Date(dateString).toLocaleDateString('ar-SA', {
         year: 'numeric', month: 'long', day: 'numeric',
       });
-    } catch (e) { return 'تاريخ غير صالح'; }
+    } catch (_e) { return 'تاريخ غير صالح'; } // Prefixed unused 'e' with '_'
   };
 
   // Function to open the details modal (now shows Task details with assignments)
@@ -437,11 +442,11 @@ export default function DepartmentManagerDashboardPage() {
 
   // --- Render Logic ---
   // Removed duplicate function declarations from here
-  const renderUserList = (users: FrontendUser[], actionButton?: (user: FrontendUser) => React.ReactNode) => {
+  const renderUserList = (users: FrontendUser[], actionButton?: (_user: FrontendUser) => React.ReactNode) => { // Prefixed unused 'user' with '_'
     if (isLoadingUsers) return <p>جاري تحميل المستخدمين...</p>;
     if (!users || users.length === 0) return <p>لا يوجد مستخدمون لعرضهم.</p>;
 
-    return users.map((user) => (
+    return users.map((user) => ( // Renamed parameter to avoid conflict with outer scope if needed, though '_' prefix handles linting
       <div key={user.id} className="flex justify-between items-center p-3 border rounded-lg mb-2">
         <div className="flex items-center">
           <div className="w-10 h-10 rounded-full bg-nca-teal text-white flex items-center justify-center mr-3 ml-3">
@@ -803,7 +808,7 @@ export default function DepartmentManagerDashboardPage() {
               </CardHeader>
               <CardContent className="pt-4 space-y-4 max-h-[400px] overflow-y-auto">
                  {/* Render Team Members */}
-                 {renderUserList(teamMembers, (user) => (
+                 {renderUserList(teamMembers, (_user) => ( // Prefixed unused 'user' with '_'
                    <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
                      عرض التفاصيل {/* Placeholder for future action */}
                    </Button>

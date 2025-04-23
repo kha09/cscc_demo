@@ -11,11 +11,11 @@ export async function GET(request: NextRequest) { // Use NextRequest to access s
     const { searchParams } = new URL(request.url);
     const department = searchParams.get('department');
     const roleParam = searchParams.get('role');
-    const unassigned = searchParams.get('unassigned');
+     const unassigned = searchParams.get('unassigned');
 
-    let whereClause: Prisma.UserWhereInput = {};
+     const whereClause: Prisma.UserWhereInput = {}; // Changed let to const
 
-    if (department) {
+     if (department) {
       whereClause.department = department;
     }
 
@@ -103,14 +103,15 @@ export async function POST(request: Request) { // Keep Request type here for bod
     // Don't send the password back in the response
     const { password: _, ...userWithoutPassword } = newUser;
 
-    return NextResponse.json(userWithoutPassword, { status: 201 }); // 201 Created
+     return NextResponse.json(userWithoutPassword, { status: 201 }); // 201 Created
 
-  } catch (error: any) {
-    console.error('Failed to create user:', error);
-    // Handle potential Prisma errors, e.g., unique constraint violation (though checked above)
-    if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
-         return NextResponse.json({ message: 'User with this email already exists' }, { status: 409 });
-    }
+   } catch (error: unknown) {
+     console.error('Failed to create user:', error);
+     // Handle potential Prisma errors, e.g., unique constraint violation (though checked above)
+     // Add type check for PrismaClientKnownRequestError
+     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002' && (error.meta?.target as string[])?.includes('email')) {
+          return NextResponse.json({ message: 'User with this email already exists' }, { status: 409 });
+     }
     return NextResponse.json({ message: 'Internal Server Error: Failed to create user' }, { status: 500 });
   }
 }
