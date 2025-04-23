@@ -428,14 +428,14 @@ export default function DepartmentManagerDashboardPage() {
       return new Date(dateString).toLocaleDateString('ar-SA', {
         year: 'numeric', month: 'long', day: 'numeric',
       });
-    } catch (_e) { return 'تاريخ غير صالح'; } // Prefixed unused 'e' with '_'
+    } catch { return 'تاريخ غير صالح'; } // Removed unused _e variable
   };
 
   // Function to open the details modal (now shows Task details with assignments)
-  const handleOpenDetailsModal = (task: FrontendTask) => {
-    setSelectedTaskForDetailsModal(task);
-    setIsDetailsModalOpen(true);
-  };
+  // const handleOpenDetailsModal = (task: FrontendTask) => {
+  //   setSelectedTaskForDetailsModal(task);
+  //   setIsDetailsModalOpen(true);
+  // };
 
   // Removed handleOpenAssignTaskModal
 

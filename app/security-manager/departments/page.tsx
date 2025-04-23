@@ -125,7 +125,7 @@ export default function ManageDepartmentsPage() {
                 try {
                     const result = await response.json();
                     errorMsg = result.message || errorMsg;
-                } catch (_err) { // Prefixed unused variable
+                } catch { // Removed unused variable _err
                     // Ignore if response body is not JSON or empty
                 }
                  throw new Error(errorMsg);

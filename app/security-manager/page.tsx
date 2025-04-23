@@ -10,25 +10,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   Bell,
   User as UserIcon, // Aliased the User icon
-  ClipboardList,
+  // ClipboardList, // Removed unused import
   BarChart,
   FileText,
   AlertTriangle,
   Search,
-  Plus,
+  // Plus, // Removed unused import
   Filter,
   Download,
   // Calendar, // Original Calendar icon, now aliased below
   ChevronDown,
   Menu, // Added for sidebar toggle
-  Activity, // Added for sidebar icon
+  // Activity, // Removed unused import
   Server, // Added for sidebar icon
-  ListChecks, // Added for sidebar icon
+  // ListChecks, // Removed unused import
   ShieldCheck, // Added for sidebar icon
-  FileWarning, // Added for sidebar icon
+  // FileWarning, // Removed unused import
   LayoutDashboard,
-  Building, // Added for Departments icon
-  Check, // Added for multi-select
+  // Building, // Removed unused import
+  // Check, // Removed unused import
   X // Added for badge removal
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -89,10 +89,10 @@ export default function SecurityManagerDashboardPage() {
   const [isControlPopoverOpen, setIsControlPopoverOpen] = useState(false); // State for popover visibility
   const controlInputRef = useRef<HTMLInputElement>(null); // Ref for command input
 
-  // State variables for departments
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
-  const [isLoadingDepartments, setIsLoadingDepartments] = useState(true); // Keep for now, might remove later if not needed elsewhere
-  const [departmentsError, setDepartmentsError] = useState<string | null>(null); // Keep for now
+  // State variables for departments (Removed unused state)
+  // const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  // const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
+  // const [departmentsError, setDepartmentsError] = useState<string | null>(null);
 
   // State for Department Managers
   const [departmentManagers, setDepartmentManagers] = useState<DepartmentManager[]>([]);
@@ -129,9 +129,9 @@ export default function SecurityManagerDashboardPage() {
           setIsLoadingAssessments(false);
           setIsLoadingSystems(false);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error fetching user ID:", err);
-        const errorMsg = err.message || "Failed to get user ID";
+        const errorMsg = err instanceof Error ? err.message : "Failed to get user ID";
         setAssessmentsError(errorMsg); // Set specific error
         setSystemsError(errorMsg); // Set specific error
         setIsLoadingAssessments(false);
@@ -157,9 +157,9 @@ export default function SecurityManagerDashboardPage() {
         }
         const data: AssessmentWithName[] = await response.json(); // Use updated type
         setAssessments(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error fetching assessments:", err);
-        setAssessmentsError(err.message || "An unknown error occurred fetching assessments");
+        setAssessmentsError(err instanceof Error ? err.message : "An unknown error occurred fetching assessments");
       } finally {
         setIsLoadingAssessments(false);
       }
@@ -178,9 +178,9 @@ export default function SecurityManagerDashboardPage() {
         const data: SensitiveSystemInfo[] = await response.json();
         // Map to the simpler type
         setSensitiveSystems(data.map(system => ({ id: system.id, systemName: system.systemName })));
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error fetching sensitive systems:", err);
-        setSystemsError(err.message || "An unknown error occurred fetching systems");
+        setSystemsError(err instanceof Error ? err.message : "An unknown error occurred fetching systems");
       } finally {
         setIsLoadingSystems(false);
       }
@@ -202,9 +202,9 @@ export default function SecurityManagerDashboardPage() {
         }
         const data: SimpleControl[] = await response.json();
         setControls(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error fetching controls:", err);
-        setControlsError(err.message || "An unknown error occurred fetching controls");
+        setControlsError(err instanceof Error ? err.message : "An unknown error occurred fetching controls");
       } finally {
         setIsLoadingControls(false);
       }
@@ -227,9 +227,9 @@ export default function SecurityManagerDashboardPage() {
           .filter(user => user.role === 'DEPARTMENT_MANAGER')
           .map(user => ({ id: user.id, name: user.name, nameAr: user.nameAr })); // Map to simpler type
         setDepartmentManagers(managers);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error fetching department managers:", err);
-        setDeptManagersError(err.message || "An unknown error occurred fetching department managers");
+        setDeptManagersError(err instanceof Error ? err.message : "An unknown error occurred fetching department managers");
       } finally {
         setIsLoadingDeptManagers(false);
       }
@@ -257,10 +257,10 @@ export default function SecurityManagerDashboardPage() {
       }
       const assessmentData: AssessmentWithName = await response.json();
       setCurrentAssessmentName(assessmentData.assessmentName || ""); // Set current name or empty string
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching assessment name:", error);
       // Optionally set an error state to display in the modal
-      setAssessmentNameError("Failed to load current assessment name.");
+      setAssessmentNameError(error instanceof Error ? error.message : "Failed to load current assessment name.");
     }
   };
 
@@ -374,9 +374,9 @@ export default function SecurityManagerDashboardPage() {
       setSelectedControls([]);
       setDeadlineDate(undefined);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error assigning task:", error);
-      setTaskAssignmentMessage({ type: 'error', text: error.message || 'حدث خطأ غير متوقع.' });
+      setTaskAssignmentMessage({ type: 'error', text: error instanceof Error ? error.message : 'حدث خطأ غير متوقع.' });
     } finally {
       setIsAssigningTask(false);
     }
@@ -688,9 +688,10 @@ export default function SecurityManagerDashboardPage() {
                           a.id === selectedAssessmentId ? { ...a, assessmentName: currentAssessmentName } : a
                         ));
                         setIsModalOpen(false); // Close modal on successful submit of BOTH
-                      } catch (error: any) {
+                      } catch (error: unknown) {
                         console.error("Error updating assessment name:", error);
-                        setAssessmentNameError(error.message || "فشل تحديث اسم التقييم.");
+                        // Added instanceof Error check here as well
+                        setAssessmentNameError(error instanceof Error ? error.message : "فشل تحديث اسم التقييم.");
                         // Do not close the modal if the PATCH fails
                       }
                       // --- End PATCH ---
