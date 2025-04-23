@@ -41,6 +41,7 @@ model Assessment {
   secondaryContactMobile  String
   secondaryContactPhone   String
   secondaryContactEmail   String
+  assessmentName          String   // Made required again
   createdById             String   // Foreign key for the Admin who created it
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
@@ -127,10 +128,12 @@ enum Role {
 
 // Enum for Task Status
 enum TaskStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  OVERDUE
+  PENDING      // قيد الانتظار (Implicitly)
+  IN_PROGRESS  // قيد التنفيذ
+  COMPLETED    // مكتمل (User completed, awaiting review)
+  APPROVED     // مقبول (Manager approved)
+  REJECTED     // مرفوض (Manager rejected)
+  OVERDUE      // متأخر
 }
 
 // Model for Task Assignments
@@ -179,7 +182,7 @@ model ControlAssignment {
   control       Control @relation(fields: [controlId], references: [id])
   assignedUser  User?   @relation(fields: [assignedUserId], references: [id]) // Relation to the assigned user
 
-  notes                  String?    // الملاحظات
+  notes                  String?    // الملاحظات - Re-adding this field
   correctiveActions      String?    // إجراءات التصحيح
   expectedComplianceDate DateTime?  // تاريخ الالتزام المتوقع
   complianceLevel        ComplianceLevel? // مستوى الالتزام

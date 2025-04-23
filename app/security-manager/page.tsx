@@ -45,10 +45,14 @@ import { Calendar } from "@/components/ui/calendar" // Added Calendar component
 import { cn } from "@/lib/utils" // Added cn utility
 import { format } from "date-fns" // Added date-fns format
 // Import the form component
+import { Label } from "@/components/ui/label"; // Added Label
 import SensitiveSystemForm from "@/components/sensitive-system-form";
 
 // Define the type for the fetched sensitive system data (id and name)
 type SimpleSensitiveSystemInfo = Pick<SensitiveSystemInfo, 'id' | 'systemName'>;
+
+// Define type for Assessment including the new name field
+type AssessmentWithName = Assessment & { assessmentName?: string | null }; // Make optional for initial state
 
 // Define type for fetched control data (id, number, text)
 type SimpleControl = Pick<Control, 'id' | 'controlNumber' | 'controlText'>;
@@ -74,6 +78,8 @@ export default function SecurityManagerDashboardPage() {
   const [systemsError, setSystemsError] = useState<string | null>(null); // Specific error for systems
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
+  const [currentAssessmentName, setCurrentAssessmentName] = useState<string>(""); // State for the new input
+  const [assessmentNameError, setAssessmentNameError] = useState<string | null>(null); // Error state for name update
 
   // State variables for controls
   const [controls, setControls] = useState<SimpleControl[]>([]);
@@ -136,7 +142,7 @@ export default function SecurityManagerDashboardPage() {
   }, []);
   // --- End Temporary User ID Fetch ---
 
-  // Fetch assessments and systems when userId is available
+  // Fetch assessments, systems, controls, managers when userId is available
   useEffect(() => {
     if (!userId) return;
 
@@ -149,7 +155,7 @@ export default function SecurityManagerDashboardPage() {
         if (!response.ok) {
           throw new Error(`Failed to fetch assessments: ${response.statusText}`);
         }
-        const data: Assessment[] = await response.json();
+        const data: AssessmentWithName[] = await response.json(); // Use updated type
         setAssessments(data);
       } catch (err: any) {
         console.error("Error fetching assessments:", err);
@@ -181,10 +187,10 @@ export default function SecurityManagerDashboardPage() {
     };
 
     fetchAssessments();
-    fetchSensitiveSystems(); // Fetch systems as well
+    fetchSensitiveSystems();
   }, [userId]);
 
-  // Fetch Controls on component mount
+  // Fetch Controls, Dept Managers on component mount
   useEffect(() => {
     const fetchControls = async () => {
       setIsLoadingControls(true);
@@ -236,9 +242,26 @@ export default function SecurityManagerDashboardPage() {
   }, []); // Empty dependency array means run once on mount
 
 
-  const handleOpenForm = (assessmentId: string) => {
+  // Updated to fetch current assessment name when opening
+  const handleOpenForm = async (assessmentId: string) => {
     setSelectedAssessmentId(assessmentId);
+    setCurrentAssessmentName(""); // Reset name state
+    setAssessmentNameError(null); // Reset error state
     setIsModalOpen(true);
+
+    // Fetch the current assessment details to get the name
+    try {
+      const response = await fetch(`/api/assessments/${assessmentId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch assessment details');
+      }
+      const assessmentData: AssessmentWithName = await response.json();
+      setCurrentAssessmentName(assessmentData.assessmentName || ""); // Set current name or empty string
+    } catch (error: any) {
+      console.error("Error fetching assessment name:", error);
+      // Optionally set an error state to display in the modal
+      setAssessmentNameError("Failed to load current assessment name.");
+    }
   };
 
   // Filter assessments based on search query (simple example)
@@ -611,22 +634,74 @@ export default function SecurityManagerDashboardPage() {
           </Card>
 
           {/* Modal for Sensitive System Form */}
+          {/* Modal for Sensitive System Form - Updated */}
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            {/* DialogTrigger is usually placed on the button, but we trigger manually */}
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>معلومات اساسية عن الأنظمة الحساسة</DialogTitle>
               </DialogHeader>
               {selectedAssessmentId ? (
-                <SensitiveSystemForm
-                  assessmentId={selectedAssessmentId}
-                  onFormSubmit={() => setIsModalOpen(false)} // Close modal on successful submit
-                />
+                <div className="space-y-4 py-4">
+                  {/* Assessment Name Input */}
+                  <div className="space-y-1">
+                    <Label htmlFor="assessmentName">اسم التقييم <span className="text-red-500">*</span></Label>
+                    <Input
+                      id="assessmentName"
+                      name="assessmentName"
+                      value={currentAssessmentName}
+                      onChange={(e) => setCurrentAssessmentName(e.target.value)}
+                      required
+                      className="text-right"
+                      placeholder="أدخل اسم التقييم هنا"
+                    />
+                    {assessmentNameError && <p className="text-sm text-red-600">{assessmentNameError}</p>}
+                  </div>
+
+                  {/* Separator or spacing */}
+                  <hr className="my-4" />
+
+                  {/* Existing Sensitive System Form */}
+                  <SensitiveSystemForm
+                    assessmentId={selectedAssessmentId}
+                    // Pass assessmentName and update logic if needed inside the form,
+                    // OR handle the PATCH before calling onFormSubmit here.
+                    // For simplicity, let's handle PATCH here before closing.
+                    onFormSubmit={async () => {
+                      // --- PATCH Assessment Name before closing ---
+                      setAssessmentNameError(null); // Clear previous errors
+                      if (!currentAssessmentName.trim()) {
+                        setAssessmentNameError("اسم التقييم مطلوب.");
+                        return; // Prevent closing if name is empty
+                      }
+                      try {
+                        const patchResponse = await fetch(`/api/assessments/${selectedAssessmentId}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ assessmentName: currentAssessmentName }),
+                        });
+                        if (!patchResponse.ok) {
+                          const errorData = await patchResponse.json();
+                          throw new Error(errorData.error || 'Failed to update assessment name');
+                        }
+                        // Update local assessment state if needed
+                        setAssessments(prev => prev.map(a =>
+                          a.id === selectedAssessmentId ? { ...a, assessmentName: currentAssessmentName } : a
+                        ));
+                        setIsModalOpen(false); // Close modal on successful submit of BOTH
+                      } catch (error: any) {
+                        console.error("Error updating assessment name:", error);
+                        setAssessmentNameError(error.message || "فشل تحديث اسم التقييم.");
+                        // Do not close the modal if the PATCH fails
+                      }
+                      // --- End PATCH ---
+                    }}
+                  />
+                </div>
               ) : (
                 <div className="p-4 text-center">لم يتم تحديد تقييم.</div>
               )}
-            </DialogContent> {/* Correct closing tag */}
-          </Dialog> {/* Correct closing tag */}
+            </DialogContent>
+          </Dialog>
 
           {/* Anchor for System Info (Link target) */}
           <div id="system-info"></div>

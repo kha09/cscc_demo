@@ -2,15 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
-// Import necessary types from Prisma
-import type {
+// Import necessary types AND values from Prisma
+import {
   User as PrismaUser,
   Task as PrismaTask,
   Control as PrismaControl,
   SensitiveSystemInfo as PrismaSensitiveSystemInfo,
-  ControlAssignment as PrismaControlAssignment, // Import ControlAssignment
-  TaskStatus // Import TaskStatus enum
+  ControlAssignment as PrismaControlAssignment,
+  TaskStatus // Ensure this is a value import
 } from "@prisma/client";
+// Keep other type imports if needed using 'import type'
+// Example: import type { SomeOtherType } from "@prisma/client";
 import {
   Bell,
   PlusCircle,
@@ -37,22 +39,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Removed Tooltip import as it seems unused and causes errors
 import { Badge } from "@/components/ui/badge"; // Added Badge for status
-import React from "react"; // Import React for Fragment
+import { Textarea } from "@/components/ui/textarea"; // Added Textarea for notes
+import { Label } from "@/components/ui/label"; // Added Label import
+import React, { ChangeEvent } from "react"; // Import React for Fragment and ChangeEvent
 
 // Define User type for frontend use
 interface FrontendUser extends Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'> {}
 
-// Define ControlAssignment type for frontend use
+// Define ControlAssignment type for frontend use, including notes
 interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'createdAt' | 'updatedAt' | 'control' | 'assignedUser'> {
   control: Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText' | 'mainComponent' | 'subComponent' | 'controlType'>;
   assignedUser: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null; // Make assignedUser required but nullable
+  notes: string | null; // Ensure notes is included
+  status: TaskStatus; // Ensure status is included
 }
 
-// Define Task type for frontend use, including controlAssignments
+// Define Task type for frontend use, including controlAssignments and assessmentName
 interface FrontendTask extends Omit<PrismaTask, 'deadline' | 'createdAt' | 'updatedAt' | 'sensitiveSystem' | 'assignedTo' | 'controlAssignments'> {
   deadline: string;
   createdAt: string;
-  sensitiveSystem: Pick<PrismaSensitiveSystemInfo, 'systemName'> | null;
+  sensitiveSystem: (Pick<PrismaSensitiveSystemInfo, 'systemName'> & {
+    assessment?: { assessmentName: string } | null; // Include nested assessment name
+  }) | null;
   assignedTo: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null; // Manager responsible for the task
   controlAssignments: FrontendControlAssignment[]; // Use the new interface
   // progress?: number | null; // Progress might be calculated or fetched differently now
@@ -71,8 +79,11 @@ export default function DepartmentManagerDashboardPage() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<FrontendUser | null>(null);
-  const [assignmentStatus, setAssignmentStatus] = useState<{ [key: string]: 'loading' | 'error' | 'success' }>({}); // Track status per assignment ID
+  // Ensure all statuses used in handleSaveNotesAndStatus are included here
+  const [assignmentStatus, setAssignmentStatus] = useState<{ [key: string]: 'loading' | 'error' | 'success' | 'saving' | 'saving-success' | 'saving-error' }>({});
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set()); // Track expanded tasks
+  // State for managing notes and status edits within expanded rows
+  const [editState, setEditState] = useState<{ [assignmentId: string]: { notes: string | null; status: TaskStatus } }>({}); // Allow null notes
 
   // State for modals
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -94,6 +105,97 @@ export default function DepartmentManagerDashboardPage() {
       return newSet;
     });
   };
+
+  // --- Handle Edits in Expanded Row ---
+  const handleEditChange = (assignmentId: string, field: 'notes' | 'status', value: string | TaskStatus) => {
+    setEditState(prev => ({
+      ...prev,
+      [assignmentId]: {
+        ...(prev[assignmentId] ?? { notes: null, status: TaskStatus.PENDING }), // Initialize if not present
+        [field]: value,
+      }
+    }));
+  };
+
+  // --- Save Notes and Status ---
+  const handleSaveNotesAndStatus = async (assignmentId: string) => {
+    const stateToSave = editState[assignmentId];
+    // Find the original assignment to compare against
+    const originalAssignment = managerTasks
+      .flatMap(task => task.controlAssignments)
+      .find(a => a.id === assignmentId);
+
+    // Only proceed if there's actually a change
+    if (!stateToSave && (!originalAssignment || originalAssignment.notes === null && originalAssignment.status === TaskStatus.PENDING)) {
+        // If nothing in edit state and original is default/null, do nothing
+        return;
+    }
+    if (stateToSave && originalAssignment && stateToSave.notes === (originalAssignment.notes ?? '') && stateToSave.status === originalAssignment.status) {
+        // If edit state matches original state, do nothing
+        return;
+    }
+
+    // Use edit state if available, otherwise use original state (if only one field was changed)
+    const notesToSave = stateToSave?.notes ?? originalAssignment?.notes ?? null;
+    const statusToSave = stateToSave?.status ?? originalAssignment?.status ?? TaskStatus.PENDING;
+
+
+    setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'saving' }));
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/control-assignments/${assignmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          notes: notesToSave, // Use potentially updated notes
+          status: statusToSave, // Use potentially updated status
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to save notes/status: ${response.statusText}`);
+      }
+
+      const updatedAssignment: FrontendControlAssignment = await response.json();
+
+      // Update local state (managerTasks)
+      setManagerTasks(currentTasks => {
+        return currentTasks.map(task => ({
+          ...task,
+          controlAssignments: task.controlAssignments.map(a =>
+            a.id === assignmentId ? { ...a, notes: updatedAssignment.notes, status: updatedAssignment.status } : a
+          ),
+        }));
+      });
+
+      // Clear edit state for this assignment
+      setEditState(prev => {
+        const newState = { ...prev };
+        delete newState[assignmentId];
+        return newState;
+      });
+
+      setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'saving-success' })); // Use specific success status
+      setTimeout(() => setAssignmentStatus(prev => {
+          const newStatus = { ...prev };
+          delete newStatus[assignmentId];
+          return newStatus;
+      }), 3000);
+
+    } catch (err: any) {
+      console.error("Error saving notes/status:", err);
+      setError(err.message || "حدث خطأ أثناء حفظ الملاحظات والحالة.");
+      setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'saving-error' })); // Use specific error status
+       setTimeout(() => setAssignmentStatus(prev => {
+          const newStatus = { ...prev };
+          delete newStatus[assignmentId];
+          return newStatus;
+      }), 5000); // Keep error message longer
+    }
+  };
+
 
   // --- Fetch Current User (Department Manager) ---
   // (This useEffect remains largely the same)
@@ -482,7 +584,8 @@ export default function DepartmentManagerDashboardPage() {
               <table className="w-full">
                 <thead>
                   <tr className="text-right border-b border-gray-200">
-                    <th className="pb-3 font-medium text-gray-700 pr-4">النظام</th>
+                    <th className="pb-3 font-medium text-gray-700 pr-4">اسم التقييم</th> {/* Added Column */}
+                    <th className="pb-3 font-medium text-gray-700">النظام</th>
                     <th className="pb-3 font-medium text-gray-700">الضوابط</th>
                     <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th>
                     <th className="pb-3 font-medium text-gray-700">الحالة</th>
@@ -492,14 +595,15 @@ export default function DepartmentManagerDashboardPage() {
                 </thead>
                 <tbody>
                   {isLoadingTasks ? (
-                    <tr><td colSpan={6} className="text-center py-4">جاري تحميل المهام...</td></tr>
+                    <tr><td colSpan={7} className="text-center py-4">جاري تحميل المهام...</td></tr> // Updated colSpan
                   ) : managerTasks.length === 0 ? ( // Use managerTasks
-                    <tr><td colSpan={6} className="text-center py-4">لا توجد مهام معينة لك.</td></tr>
+                    <tr><td colSpan={7} className="text-center py-4">لا توجد مهام معينة لك.</td></tr> // Updated colSpan
                   ) : (
                     managerTasks.map((task: FrontendTask) => ( // Use managerTasks and add type
                      <React.Fragment key={task.id}>
                       <tr className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-4 pr-4">{task.sensitiveSystem?.systemName || 'غير محدد'}</td>
+                        <td className="py-4 pr-4">{task.sensitiveSystem?.assessment?.assessmentName || 'غير محدد'}</td> {/* Added Cell */}
+                        <td className="py-4">{task.sensitiveSystem?.systemName || 'غير محدد'}</td>
                         {/* Display count of controls instead of list */}
                         <td className="py-4">
                           {task.controlAssignments?.length ?? 0} ضوابط
@@ -542,54 +646,101 @@ export default function DepartmentManagerDashboardPage() {
                        {/* Expanded Row for Control Assignments */}
                        {expandedTasks.has(task.id) && (
                          <tr className="bg-gray-50 border-b border-gray-200">
-                           <td colSpan={6} className="p-4">
+                           <td colSpan={7} className="p-4"> {/* Updated colSpan */}
                              <h4 className="font-semibold mb-2 text-sm">تعيين الضوابط:</h4>
                              <div className="space-y-3">
                                {task.controlAssignments.length > 0 ? (
                                  task.controlAssignments.map((assignment: FrontendControlAssignment) => ( // Add type
-                                   <div key={assignment.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-md bg-white">
-                                     <div className="flex-1 mb-2 sm:mb-0 sm:mr-4">
-                                       <p className="font-medium text-sm" title={assignment.control.controlText}>
-                                         {assignment.control.controlNumber} - {assignment.control.controlText}
-                                       </p>
-                                       {/* Map Badge variants */}
-                                       <Badge variant={assignment.status === 'COMPLETED' ? 'default' : assignment.status === 'PENDING' ? 'default' : 'secondary'} className={`mt-1 ${
-                                           assignment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                           assignment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                                           assignment.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                           assignment.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                                           'bg-gray-100 text-gray-700' // Fallback style
-                                       }`}>
-                                         {assignment.status} {/* TODO: Translate status */}
-                                       </Badge>
-                                     </div>
-                                     {/* Restore the Select component */}
-                                     <div className="w-full sm:w-auto flex items-center space-x-2 space-x-reverse">
-                                       <Select // This is the assignment dropdown
-                                        // Removed key prop - rely on state update from fetchManagerTasks
-                                        dir="rtl"
-                                        value={assignment.assignedUserId ?? "UNASSIGNED"} // Use "UNASSIGNED" for null/undefined
-                                        onValueChange={(value) => handleAssignControl(assignment.id, value === "UNASSIGNED" ? null : value)} // Check for "UNASSIGNED"
-                                        disabled={assignmentStatus[assignment.id] === 'loading'}
-                                      >
-                                        <SelectTrigger className="w-full sm:w-[200px] text-right">
-                                          <SelectValue placeholder="اختر مستخدم..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="UNASSIGNED">-- غير معين --</SelectItem> {/* Use "UNASSIGNED" value */}
-                                          {teamMembers.map((user: FrontendUser) => ( // Add type
-                                            <SelectItem key={user.id} value={user.id}>
-                                              {user.nameAr || user.name}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      {/* Status indicators */}
-                                      {assignmentStatus[assignment.id] === 'loading' && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
-                                      {assignmentStatus[assignment.id] === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
-                                      {assignmentStatus[assignment.id] === 'error' && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                                   <div key={assignment.id} className="p-3 border rounded-md bg-white"> {/* Main container for each assignment */}
+                                     {/* Top section: Info and User Assignment */}
+                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2">
+                                       <div className="flex-1 mb-2 sm:mb-0 sm:mr-4">
+                                         <p className="font-medium text-sm" title={assignment.control.controlText}>
+                                           {assignment.control.controlNumber} - {assignment.control.controlText}
+                                         </p>
+                                         <Badge variant={assignment.status === 'COMPLETED' ? 'default' : assignment.status === 'PENDING' ? 'default' : 'secondary'} className={`mt-1 ${
+                                             assignment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                             assignment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                             assignment.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                                             assignment.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                                             'bg-gray-100 text-gray-700'
+                                         }`}>
+                                           {assignment.status} {/* TODO: Translate status */}
+                                         </Badge>
+                                       </div>
+                                       <div className="w-full sm:w-auto flex items-center space-x-2 space-x-reverse">
+                                         <Select
+                                          dir="rtl"
+                                          value={assignment.assignedUserId ?? "UNASSIGNED"}
+                                          onValueChange={(value) => handleAssignControl(assignment.id, value === "UNASSIGNED" ? null : value)}
+                                          disabled={assignmentStatus[assignment.id] === 'loading'}
+                                        >
+                                          <SelectTrigger className="w-full sm:w-[200px] text-right">
+                                            <SelectValue placeholder="اختر مستخدم..." />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="UNASSIGNED">-- غير معين --</SelectItem>
+                                            {teamMembers.map((user: FrontendUser) => (
+                                              <SelectItem key={user.id} value={user.id}>
+                                                {user.nameAr || user.name}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                        {assignmentStatus[assignment.id] === 'loading' && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
+                                        {assignmentStatus[assignment.id] === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                                        {assignmentStatus[assignment.id] === 'error' && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                                      </div>
                                     </div>
-                                  </div>
+                                    {/* Bottom section: Notes and Status Update */}
+                                    <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                                      <Label htmlFor={`notes-${assignment.id}`} className="text-xs font-medium text-gray-600">الملاحظات:</Label>
+                                      <Textarea
+                                        id={`notes-${assignment.id}`}
+                                        value={editState[assignment.id]?.notes ?? assignment.notes ?? ''}
+                                        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handleEditChange(assignment.id, 'notes', e.target.value)}
+                                        placeholder="أضف ملاحظات للمستخدم هنا..."
+                                        className="text-sm min-h-[60px]"
+                                        dir="rtl"
+                                      />
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                                        <div className="w-full sm:w-auto flex-grow">
+                                          <Label htmlFor={`status-${assignment.id}`} className="text-xs font-medium text-gray-600">تغيير الحالة:</Label>
+                                          <Select
+                                            dir="rtl"
+                                            value={editState[assignment.id]?.status ?? assignment.status}
+                                            onValueChange={(value) => handleEditChange(assignment.id, 'status', value as TaskStatus)}
+                                          >
+                                            <SelectTrigger id={`status-${assignment.id}`} className="w-full text-right text-sm">
+                                              <SelectValue placeholder="اختر الحالة..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value={TaskStatus.PENDING}>قيد الانتظار</SelectItem>
+                                              <SelectItem value={TaskStatus.IN_PROGRESS}>قيد التنفيذ</SelectItem>
+                                              <SelectItem value={TaskStatus.COMPLETED}>مكتمل (للمراجعة)</SelectItem>
+                                              <SelectItem value={TaskStatus.APPROVED}>مقبول</SelectItem>
+                                              <SelectItem value={TaskStatus.REJECTED}>مرفوض</SelectItem>
+                                              <SelectItem value={TaskStatus.OVERDUE}>متأخر</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleSaveNotesAndStatus(assignment.id)}
+                                          disabled={assignmentStatus[assignment.id] === 'saving'}
+                                          className="mt-2 sm:mt-0 sm:self-end bg-nca-teal hover:bg-nca-teal-dark text-white"
+                                        >
+                                          {assignmentStatus[assignment.id] === 'saving' ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
+                                          حفظ الملاحظة والحالة
+                                        </Button>
+                                      </div>
+                                      {/* Save Status indicators */}
+                                      <div className="h-4 mt-1"> {/* Placeholder for spacing */}
+                                        {assignmentStatus[assignment.id] === 'saving-success' && <p className="text-xs text-green-600 flex items-center"><CheckCircle className="h-3 w-3 mr-1"/> تم الحفظ بنجاح.</p>}
+                                        {assignmentStatus[assignment.id] === 'saving-error' && <p className="text-xs text-red-600 flex items-center"><AlertTriangle className="h-3 w-3 mr-1"/> فشل الحفظ.</p>}
+                                      </div>
+                                    </div>
+                                  </div> // Closing div for the entire assignment block
                                 ))
                               ) : (
                                 <p className="text-sm text-gray-500">لا توجد ضوابط محددة لهذه المهمة.</p>

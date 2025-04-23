@@ -148,7 +148,16 @@ export async function GET(request: NextRequest) {
     };
 
     const includeOptions = {
-      sensitiveSystem: { select: { systemName: true } },
+      sensitiveSystem: {
+        select: {
+          systemName: true,
+          assessment: { // Include the nested assessment
+            select: {
+              assessmentName: true, // Select only the name
+            }
+          }
+        }
+      },
       assignedBy: { select: { id: true, name: true } },
       assignedTo: { select: { id: true, name: true, nameAr: true, department: true } },
       // Include controlAssignments with control and assigned user details
