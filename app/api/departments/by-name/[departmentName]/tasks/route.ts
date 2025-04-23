@@ -17,9 +17,15 @@ const taskWithDetailsSchema = z.object({
   sensitiveSystem: z.object({
     systemName: z.string(),
   }).nullable(),
-  controls: z.array(z.object({
+  // Update to reflect ControlAssignment structure
+  controlAssignments: z.array(z.object({
     id: z.string(),
-    controlText: z.string(),
+    status: z.string(), // Or z.nativeEnum(TaskStatus)
+    control: z.object({
+      id: z.string(),
+      controlNumber: z.string(),
+      controlText: z.string(),
+    }),
   })),
 });
 
@@ -38,34 +44,49 @@ export async function GET(
 
     const { departmentName } = validation.data;
 
-    // 2. Find the Department by its name
-    const department = await prisma.department.findUnique({
+    // 2. Find the user(s) associated with this department name (assuming department manager role)
+    const departmentUsers = await prisma.user.findMany({
       where: {
-        name: departmentName, // Ensure the 'name' field is marked as @unique in your schema
+        department: departmentName,
+        role: 'DEPARTMENT_MANAGER', // Assuming tasks are assigned to Department Managers
       },
-      select: { // Only select the ID, as that's all we need
-        id: true,
-      }
+      select: { id: true },
     });
 
-    // 3. Handle case where department is not found
-    if (!department) {
-      // It's important that the department name in the User table exactly matches a name in the Department table
-      return NextResponse.json({ message: `Department with name '${departmentName}' not found. Check if the name exists in the Department table and matches the name in the User table.` }, { status: 404 });
+    // 3. Handle case where no users are found for this department
+    if (departmentUsers.length === 0) {
+      // No manager found for this department, return empty list
+      console.log(`No DEPARTMENT_MANAGER users found for department: ${departmentName}`);
+      return NextResponse.json([]);
     }
 
-    // 4. Fetch tasks using the found departmentId
+    const userIds = departmentUsers.map(user => user.id);
+
+    // 4. Fetch tasks assigned to these users
     const tasks = await prisma.task.findMany({
       where: {
-        departmentId: department.id, // Use the ID found from the name lookup
+        assignedToId: {
+          in: userIds, // Filter tasks assigned to any user in this department
+        },
       },
       include: {
         sensitiveSystem: {
           select: { systemName: true },
         },
-        controls: {
-          select: { id: true, controlText: true },
+        // Include ControlAssignments and the nested Control
+        controlAssignments: {
+          include: {
+            control: {
+              select: { id: true, controlNumber: true, controlText: true },
+            },
+          },
         },
+         assignedTo: { // Optionally include who the task is assigned to
+          select: { id: true, name: true }
+        },
+        assignedBy: { // Optionally include who assigned the task
+           select: { id: true, name: true }
+        }
       },
       orderBy: {
         createdAt: 'desc',

@@ -46,7 +46,7 @@ if (!existsSync(uploadDir)) {
 }
 export function POST(request) {
     return __awaiter(this, void 0, void 0, function () {
-        var formData, companyNameAr, companyNameEn, securityManagerId, secondaryContactNameAr, secondaryContactNameEn, secondaryContactMobile, secondaryContactPhone, secondaryContactEmail, logoFile, adminUser, adminUserId, logoPath, bytes, buffer, filename, filePath, uploadError_1, newAssessment, error_1;
+        var formData, companyNameAr, companyNameEn, securityManagerId, secondaryContactNameAr, secondaryContactNameEn, secondaryContactMobile, secondaryContactPhone, secondaryContactEmail, assessmentName, logoFile, adminUser, adminUserId, logoPath, bytes, buffer, filename, filePath, uploadError_1, newAssessment, error_1;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -62,6 +62,7 @@ export function POST(request) {
                     secondaryContactMobile = formData.get('secondaryContactMobile');
                     secondaryContactPhone = formData.get('secondaryContactPhone');
                     secondaryContactEmail = formData.get('secondaryContactEmail');
+                    assessmentName = formData.get('assessmentName');
                     logoFile = formData.get('logo');
                     return [4 /*yield*/, prisma.user.findFirst({
                             where: { role: 'ADMIN' }, // Assuming Role enum is imported or use 'ADMIN' string
@@ -76,7 +77,7 @@ export function POST(request) {
                     adminUserId = adminUser.id;
                     // --- End Temporary Fix ---
                     // Basic Validation
-                    if (!companyNameAr || !companyNameEn || !securityManagerId || !secondaryContactEmail) { // Removed adminUserId check as it's fetched above
+                    if (!companyNameAr || !companyNameEn || !securityManagerId || !secondaryContactEmail || !assessmentName) { // Added assessmentName check
                         return [2 /*return*/, NextResponse.json({ message: 'Missing required fields' }, { status: 400 })];
                     }
                     logoPath = null;
@@ -111,6 +112,7 @@ export function POST(request) {
                             secondaryContactMobile: secondaryContactMobile,
                             secondaryContactPhone: secondaryContactPhone,
                             secondaryContactEmail: secondaryContactEmail,
+                            assessmentName: assessmentName, // Add assessmentName here
                             createdById: adminUserId, // Link to the admin who created it
                         },
                     })];

@@ -45,20 +45,52 @@ var __rest = (this && this.__rest) || function (s, e) {
         }
     return t;
 };
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma'; // Corrected import
-import bcrypt from 'bcryptjs'; // Import bcrypt
-import { Role } from '@prisma/client'; // Import Role enum for validation
-export function GET() {
+import { NextResponse } from 'next/server'; // Import NextRequest
+import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
+import { Role, Prisma } from '@prisma/client'; // Import Role enum and Prisma for types
+// GET handler to fetch users with filtering
+export function GET(request) {
     return __awaiter(this, void 0, void 0, function () {
-        var users, error_1;
+        var searchParams, department, roleParam, unassigned, whereClause, users, error_1;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     _a.trys.push([0, 2, , 3]);
+                    searchParams = new URL(request.url).searchParams;
+                    department = searchParams.get('department');
+                    roleParam = searchParams.get('role');
+                    unassigned = searchParams.get('unassigned');
+                    whereClause = {};
+                    if (department) {
+                        whereClause.department = department;
+                    }
+                    if (roleParam && Object.values(Role).includes(roleParam)) {
+                        whereClause.role = roleParam;
+                    }
+                    if (unassigned === 'true') {
+                        // If unassigned=true is requested, filter for users with department set to null
+                        // This overrides any specific department filter if both are present (adjust logic if needed)
+                        whereClause.department = null;
+                    }
+                    else if (department) {
+                        // Only apply department filter if unassigned is not 'true'
+                        whereClause.department = department;
+                    }
                     return [4 /*yield*/, prisma.user.findMany({
-                            // Optionally select specific fields or order them if needed
-                            // select: { id: true, name: true, email: true, role: true, department: true, jobTitle: true },
+                            where: whereClause,
+                            // Select only necessary fields to avoid sending sensitive data like password
+                            select: {
+                                id: true,
+                                name: true,
+                                nameAr: true,
+                                email: true,
+                                role: true,
+                                department: true,
+                                createdAt: true,
+                                updatedAt: true,
+                                // Explicitly exclude password
+                            },
                             orderBy: { createdAt: 'desc' },
                         })];
                 case 1:
@@ -67,7 +99,6 @@ export function GET() {
                 case 2:
                     error_1 = _a.sent();
                     console.error('Failed to fetch users:', error_1);
-                    // Avoid sending detailed error messages to the client in production
                     return [2 /*return*/, NextResponse.json({ message: 'Internal Server Error: Failed to fetch users' }, { status: 500 })];
                 case 3: return [2 /*return*/];
             }
@@ -125,7 +156,8 @@ export function POST(request) {
                     error_2 = _c.sent();
                     console.error('Failed to create user:', error_2);
                     // Handle potential Prisma errors, e.g., unique constraint violation (though checked above)
-                    if (error_2.code === 'P2002' && ((_b = (_a = error_2.meta) === null || _a === void 0 ? void 0 : _a.target) === null || _b === void 0 ? void 0 : _b.includes('email'))) {
+                    // Add type check for PrismaClientKnownRequestError
+                    if (error_2 instanceof Prisma.PrismaClientKnownRequestError && error_2.code === 'P2002' && ((_b = (_a = error_2.meta) === null || _a === void 0 ? void 0 : _a.target) === null || _b === void 0 ? void 0 : _b.includes('email'))) {
                         return [2 /*return*/, NextResponse.json({ message: 'User with this email already exists' }, { status: 409 })];
                     }
                     return [2 /*return*/, NextResponse.json({ message: 'Internal Server Error: Failed to create user' }, { status: 500 })];

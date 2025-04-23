@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card"; // Removed unused CardTitle
-import { Input } from "@/components/ui/input";
+// Removed unused Input import
 import Link from "next/link";
 
 // Define the type for the fetched data including the nested assessment
@@ -54,9 +54,10 @@ export default function SystemInfoPage() {
           setUserError("No Security Manager user found.");
           setSystemInfoLoading(false); // Stop loading if no user
         }
-      } catch (err: any) {
+      } catch (err: unknown) { // Changed any to unknown
         console.error("Error fetching user ID:", err);
-        setUserError(err.message || "Failed to get user ID");
+        // Added instanceof Error check
+        setUserError(err instanceof Error ? err.message : "Failed to get user ID");
         setSystemInfoLoading(false); // Stop loading on error
       }
     };
@@ -78,9 +79,10 @@ export default function SystemInfoPage() {
         }
         const data: SensitiveSystemInfoWithAssessment[] = await response.json();
         setSystemInfoList(data);
-      } catch (err: any) {
+      } catch (err: unknown) { // Changed any to unknown
         console.error("Error fetching system info:", err);
-        setSystemInfoError(err.message || "An unknown error occurred");
+        // Added instanceof Error check
+        setSystemInfoError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
         setSystemInfoLoading(false);
       }
@@ -98,7 +100,7 @@ export default function SystemInfoPage() {
         month: 'long',
         day: 'numeric',
       });
-    } catch (e) {
+    } catch { // Removed unused variable e
       return 'Invalid Date';
     }
   };

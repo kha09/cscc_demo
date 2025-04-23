@@ -37,15 +37,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Bell, User as UserIcon, Menu, Server, // Sidebar icon
-FileText, // Sidebar icon
-FileWarning, // Sidebar icon
+import { Bell, User as UserIcon, 
+// Search, // Removed unused import
+Menu, Server, // Sidebar icon
+// FileText, // Removed unused import
+// FileWarning, // Removed unused import
 LayoutDashboard, // Sidebar icon
-ListChecks, // Sidebar icon
-ShieldCheck // Sidebar icon
+// ListChecks, // Removed unused import
+// ShieldCheck, // Removed unused import
+BarChart // Added for Results link
  } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card"; // Removed unused CardTitle
 import Link from "next/link";
 export default function SystemInfoPage() {
     var _this = this;
@@ -187,27 +190,37 @@ export default function SystemInfoPage() {
               <LayoutDashboard className="h-5 w-5 flex-shrink-0"/>
               <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>لوحة المعلومات</span>
             </Link>
-            <Link href="/security-manager#assessments" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
-              <ShieldCheck className="h-5 w-5 flex-shrink-0"/>
-              <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>التقييمات المعينة</span>
-            </Link>
+            {/* <Link href="/security-manager#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+          <ShieldCheck className="h-5 w-5 flex-shrink-0" />
+          <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقييمات المعينة</span>
+        </Link> */}
              {/* Highlight the current page */}
-             <Link href="/security-manager/system-info" className={"flex items-center gap-3 px-3 py-2 rounded bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}> 
+             <Link href="/security-manager/system-info" className={"flex items-center gap-3 px-3 py-2 rounded bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
               <Server className="h-5 w-5 flex-shrink-0"/>
               <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>معلومات الأنظمة</span>
             </Link>
-            <Link href="/security-manager#tasks" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
-              <ListChecks className="h-5 w-5 flex-shrink-0"/>
-              <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>المهام</span>
+            {/* <Link href="/security-manager#tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+          <ListChecks className="h-5 w-5 flex-shrink-0" />
+          <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المهام</span>
+        </Link> */}
+            {/* <Link href="/security-manager#risks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+          <FileWarning className="h-5 w-5 flex-shrink-0" />
+          <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المخاطر</span>
+        </Link> */}
+            {/* <Link href="/security-manager#reports" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+          <FileText className="h-5 w-5 flex-shrink-0" />
+          <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقارير</span>
+        </Link> */}
+            {/* Link to Results/Analytics Page - Added */}
+            <Link href="/security-manager/results" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
+              <BarChart className="h-5 w-5 flex-shrink-0"/> {/* Using BarChart icon for analytics */}
+              <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>النتائج</span>
             </Link>
-            <Link href="/security-manager#risks" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
-              <FileWarning className="h-5 w-5 flex-shrink-0"/>
-              <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>المخاطر</span>
-            </Link>
-            <Link href="/security-manager#reports" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
-              <FileText className="h-5 w-5 flex-shrink-0"/>
-              <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>التقارير</span>
-            </Link>
+            {/* Add missing Departments link (commented out) for consistency, though it wasn't here before */}
+            {/* <Link href="/security-manager/departments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+          <Building className="h-5 w-5 flex-shrink-0" />
+          <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة الأقسام</span>
+        </Link> */}
           </nav>
         </aside>
 
@@ -230,7 +243,7 @@ export default function SystemInfoPage() {
                     <tr className="text-right border-b border-gray-200">
                       <th className="pb-3 font-medium text-gray-700 pr-4">اسم النظام</th>
                       <th className="pb-3 font-medium text-gray-700">فئة النظام</th>
-                      <th className="pb-3 font-medium text-gray-700"> الشركة</th>
+                      <th className="pb-3 font-medium text-gray-700">الشركة</th>
                       <th className="pb-3 font-medium text-gray-700">تاريخ الإدخال</th>
                       <th className="pb-3 font-medium text-gray-700">إجمالي الأصول</th>
                       {/* <th className="pb-3 font-medium text-gray-700">الإجراءات</th> */}

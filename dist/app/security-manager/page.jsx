@@ -1,4 +1,16 @@
 "use client";
+"use client";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -35,21 +47,50 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-import { useState, useEffect } from "react";
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Removed DialogTrigger as it's not used directly here
-import { Bell, User as UserIcon, BarChart, FileText, AlertTriangle, Search, Plus, Filter, Download, Calendar, ChevronDown, Menu, // Added for sidebar icon
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Bell, User as UserIcon, // Aliased the User icon
+// ClipboardList, // Removed unused import
+BarChart, FileText, AlertTriangle, Search, 
+// Plus, // Removed unused import
+Filter, Download, 
+// Calendar, // Original Calendar icon, now aliased below
+ChevronDown, Menu, // Added for sidebar toggle
+// Activity, // Removed unused import
 Server, // Added for sidebar icon
-ListChecks, // Added for sidebar icon
+// ListChecks, // Removed unused import
 ShieldCheck, // Added for sidebar icon
-FileWarning, // Added for sidebar icon
-LayoutDashboard } from "lucide-react";
+// FileWarning, // Removed unused import
+LayoutDashboard, 
+// Building, // Removed unused import
+// Check, // Removed unused import
+X // Added for badge removal
+ } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select components
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Added Popover
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"; // Added Command components
+import { Checkbox } from "@/components/ui/checkbox"; // Added Checkbox
+import { Badge } from "@/components/ui/badge"; // Added Badge
+import { Calendar as CalendarIcon } from "lucide-react"; // Renamed original Calendar icon import
+import { Calendar } from "@/components/ui/calendar"; // Added Calendar component
+import { cn } from "@/lib/utils"; // Added cn utility
+import { format } from "date-fns"; // Added date-fns format
 // Import the form component
+import { Label } from "@/components/ui/label"; // Added Label
 import SensitiveSystemForm from "@/components/sensitive-system-form";
 export default function SecurityManagerDashboardPage() {
     var _this = this;
@@ -57,13 +98,38 @@ export default function SecurityManagerDashboardPage() {
     var _b = useState(""), searchQuery = _b[0], setSearchQuery = _b[1];
     var _c = useState([]), assessments = _c[0], setAssessments = _c[1];
     var _d = useState([]), sensitiveSystems = _d[0], setSensitiveSystems = _d[1]; // State for sensitive systems
-    var _e = useState(true), isLoadingAssessments = _e[0], setIsLoadingAssessments = _e[1];
-    var _f = useState(true), isLoadingSystems = _f[0], setIsLoadingSystems = _f[1]; // Loading state for systems
-    var _g = useState(null), userId = _g[0], setUserId = _g[1];
-    var _h = useState(null), assessmentsError = _h[0], setAssessmentsError = _h[1]; // Specific error for assessments
-    var _j = useState(null), systemsError = _j[0], setSystemsError = _j[1]; // Specific error for systems
-    var _k = useState(false), isModalOpen = _k[0], setIsModalOpen = _k[1];
-    var _l = useState(null), selectedAssessmentId = _l[0], setSelectedAssessmentId = _l[1];
+    var _f = useState(true), isLoadingAssessments = _f[0], setIsLoadingAssessments = _f[1];
+    var _g = useState(true), isLoadingSystems = _g[0], setIsLoadingSystems = _g[1]; // Loading state for systems
+    var _h = useState(null), userId = _h[0], setUserId = _h[1];
+    var _j = useState(null), assessmentsError = _j[0], setAssessmentsError = _j[1]; // Specific error for assessments
+    var _k = useState(null), systemsError = _k[0], setSystemsError = _k[1]; // Specific error for systems
+    var _l = useState(false), isModalOpen = _l[0], setIsModalOpen = _l[1];
+    var _m = useState(null), selectedAssessmentId = _m[0], setSelectedAssessmentId = _m[1];
+    var _o = useState(""), currentAssessmentName = _o[0], setCurrentAssessmentName = _o[1]; // State for the new input
+    var _p = useState(null), assessmentNameError = _p[0], setAssessmentNameError = _p[1]; // Error state for name update
+    // State variables for controls
+    var _q = useState([]), controls = _q[0], setControls = _q[1];
+    var _r = useState(true), isLoadingControls = _r[0], setIsLoadingControls = _r[1];
+    var _s = useState(null), controlsError = _s[0], setControlsError = _s[1];
+    var _t = useState([]), selectedControls = _t[0], setSelectedControls = _t[1]; // State for selected controls
+    var _u = useState(false), isControlPopoverOpen = _u[0], setIsControlPopoverOpen = _u[1]; // State for popover visibility
+    var controlInputRef = useRef(null); // Ref for command input
+    // State variables for departments (Removed unused state)
+    // const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+    // const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
+    // const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+    // State for Department Managers
+    var _v = useState([]), departmentManagers = _v[0], setDepartmentManagers = _v[1];
+    var _w = useState(true), isLoadingDeptManagers = _w[0], setIsLoadingDeptManagers = _w[1];
+    var _x = useState(null), deptManagersError = _x[0], setDeptManagersError = _x[1];
+    // State for the deadline date picker
+    var _y = useState(undefined), deadlineDate = _y[0], setDeadlineDate = _y[1];
+    // State for Task Assignment Form
+    var _z = useState(undefined), selectedSystemId = _z[0], setSelectedSystemId = _z[1];
+    // const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | undefined>(undefined); // Remove old state
+    var _0 = useState(undefined), selectedDepartmentManagerId = _0[0], setSelectedDepartmentManagerId = _0[1]; // Add new state
+    var _1 = useState(false), isAssigningTask = _1[0], setIsAssigningTask = _1[1];
+    var _2 = useState(null), taskAssignmentMessage = _2[0], setTaskAssignmentMessage = _2[1];
     // --- Temporary User ID Fetch ---
     // In a real app, get this from auth context/session
     useEffect(function () {
@@ -94,7 +160,7 @@ export default function SecurityManagerDashboardPage() {
                     case 3:
                         err_1 = _a.sent();
                         console.error("Error fetching user ID:", err_1);
-                        errorMsg = err_1.message || "Failed to get user ID";
+                        errorMsg = err_1 instanceof Error ? err_1.message : "Failed to get user ID";
                         setAssessmentsError(errorMsg); // Set specific error
                         setSystemsError(errorMsg); // Set specific error
                         setIsLoadingAssessments(false);
@@ -107,7 +173,7 @@ export default function SecurityManagerDashboardPage() {
         fetchUserId();
     }, []);
     // --- End Temporary User ID Fetch ---
-    // Fetch assessments when userId is available
+    // Fetch assessments, systems, controls, managers when userId is available
     useEffect(function () {
         if (!userId)
             return;
@@ -136,7 +202,7 @@ export default function SecurityManagerDashboardPage() {
                     case 4:
                         err_2 = _a.sent();
                         console.error("Error fetching assessments:", err_2);
-                        setAssessmentsError(err_2.message || "An unknown error occurred fetching assessments");
+                        setAssessmentsError(err_2 instanceof Error ? err_2.message : "An unknown error occurred fetching assessments");
                         return [3 /*break*/, 6];
                     case 5:
                         setIsLoadingAssessments(false);
@@ -171,7 +237,7 @@ export default function SecurityManagerDashboardPage() {
                     case 4:
                         err_3 = _a.sent();
                         console.error("Error fetching sensitive systems:", err_3);
-                        setSystemsError(err_3.message || "An unknown error occurred fetching systems");
+                        setSystemsError(err_3 instanceof Error ? err_3.message : "An unknown error occurred fetching systems");
                         return [3 /*break*/, 6];
                     case 5:
                         setIsLoadingSystems(false);
@@ -181,12 +247,118 @@ export default function SecurityManagerDashboardPage() {
             });
         }); };
         fetchAssessments();
-        fetchSensitiveSystems(); // Fetch systems as well
+        fetchSensitiveSystems();
     }, [userId]);
-    var handleOpenForm = function (assessmentId) {
-        setSelectedAssessmentId(assessmentId);
-        setIsModalOpen(true);
-    };
+    // Fetch Controls, Dept Managers on component mount
+    useEffect(function () {
+        var fetchControls = function () { return __awaiter(_this, void 0, void 0, function () {
+            var response, data, err_4;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        setIsLoadingControls(true);
+                        setControlsError(null);
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 4, 5, 6]);
+                        return [4 /*yield*/, fetch('/api/controls')];
+                    case 2:
+                        response = _a.sent();
+                        if (!response.ok) {
+                            throw new Error("Failed to fetch controls: ".concat(response.statusText));
+                        }
+                        return [4 /*yield*/, response.json()];
+                    case 3:
+                        data = _a.sent();
+                        setControls(data);
+                        return [3 /*break*/, 6];
+                    case 4:
+                        err_4 = _a.sent();
+                        console.error("Error fetching controls:", err_4);
+                        setControlsError(err_4 instanceof Error ? err_4.message : "An unknown error occurred fetching controls");
+                        return [3 /*break*/, 6];
+                    case 5:
+                        setIsLoadingControls(false);
+                        return [7 /*endfinally*/];
+                    case 6: return [2 /*return*/];
+                }
+            });
+        }); };
+        // Fetch Department Managers function
+        var fetchDepartmentManagers = function () { return __awaiter(_this, void 0, void 0, function () {
+            var response, allUsers, managers, err_5;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        setIsLoadingDeptManagers(true);
+                        setDeptManagersError(null);
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 4, 5, 6]);
+                        return [4 /*yield*/, fetch('/api/users')];
+                    case 2:
+                        response = _a.sent();
+                        if (!response.ok) {
+                            throw new Error("Failed to fetch users: ".concat(response.statusText));
+                        }
+                        return [4 /*yield*/, response.json()];
+                    case 3:
+                        allUsers = _a.sent();
+                        managers = allUsers
+                            .filter(function (user) { return user.role === 'DEPARTMENT_MANAGER'; })
+                            .map(function (user) { return ({ id: user.id, name: user.name, nameAr: user.nameAr }); });
+                        setDepartmentManagers(managers);
+                        return [3 /*break*/, 6];
+                    case 4:
+                        err_5 = _a.sent();
+                        console.error("Error fetching department managers:", err_5);
+                        setDeptManagersError(err_5 instanceof Error ? err_5.message : "An unknown error occurred fetching department managers");
+                        return [3 /*break*/, 6];
+                    case 5:
+                        setIsLoadingDeptManagers(false);
+                        return [7 /*endfinally*/];
+                    case 6: return [2 /*return*/];
+                }
+            });
+        }); };
+        fetchControls();
+        // fetchDepartments(); // Remove call to the deleted function
+        fetchDepartmentManagers(); // Fetch department managers
+    }, []); // Empty dependency array means run once on mount
+    // Updated to fetch current assessment name when opening
+    var handleOpenForm = function (assessmentId) { return __awaiter(_this, void 0, void 0, function () {
+        var response, assessmentData, error_1;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    setSelectedAssessmentId(assessmentId);
+                    setCurrentAssessmentName(""); // Reset name state
+                    setAssessmentNameError(null); // Reset error state
+                    setIsModalOpen(true);
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, 4, , 5]);
+                    return [4 /*yield*/, fetch("/api/assessments/".concat(assessmentId))];
+                case 2:
+                    response = _a.sent();
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch assessment details');
+                    }
+                    return [4 /*yield*/, response.json()];
+                case 3:
+                    assessmentData = _a.sent();
+                    setCurrentAssessmentName(assessmentData.assessmentName || ""); // Set current name or empty string
+                    return [3 /*break*/, 5];
+                case 4:
+                    error_1 = _a.sent();
+                    console.error("Error fetching assessment name:", error_1);
+                    // Optionally set an error state to display in the modal
+                    setAssessmentNameError(error_1 instanceof Error ? error_1.message : "Failed to load current assessment name.");
+                    return [3 /*break*/, 5];
+                case 5: return [2 /*return*/];
+            }
+        });
+    }); };
     // Filter assessments based on search query (simple example)
     var filteredAssessments = assessments.filter(function (assessment) {
         return assessment.companyNameAr.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -203,10 +375,115 @@ export default function SecurityManagerDashboardPage() {
                 day: 'numeric',
             });
         }
-        catch (e) {
+        catch (_e) { // Prefixed unused variable
             return 'Invalid Date';
         }
     };
+    // Handler for selecting/deselecting a control
+    var handleControlSelect = function (control) {
+        var _a;
+        setSelectedControls(function (prevSelected) {
+            var isSelected = prevSelected.some(function (c) { return c.id === control.id; });
+            if (isSelected) {
+                return prevSelected.filter(function (c) { return c.id !== control.id; });
+            }
+            else {
+                return __spreadArray(__spreadArray([], prevSelected, true), [control], false);
+            }
+        });
+        // Keep focus on input after selection
+        (_a = controlInputRef.current) === null || _a === void 0 ? void 0 : _a.focus();
+    };
+    // Handler for removing a selected control via the badge
+    var handleControlRemove = function (controlId) {
+        setSelectedControls(function (prevSelected) {
+            return prevSelected.filter(function (c) { return c.id !== controlId; });
+        });
+    };
+    // Handler for Assign Task button click
+    var handleAssignTask = function () { return __awaiter(_this, void 0, void 0, function () {
+        var taskData, response, errorData, message, error_2;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    setTaskAssignmentMessage(null); // Clear previous messages
+                    // --- Input Validation ---
+                    if (!selectedSystemId) {
+                        setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار النظام.' });
+                        return [2 /*return*/];
+                    }
+                    if (selectedControls.length === 0) {
+                        setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار ضابط واحد على الأقل.' });
+                        return [2 /*return*/];
+                    }
+                    // if (!selectedDepartmentId) { // Remove old check
+                    //   setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار القسم.' });
+                    //   return;
+                    // }
+                    if (!selectedDepartmentManagerId) { // Add new check
+                        setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار مدير القسم.' });
+                        return [2 /*return*/];
+                    }
+                    if (!deadlineDate) {
+                        setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار الموعد النهائي.' });
+                        return [2 /*return*/];
+                    }
+                    if (!userId) {
+                        // This should ideally not happen if the page loads correctly, but good to check
+                        setTaskAssignmentMessage({ type: 'error', text: 'خطأ: لم يتم العثور على معرّف المستخدم.' });
+                        return [2 /*return*/];
+                    }
+                    // --- End Input Validation ---
+                    setIsAssigningTask(true);
+                    taskData = {
+                        sensitiveSystemId: selectedSystemId,
+                        // departmentId: selectedDepartmentId, // Remove old field
+                        assignedToId: selectedDepartmentManagerId, // Add new field for the assigned manager
+                        controlIds: selectedControls.map(function (c) { return c.id; }),
+                        deadline: deadlineDate.toISOString(), // Send as ISO string
+                        assignedById: userId, // The Security Manager assigning the task
+                    };
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, 5, 6, 7]);
+                    return [4 /*yield*/, fetch('/api/tasks', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(taskData),
+                        })];
+                case 2:
+                    response = _a.sent();
+                    if (!!response.ok) return [3 /*break*/, 4];
+                    return [4 /*yield*/, response.json()];
+                case 3:
+                    errorData = _a.sent();
+                    console.error("Task assignment error:", errorData);
+                    message = errorData.message || (errorData.errors ? JSON.stringify(errorData.errors) : 'فشل تعيين المهمة.');
+                    throw new Error(message);
+                case 4:
+                    // Success
+                    setTaskAssignmentMessage({ type: 'success', text: 'تم تعيين المهمة بنجاح!' });
+                    // Optionally reset form fields
+                    setSelectedSystemId(undefined);
+                    // setSelectedDepartmentId(undefined); // Remove old reset
+                    setSelectedDepartmentManagerId(undefined); // Reset new field
+                    setSelectedControls([]);
+                    setDeadlineDate(undefined);
+                    return [3 /*break*/, 7];
+                case 5:
+                    error_2 = _a.sent();
+                    console.error("Error assigning task:", error_2);
+                    setTaskAssignmentMessage({ type: 'error', text: error_2 instanceof Error ? error_2.message : 'حدث خطأ غير متوقع.' });
+                    return [3 /*break*/, 7];
+                case 6:
+                    setIsAssigningTask(false);
+                    return [7 /*endfinally*/];
+                case 7: return [2 /*return*/];
+            }
+        });
+    }); };
     return (
     // Removed ProtectedRoute for now as auth isn't fully implemented server-side
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
@@ -259,25 +536,35 @@ export default function SecurityManagerDashboardPage() {
               <LayoutDashboard className="h-5 w-5 flex-shrink-0"/>
               <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>لوحة المعلومات</span>
             </Link>
-            <Link href="/security-manager#assessments" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
-              <ShieldCheck className="h-5 w-5 flex-shrink-0"/>
-              <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>التقييمات المعينة</span>
-            </Link>
+            {/* <Link href="/security-manager#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+          <ShieldCheck className="h-5 w-5 flex-shrink-0" />
+          <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقييمات المعينة</span>
+        </Link> */}
              <Link href="/security-manager/system-info" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}> {/* Updated href */}
               <Server className="h-5 w-5 flex-shrink-0"/>
               <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>معلومات الأنظمة</span>
             </Link>
-            <Link href="/security-manager#tasks" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
-              <ListChecks className="h-5 w-5 flex-shrink-0"/>
-              <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>المهام</span>
-            </Link>
-            <Link href="/security-manager#risks" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
-              <FileWarning className="h-5 w-5 flex-shrink-0"/>
-              <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>المخاطر</span>
-            </Link>
-            <Link href="/security-manager#reports" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
-              <FileText className="h-5 w-5 flex-shrink-0"/>
-              <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>التقارير</span>
+            {/* Link to Manage Departments */}
+            {/* <Link href="/security-manager/departments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+          <Building className="h-5 w-5 flex-shrink-0" />
+          <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة الأقسام</span>
+        </Link> */}
+            {/* <Link href="/security-manager#tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+          <ListChecks className="h-5 w-5 flex-shrink-0" />
+          <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المهام</span>
+        </Link> */}
+            {/* <Link href="/security-manager#risks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+          <FileWarning className="h-5 w-5 flex-shrink-0" />
+          <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المخاطر</span>
+        </Link> */}
+            {/* <Link href="/security-manager#reports" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+          <FileText className="h-5 w-5 flex-shrink-0" />
+          <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقارير</span>
+        </Link> */}
+            {/* Link to Results/Analytics Page */}
+            <Link href="/security-manager/results" className={"flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ".concat(!isSidebarOpen ? 'justify-center' : '')}>
+              <BarChart className="h-5 w-5 flex-shrink-0"/> {/* Using BarChart icon for analytics */}
+              <span className={"".concat(!isSidebarOpen ? 'hidden' : 'block')}>النتائج</span>
             </Link>
             {/* Add more relevant links */}
           </nav>
@@ -294,13 +581,13 @@ export default function SecurityManagerDashboardPage() {
                 <Search className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"/>
                 <Input placeholder="بحث..." className="pl-4 pr-10 w-64 text-right" value={searchQuery} onChange={function (e) { return setSearchQuery(e.target.value); }}/>
               </div>
-              <Button className="bg-nca-teal hover:bg-nca-teal-dark text-white gap-2">
-                <Plus className="h-4 w-4"/>
-                تقييم جديد
-              </Button>
+             {/*} <Button className="bg-nca-teal hover:bg-nca-teal-dark text-white gap-2">
+           <Plus className="h-4 w-4" />
+           تقييم جديد
+         </Button> 8 */}
             </div>
           </div>
-          
+
           {/* Stats Cards - Using CardHeader/Content */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
              <Card>
@@ -349,7 +636,7 @@ export default function SecurityManagerDashboardPage() {
           </div>
 
           {/* Anchor for Assessments */}
-          <div id="assessments"></div> 
+          <div id="assessments"></div>
 
           {/* Active Assessments Section - Using CardHeader/Content */}
           <Card className="mb-6">
@@ -417,16 +704,74 @@ export default function SecurityManagerDashboardPage() {
           </Card>
 
           {/* Modal for Sensitive System Form */}
+          {/* Modal for Sensitive System Form - Updated */}
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            {/* DialogTrigger is usually placed on the button, but we trigger manually */}
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>معلومات اساسية عن الأنظمة الحساسة</DialogTitle>
               </DialogHeader>
-              {selectedAssessmentId ? (<SensitiveSystemForm assessmentId={selectedAssessmentId} onFormSubmit={function () { return setIsModalOpen(false); }} // Close modal on successful submit
-        />) : (<div className="p-4 text-center">لم يتم تحديد تقييم.</div>)}
-            </DialogContent> {/* Correct closing tag */}
-          </Dialog> {/* Correct closing tag */}
+              {selectedAssessmentId ? (<div className="space-y-4 py-4">
+                  {/* Assessment Name Input */}
+                  <div className="space-y-1">
+                    <Label htmlFor="assessmentName">اسم التقييم <span className="text-red-500">*</span></Label>
+                    <Input id="assessmentName" name="assessmentName" value={currentAssessmentName} onChange={function (e) { return setCurrentAssessmentName(e.target.value); }} required className="text-right" placeholder="أدخل اسم التقييم هنا"/>
+                    {assessmentNameError && <p className="text-sm text-red-600">{assessmentNameError}</p>}
+                  </div>
+
+                  {/* Separator or spacing */}
+                  <hr className="my-4"/>
+
+                  {/* Existing Sensitive System Form */}
+                  <SensitiveSystemForm assessmentId={selectedAssessmentId} 
+        // Pass assessmentName and update logic if needed inside the form,
+        // OR handle the PATCH before calling onFormSubmit here.
+        // For simplicity, let's handle PATCH here before closing.
+        onFormSubmit={function () { return __awaiter(_this, void 0, void 0, function () {
+                var patchResponse, errorData, error_3;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            // --- PATCH Assessment Name before closing ---
+                            setAssessmentNameError(null); // Clear previous errors
+                            if (!currentAssessmentName.trim()) {
+                                setAssessmentNameError("اسم التقييم مطلوب.");
+                                return [2 /*return*/]; // Prevent closing if name is empty
+                            }
+                            _a.label = 1;
+                        case 1:
+                            _a.trys.push([1, 5, , 6]);
+                            return [4 /*yield*/, fetch("/api/assessments/".concat(selectedAssessmentId), {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ assessmentName: currentAssessmentName }),
+                                })];
+                        case 2:
+                            patchResponse = _a.sent();
+                            if (!!patchResponse.ok) return [3 /*break*/, 4];
+                            return [4 /*yield*/, patchResponse.json()];
+                        case 3:
+                            errorData = _a.sent();
+                            throw new Error(errorData.error || 'Failed to update assessment name');
+                        case 4:
+                            // Update local assessment state if needed
+                            setAssessments(function (prev) { return prev.map(function (a) {
+                                return a.id === selectedAssessmentId ? __assign(__assign({}, a), { assessmentName: currentAssessmentName }) : a;
+                            }); });
+                            setIsModalOpen(false); // Close modal on successful submit of BOTH
+                            return [3 /*break*/, 6];
+                        case 5:
+                            error_3 = _a.sent();
+                            console.error("Error updating assessment name:", error_3);
+                            // Added instanceof Error check here as well
+                            setAssessmentNameError(error_3 instanceof Error ? error_3.message : "فشل تحديث اسم التقييم.");
+                            return [3 /*break*/, 6];
+                        case 6: return [2 /*return*/];
+                    }
+                });
+            }); }}/>
+                </div>) : (<div className="p-4 text-center">لم يتم تحديد تقييم.</div>)}
+            </DialogContent>
+          </Dialog>
 
           {/* Anchor for System Info (Link target) */}
           <div id="system-info"></div>
@@ -444,12 +789,13 @@ export default function SecurityManagerDashboardPage() {
               {/* Select System Dropdown */}
               <div className="mb-4">
                  <div className="flex justify-between items-center mb-2">
-                   <span className="text-sm font-medium">اختر النظام</span>
-                 </div>
-                 <Select dir="rtl">
-                   <SelectTrigger className="w-full text-right">
-                     <SelectValue placeholder="اختر نظاماً..."/>
-                   </SelectTrigger>
+                    <span className="text-sm font-medium">اختر النظام</span>
+                  </div>
+                  <Select dir="rtl" value={selectedSystemId} onValueChange={setSelectedSystemId} // Update state on change
+    >
+                    <SelectTrigger className="w-full text-right">
+                      <SelectValue placeholder="اختر نظاماً..."/>
+                    </SelectTrigger>
                    <SelectContent>
                      {isLoadingSystems ? (<SelectItem value="loading" disabled>جاري تحميل الأنظمة...</SelectItem>) : systemsError ? (<SelectItem value="error" disabled>خطأ: {systemsError}</SelectItem>) : sensitiveSystems.length === 0 ? (<SelectItem value="no-systems" disabled>لا توجد أنظمة مدخلة.</SelectItem>) : (sensitiveSystems.map(function (system) { return (<SelectItem key={system.id} value={system.id}>
                            {system.systemName}
@@ -458,53 +804,108 @@ export default function SecurityManagerDashboardPage() {
                  </Select>
                </div>
 
-              {/* Select Control Dropdown */}
+              {/* Select Control Dropdown - Updated */}
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">اختر الضابط</span> {/* Keep label as is, but it means Control */}
+                  <span className="text-sm font-medium">اختر الضوابط</span> {/* Changed label */}
                 </div>
-                <div className="relative">
-                  <select className="w-full p-2 border rounded-md text-right pr-10 appearance-none bg-white">
-                    <option>1-1-3-1 إجراء اختبار التحمل (Stress Testing) للتأكد من سعة المكونات المختلفة.
-                    </option>
-                    <option>2-1-3-1 التأكد من تطبيق متطلبات استمرارية الأعمال.
-                    </option>
+                <Popover open={isControlPopoverOpen} onOpenChange={setIsControlPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={isControlPopoverOpen} className="w-full justify-between text-right font-normal">
+                      <span className="truncate">
+                        {selectedControls.length > 0
+            ? selectedControls.map(function (c) { return c.controlNumber; }).join(', ')
+            : "اختر ضابطاً أو أكثر..."}
+                      </span>
+                      <ChevronDown className="mr-2 h-4 w-4 shrink-0 opacity-50"/>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command shouldFilter={true}> {/* Enable default filtering */}
+                      <CommandInput ref={controlInputRef} placeholder="ابحث عن ضابط..." className="text-right" // Ensure placeholder is right-aligned
+    />
+                      <CommandList>
+                        <CommandEmpty>لم يتم العثور على ضوابط.</CommandEmpty>
+                        <CommandGroup>
+                          {isLoadingControls ? (<CommandItem disabled>جاري تحميل الضوابط...</CommandItem>) : controlsError ? (<CommandItem disabled>خطأ: {controlsError}</CommandItem>) : controls.length === 0 ? (<CommandItem disabled>لا توجد ضوابط.</CommandItem>) : (controls.map(function (control) {
+            var isSelected = selectedControls.some(function (c) { return c.id === control.id; });
+            return (<CommandItem key={control.id} value={"".concat(control.controlNumber, " ").concat(control.controlText)} // Value used for searching
+             onSelect={function () { return handleControlSelect(control); }} className="flex items-center justify-between cursor-pointer">
+                                  <span className="flex-1 text-right truncate" title={"".concat(control.controlNumber, " - ").concat(control.controlText)}>
+                                    {control.controlNumber} - {control.controlText}
+                                  </span>
+                                  <Checkbox checked={isSelected} className="ml-2" // Margin left for RTL
+             aria-hidden="true" // Hide from screen readers, handled by CommandItem selection
+            />
+                                </CommandItem>);
+        }))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {/* Display selected controls as badges */}
+                {selectedControls.length > 0 && (<div className="mt-2 flex flex-wrap gap-1">
+                    {selectedControls.map(function (control) { return (<Badge key={control.id} variant="secondary" className="flex items-center gap-1">
+                        <span>{control.controlNumber}</span>
+                        <button onClick={function () { return handleControlRemove(control.id); }} className="rounded-full p-0.5 hover:bg-muted-foreground/20" aria-label={"\u0625\u0632\u0627\u0644\u0629 ".concat(control.controlNumber)}>
+                          <X className="h-3 w-3"/>
+                        </button>
+                      </Badge>); })}
+                  </div>)}
+              </div>
 
-                    <option>3-2-3-1 تأمين واجهة برمجة التطبيقات.
-                    </option>
-                  </select>
-                  <ChevronDown className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"/>
-                </div>
-              </div>
-              
+              {/* Select Department Manager Dropdown */}
               <div className="mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">اختر القسم</span>
-                </div>
-                <div className="relative">
-                  <select className="w-full p-2 border rounded-md text-right pr-10 appearance-none bg-white">
-                    <option>تكنولوجيا المعلومات</option>
-                    <option>البنية التحتية</option>
-                  </select>
-                  <ChevronDown className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"/>
-                </div>
+                 <div className="flex justify-between items-center mb-2">
+                   <span className="text-sm font-medium">اختر مدير القسم</span> {/* Changed Label */}
+                 </div>
+                  <Select dir="rtl" value={selectedDepartmentManagerId} // Use new state variable
+     onValueChange={setSelectedDepartmentManagerId} // Update new state variable
+    >
+                    <SelectTrigger className="w-full text-right">
+                      <SelectValue placeholder="اختر مدير القسم..."/> {/* Changed Placeholder */}
+                    </SelectTrigger>
+                   <SelectContent>
+                     {isLoadingDeptManagers ? (<SelectItem value="loading" disabled>جاري تحميل المدراء...</SelectItem>) : deptManagersError ? (<SelectItem value="error" disabled>خطأ: {deptManagersError}</SelectItem>) : departmentManagers.length === 0 ? (<SelectItem value="no-managers" disabled>لا يوجد مدراء أقسام.</SelectItem>) : (departmentManagers.map(function (manager) { return (<SelectItem key={manager.id} value={manager.id}>
+                           {/* Display Arabic name if available, otherwise fallback to English name */}
+                           {manager.nameAr || manager.name}
+                         </SelectItem>); }))}
+                   </SelectContent>
+                 </Select>
               </div>
-              
+
+              {/* Deadline Date Picker */}
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">الموعد النهائي</span>
                 </div>
-                <div className="relative">
-                  <Input type="date" className="w-full p-2 border rounded-md text-right"/>
-                  <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"/>
-                </div>
-              </div>
-                
-                <Button className="w-full bg-nca-teal text-white hover:bg-nca-teal-dark">
-                  تعيين المهمة
-                </Button>
-              </CardContent>
-            </Card>
+                {/* Replaced native date input with Shadcn Date Picker */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={"outline"} className={cn("w-full justify-start text-right font-normal", // Use text-right for RTL placeholder alignment
+        !deadlineDate && "text-muted-foreground")}>
+                      <CalendarIcon className="ml-2 h-4 w-4"/> {/* Icon on the left */}
+                      {deadlineDate ? format(deadlineDate, "PPP") : <span>اختر تاريخاً</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={deadlineDate} onSelect={setDeadlineDate} initialFocus/>
+                  </PopoverContent>
+                 </Popover>
+               </div>
+
+                 <Button className="w-full bg-nca-teal text-white hover:bg-nca-teal-dark disabled:opacity-50" onClick={handleAssignTask} disabled={isAssigningTask} // Disable button while loading
+    >
+                   {isAssigningTask ? 'جاري التعيين...' : 'تعيين المهمة'}
+                 </Button>
+
+                 {/* Task Assignment Feedback */}
+                 {taskAssignmentMessage && (<div className={"mt-3 text-sm ".concat(taskAssignmentMessage.type === 'success' ? 'text-green-600' : 'text-red-600')}>
+                     {taskAssignmentMessage.text}
+                   </div>)}
+               </CardContent>
+             </Card>
 
             {/* Risk Assessment */}
             <Card> {/* Removed p-6 */}
@@ -541,14 +942,14 @@ export default function SecurityManagerDashboardPage() {
                   </div>
                 </div>
               </div>
-                
+
                 <Button variant="outline" className="w-full mt-4 text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white">
                   عرض جميع المخاطر
                 </Button>
                </CardContent>
             </Card>
           </div>
-          
+
           {/* Anchor for Reports */}
           <div id="reports"></div>
           {/* Report Generation */}
@@ -567,7 +968,7 @@ export default function SecurityManagerDashboardPage() {
                 <h3 className="text-lg font-medium text-center mb-2">تقرير الامتثال</h3>
                 <p className="text-sm text-gray-600 text-center">تقرير شامل عن مستوى الامتثال لضوابط الأمن السيبراني</p>
               </div>
-              
+
               <div className="border rounded-lg p-6 hover:border-nca-teal cursor-pointer transition-all">
                 <div className="flex justify-center mb-4">
                   <div className="bg-nca-teal bg-opacity-10 p-4 rounded-full">
@@ -577,7 +978,7 @@ export default function SecurityManagerDashboardPage() {
                 <h3 className="text-lg font-medium text-center mb-2">تقرير المخاطر</h3>
                 <p className="text-sm text-gray-600 text-center">تقرير مفصل عن المخاطر المكتشفة وتوصيات المعالجة</p>
               </div>
-              
+
               <div className="border rounded-lg p-6 hover:border-nca-teal cursor-pointer transition-all">
                 <div className="flex justify-center mb-4">
                   <div className="bg-nca-teal bg-opacity-10 p-4 rounded-full">
@@ -588,7 +989,7 @@ export default function SecurityManagerDashboardPage() {
                 <p className="text-sm text-gray-600 text-center">تقرير تحليلي مع رسوم بيانية ومؤشرات أداء</p>
               </div>
             </div>
-              
+
               <div className="mt-6 p-4 border rounded-lg bg-gray-50">
                 <h3 className="text-lg font-medium mb-3">إعدادات التقرير</h3>
                 <div className="flex justify-end mt-4">

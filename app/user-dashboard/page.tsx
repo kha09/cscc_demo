@@ -8,7 +8,7 @@ import type {
   Task as PrismaTask,
   Control as PrismaControl,
   SensitiveSystemInfo as PrismaSensitiveSystemInfo,
-  ControlAssignment as PrismaControlAssignment,
+  // Removed unused PrismaControlAssignment import
   TaskStatus
 } from "@prisma/client";
 import {
@@ -27,7 +27,7 @@ import {
   CalendarIcon // Added for date picker
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card" // Added Card components
+import { Card } from "@/components/ui/card" // Removed unused CardHeader, CardTitle, CardContent
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { Badge, type BadgeProps } from "@/components/ui/badge"; // Added BadgeProps type
@@ -42,15 +42,18 @@ import { format } from "date-fns"; // Added date-fns for formatting
 import { ComplianceLevel } from "@prisma/client"; // Import ComplianceLevel enum
 
 // Frontend type definitions (similar to department-manager)
-interface FrontendUser extends Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'> {}
+// Changed interface to type to satisfy @typescript-eslint/no-empty-object-type
+type FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'>;
 
-interface FrontendControl extends Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText' | 'mainComponent' | 'subComponent' | 'controlType'> {}
+// Changed interface to type to satisfy @typescript-eslint/no-empty-object-type
+type FrontendControl = Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText' | 'mainComponent' | 'subComponent' | 'controlType'>;
 
 interface FrontendTask extends Pick<PrismaTask, 'id' | 'deadline' | 'status'> {
   sensitiveSystem: Pick<PrismaSensitiveSystemInfo, 'systemName'> | null;
 }
 
 // Define the interface explicitly to avoid Omit conflicts
+// Kept as interface, but ensured FrontendControl type is used correctly
 interface FrontendControlAssignment {
   id: string;
   status: TaskStatus;
@@ -113,9 +116,10 @@ export default function UserDashboardPage() {
         } else {
           setError("User not found or not logged in."); // Adjust error message
         }
-      } catch (err: any) {
+      } catch (err: unknown) { // Changed any to unknown
         console.error("Error fetching current user:", err);
-        setError(err.message || "Failed to get current user information.");
+        // Added instanceof Error check
+        setError(err instanceof Error ? err.message : "Failed to get current user information.");
       } finally {
         setIsLoadingUser(false);
       }
@@ -168,7 +172,7 @@ export default function UserDashboardPage() {
       return new Date(dateString).toLocaleDateString('ar-SA', {
         year: 'numeric', month: 'long', day: 'numeric',
       });
-    } catch (e) { return 'تاريخ غير صالح'; }
+    } catch { return 'تاريخ غير صالح'; } // Removed unused variable e
   };
 
   // Helper to map status to Badge variant and style (copied from department-manager)
@@ -265,9 +269,10 @@ export default function UserDashboardPage() {
 
         setIsDetailsModalOpen(false); // Close modal on success
 
-    } catch (err: any) {
+    } catch (err: unknown) { // Re-applying fix for catch block
         console.error("Error saving details:", err);
-        setError(err.message || "Failed to save compliance details.");
+        // Ensure 'err' is used correctly with instanceof check
+        setError(err instanceof Error ? err.message : "Failed to save compliance details.");
         // Keep modal open on error
     } finally {
         setIsSaving(false);

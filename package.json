@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "migrate:dev": "dotenv -e scripts/.env.development -- npx prisma migrate dev --schema=prisma/schema.prisma",
+    "migrate:reset": "dotenv -e scripts/.env.development -- npx prisma migrate reset --schema=prisma/schema.prisma",
     "generate": "dotenv -e scripts/.env.development -- npx prisma generate --schema=prisma/schema.prisma",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "seed": "node prisma/seed.js",
+    "seed:controls": "dotenv -e scripts/.env.development -- node dist/scripts/importControls.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {

@@ -86,7 +86,7 @@ export function PUT(request_1, _a) {
                     error_1 = _c.sent();
                     console.error("Failed to update user ".concat(userId, ":"), error_1);
                     // Check for specific Prisma errors, e.g., record not found
-                    if (error_1.code === 'P2025') {
+                    if (error_1 instanceof Error && 'code' in error_1 && error_1.code === 'P2025') {
                         return [2 /*return*/, NextResponse.json({ message: 'User not found' }, { status: 404 })];
                     }
                     return [2 /*return*/, NextResponse.json({ message: 'Internal Server Error: Failed to update user' }, { status: 500 })];
@@ -95,10 +95,67 @@ export function PUT(request_1, _a) {
         });
     });
 }
+// PATCH handler specifically for updating the department (or other partial updates)
+export function PATCH(request_1, _a) {
+    return __awaiter(this, arguments, void 0, function (request, _b) {
+        var userId, body, userExists, updatedUser, error_2;
+        var params = _b.params;
+        return __generator(this, function (_c) {
+            switch (_c.label) {
+                case 0:
+                    userId = params.userId;
+                    _c.label = 1;
+                case 1:
+                    _c.trys.push([1, 5, , 6]);
+                    return [4 /*yield*/, request.json()];
+                case 2:
+                    body = _c.sent();
+                    // Simple validation for this specific use case (updating department)
+                    if (typeof body.department !== 'string' && body.department !== null) {
+                        return [2 /*return*/, NextResponse.json({ message: "Invalid input: 'department' must be a string or null." }, { status: 400 })];
+                    }
+                    return [4 /*yield*/, prisma.user.findUnique({ where: { id: userId } })];
+                case 3:
+                    userExists = _c.sent();
+                    if (!userExists) {
+                        return [2 /*return*/, NextResponse.json({ message: 'User not found' }, { status: 404 })];
+                    }
+                    return [4 /*yield*/, prisma.user.update({
+                            where: { id: userId },
+                            data: {
+                                department: body.department, // Update the department
+                            },
+                            // Select fields to return, excluding password
+                            select: {
+                                id: true,
+                                name: true,
+                                nameAr: true,
+                                email: true,
+                                role: true,
+                                department: true,
+                                createdAt: true,
+                                updatedAt: true,
+                            }
+                        })];
+                case 4:
+                    updatedUser = _c.sent();
+                    return [2 /*return*/, NextResponse.json(updatedUser)];
+                case 5:
+                    error_2 = _c.sent();
+                    console.error("Failed to partially update user ".concat(userId, ":"), error_2);
+                    if (error_2 instanceof Error && 'code' in error_2 && error_2.code === 'P2025') {
+                        return [2 /*return*/, NextResponse.json({ message: 'User not found' }, { status: 404 })];
+                    }
+                    return [2 /*return*/, NextResponse.json({ message: 'Internal Server Error: Failed to update user department' }, { status: 500 })];
+                case 6: return [2 /*return*/];
+            }
+        });
+    });
+}
 // DELETE handler for deleting a user
 export function DELETE(request_1, _a) {
     return __awaiter(this, arguments, void 0, function (request, _b) {
-        var userId, error_2;
+        var userId, error_3;
         var params = _b.params;
         return __generator(this, function (_c) {
             switch (_c.label) {
@@ -124,14 +181,14 @@ export function DELETE(request_1, _a) {
                     _c.sent();
                     return [2 /*return*/, NextResponse.json({ message: 'User deleted successfully' }, { status: 200 })]; // Or 204 No Content
                 case 3:
-                    error_2 = _c.sent();
-                    console.error("Failed to delete user ".concat(userId, ":"), error_2);
+                    error_3 = _c.sent();
+                    console.error("Failed to delete user ".concat(userId, ":"), error_3);
                     // Check for specific Prisma errors, e.g., record not found
-                    if (error_2.code === 'P2025') {
+                    if (error_3 instanceof Error && 'code' in error_3 && error_3.code === 'P2025') {
                         return [2 /*return*/, NextResponse.json({ message: 'User not found' }, { status: 404 })];
                     }
                     // Handle potential foreign key constraint errors if user is linked elsewhere
-                    if (error_2.code === 'P2003') {
+                    if (error_3 instanceof Error && 'code' in error_3 && error_3.code === 'P2003') {
                         return [2 /*return*/, NextResponse.json({ message: 'Cannot delete user: They are linked to other records (e.g., assessments).' }, { status: 409 })]; // Conflict
                     }
                     return [2 /*return*/, NextResponse.json({ message: 'Internal Server Error: Failed to delete user' }, { status: 500 })];

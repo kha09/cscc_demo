@@ -149,9 +149,10 @@ export default function SensitiveSystemForm({ assessmentId, onFormSubmit }: Sens
       setFormData(initialFormData);
       onFormSubmit();
 
-    } catch (err: any) {
+    } catch (err: unknown) { // Changed any to unknown
       console.error("Form submission error:", err);
-      setError(err.message || "فشل إرسال النموذج. يرجى المحاولة مرة أخرى.");
+      // Added instanceof Error check
+      setError(err instanceof Error ? err.message : "فشل إرسال النموذج. يرجى المحاولة مرة أخرى.");
     } finally {
       setIsLoading(false);
     }

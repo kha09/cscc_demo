@@ -49,11 +49,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 import { useState, useEffect } from "react"; // Added useEffect, ChangeEvent, FormEvent
 import Image from "next/image";
 import ProtectedRoute from "@/lib/protected-route";
-import { Bell, User, Users, FileText, Activity, Server, Search, Plus, Filter, Download, // Added for logo input styling
+import { Bell, User, Users, FileText, Activity, Server, Search, Plus, Filter, Download, 
+// Upload, // Removed unused import
 Menu, // Added for sidebar toggle
  } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"; // Removed unused CardFooter
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -107,7 +108,7 @@ export default function AdminDashboardPage() {
     useEffect(function () {
         // Renamed error state to avoid conflict
         var fetchManagers = function () { return __awaiter(_this, void 0, void 0, function () {
-            var response, data, err_1;
+            var response, data, err_1, errorMessage;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -129,7 +130,8 @@ export default function AdminDashboardPage() {
                         return [3 /*break*/, 6];
                     case 4:
                         err_1 = _a.sent();
-                        setFetchError(err_1.message); // Use dedicated fetch error state
+                        errorMessage = err_1 instanceof Error ? err_1.message : "An unknown error occurred";
+                        setFetchError(errorMessage); // Use dedicated fetch error state
                         console.error("Error fetching security managers:", err_1);
                         return [3 /*break*/, 6];
                     case 5:
@@ -144,7 +146,7 @@ export default function AdminDashboardPage() {
     // Fetch all users for the management table
     useEffect(function () {
         var fetchAllUsers = function () { return __awaiter(_this, void 0, void 0, function () {
-            var response_1, errorData, data, err_2;
+            var response_1, errorData, data, err_2, errorMessage;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -168,7 +170,8 @@ export default function AdminDashboardPage() {
                         return [3 /*break*/, 8];
                     case 6:
                         err_2 = _a.sent();
-                        setUsersError(err_2.message);
+                        errorMessage = err_2 instanceof Error ? err_2.message : "An unknown error occurred";
+                        setUsersError(errorMessage);
                         console.error("Error fetching all users:", err_2);
                         return [3 /*break*/, 8];
                     case 7:
@@ -182,7 +185,7 @@ export default function AdminDashboardPage() {
     }, []); // Empty dependency array ensures this runs only once on mount
     // Function to fetch all users (can be reused for refresh)
     var fetchAllUsers = function () { return __awaiter(_this, void 0, void 0, function () {
-        var response_2, errorData, data, err_3;
+        var response_2, errorData, data, err_3, errorMessage;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -206,7 +209,8 @@ export default function AdminDashboardPage() {
                     return [3 /*break*/, 8];
                 case 6:
                     err_3 = _a.sent();
-                    setUsersError(err_3.message);
+                    errorMessage = err_3 instanceof Error ? err_3.message : "An unknown error occurred";
+                    setUsersError(errorMessage);
                     console.error("Error fetching all users:", err_3);
                     return [3 /*break*/, 8];
                 case 7:
@@ -244,7 +248,7 @@ export default function AdminDashboardPage() {
     };
     // Handle Edit Form Submission
     var handleUpdateUser = function (event) { return __awaiter(_this, void 0, void 0, function () {
-        var response, errorData, err_4;
+        var response, errorData, err_4, errorMessage;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -287,7 +291,8 @@ export default function AdminDashboardPage() {
                 case 6:
                     err_4 = _a.sent();
                     console.error("Update error:", err_4);
-                    setEditSubmitError(err_4.message || "An unexpected error occurred.");
+                    errorMessage = err_4 instanceof Error ? err_4.message : "An unexpected error occurred.";
+                    setEditSubmitError(errorMessage);
                     setEditSubmitStatus('error');
                     return [3 /*break*/, 7];
                 case 7: return [2 /*return*/];
@@ -309,7 +314,7 @@ export default function AdminDashboardPage() {
     };
     // Handle Add Form Submission
     var handleAddUserSubmit = function (event) { return __awaiter(_this, void 0, void 0, function () {
-        var response, errorData, err_5;
+        var response, errorData, err_5, errorMessage;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -359,7 +364,8 @@ export default function AdminDashboardPage() {
                 case 6:
                     err_5 = _a.sent();
                     console.error("Add user error:", err_5);
-                    setAddSubmitError(err_5.message || "حدث خطأ غير متوقع أثناء إنشاء المستخدم.");
+                    errorMessage = err_5 instanceof Error ? err_5.message : "حدث خطأ غير متوقع أثناء إنشاء المستخدم.";
+                    setAddSubmitError(errorMessage);
                     setAddSubmitStatus('error');
                     return [3 /*break*/, 7];
                 case 7: return [2 /*return*/];
@@ -376,7 +382,7 @@ export default function AdminDashboardPage() {
     };
     // Handle Delete Confirmation
     var handleDeleteUser = function () { return __awaiter(_this, void 0, void 0, function () {
-        var response, errorData, err_6;
+        var response, errorData, err_6, errorMessage;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -412,7 +418,8 @@ export default function AdminDashboardPage() {
                 case 6:
                     err_6 = _a.sent();
                     console.error("Delete error:", err_6);
-                    setDeleteError(err_6.message || "An unexpected error occurred.");
+                    errorMessage = err_6 instanceof Error ? err_6.message : "An unexpected error occurred.";
+                    setDeleteError(errorMessage);
                     setDeleteStatus('error');
                     return [3 /*break*/, 7];
                 case 7: return [2 /*return*/];
@@ -436,7 +443,7 @@ export default function AdminDashboardPage() {
     };
     // Handle form submission (placeholder for now)
     var handleSubmit = function (event) { return __awaiter(_this, void 0, void 0, function () {
-        var formData, response, errorData, fileInput, err_7;
+        var formData, response, errorData, fileInput, err_7, errorMessage;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -514,7 +521,8 @@ export default function AdminDashboardPage() {
                 case 5:
                     err_7 = _a.sent();
                     console.error("Submission error:", err_7);
-                    setSubmitError(err_7.message || "حدث خطأ غير متوقع أثناء إنشاء التقييم."); // Use dedicated submit error state
+                    errorMessage = err_7 instanceof Error ? err_7.message : "حدث خطأ غير متوقع أثناء إنشاء التقييم.";
+                    setSubmitError(errorMessage); // Use dedicated submit error state
                     setSubmitStatus('error');
                     return [3 /*break*/, 6];
                 case 6: return [2 /*return*/];

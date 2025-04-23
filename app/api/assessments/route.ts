@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     const secondaryContactMobile = formData.get('secondaryContactMobile') as string;
     const secondaryContactPhone = formData.get('secondaryContactPhone') as string;
     const secondaryContactEmail = formData.get('secondaryContactEmail') as string;
+    const assessmentName = formData.get('assessmentName') as string; // Get assessmentName
     const logoFile = formData.get('logo') as File | null;
 
     // --- Get Admin User ID (Temporary Fix) ---
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
 
 
     // Basic Validation
-    if (!companyNameAr || !companyNameEn || !securityManagerId || !secondaryContactEmail) { // Removed adminUserId check as it's fetched above
+    if (!companyNameAr || !companyNameEn || !securityManagerId || !secondaryContactEmail || !assessmentName) { // Added assessmentName check
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
         secondaryContactMobile,
         secondaryContactPhone,
         secondaryContactEmail,
+        assessmentName, // Add assessmentName here
         createdById: adminUserId, // Link to the admin who created it
       },
     });
