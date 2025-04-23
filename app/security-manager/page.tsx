@@ -475,10 +475,10 @@ export default function SecurityManagerDashboardPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button className="bg-nca-teal hover:bg-nca-teal-dark text-white gap-2">
+             {/*} <Button className="bg-nca-teal hover:bg-nca-teal-dark text-white gap-2">
                 <Plus className="h-4 w-4" />
                 تقييم جديد
-              </Button>
+              </Button> 8 */}
             </div>
           </div>
 
