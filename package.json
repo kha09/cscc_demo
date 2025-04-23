@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "migrate:dev": "dotenv -e scripts/.env.development -- npx prisma migrate dev --schema=prisma/schema.prisma",
+    "generate": "dotenv -e scripts/.env.development -- npx prisma generate --schema=prisma/schema.prisma",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
@@ -43,6 +45,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "dotenv-cli": "^8.0.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.16",
     "postcss": "^8",

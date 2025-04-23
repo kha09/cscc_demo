@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // Prisma Client uses this (pooler)
+  directUrl = env("DIRECT_URL") // Prisma Migrate uses this (direct connection)
 }
 
 model User {
