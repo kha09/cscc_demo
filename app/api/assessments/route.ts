@@ -45,6 +45,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
+    // Check if assessment name already exists
+    const existingAssessment = await prisma.assessment.findFirst({ // Use findFirst instead of findUnique
+      where: { assessmentName },
+    });
+
+    if (existingAssessment) {
+      return NextResponse.json({ message: 'Assessment name already exists' }, { status: 409 }); // 409 Conflict
+    }
+
+
     let logoPath: string | null = null;
 
     // Handle logo upload

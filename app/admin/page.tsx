@@ -86,6 +86,7 @@ export default function AdminDashboardPage() {
   const [secondaryContactMobile, setSecondaryContactMobile] = useState('');
   const [secondaryContactPhone, setSecondaryContactPhone] = useState('');
   const [secondaryContactEmail, setSecondaryContactEmail] = useState('');
+  const [assessmentName, setAssessmentName] = useState(''); // <-- Add state for assessment name
   const [isLoading, setIsLoading] = useState(false); // Loading state for fetching managers
   const [fetchError, setFetchError] = useState<string | null>(null); // Error state for fetching managers
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle'); // For form submission feedback
@@ -398,8 +399,9 @@ export default function AdminDashboardPage() {
     setSubmitError(null); // Use dedicated submit error state
 
     // Basic validation (can be expanded)
-    if (!companyNameAr || !companyNameEn || !selectedSecurityManagerId || !secondaryContactEmail) {
-        setSubmitError("يرجى ملء جميع الحقول المطلوبة."); // Use dedicated submit error state
+    // Add assessmentName to the validation check
+    if (!companyNameAr || !companyNameEn || !selectedSecurityManagerId || !secondaryContactEmail || !assessmentName) {
+        setSubmitError("يرجى ملء جميع الحقول المطلوبة (اسم الجهة عربي/إنجليزي، اسم التقييم، مسؤول الأمن، بريد الاتصال الثانوي)."); // Updated error message
         setSubmitStatus('error');
         return;
     }
@@ -414,6 +416,7 @@ export default function AdminDashboardPage() {
       secondaryContactMobile,
       secondaryContactPhone,
       secondaryContactEmail,
+      assessmentName, // <-- Log assessmentName
     });
 
     const formData = new FormData();
@@ -425,6 +428,7 @@ export default function AdminDashboardPage() {
     formData.append('secondaryContactMobile', secondaryContactMobile);
     formData.append('secondaryContactPhone', secondaryContactPhone);
     formData.append('secondaryContactEmail', secondaryContactEmail);
+    formData.append('assessmentName', assessmentName); // <-- Append assessmentName
     if (logoFile) {
       formData.append('logo', logoFile);
     }
@@ -458,6 +462,7 @@ export default function AdminDashboardPage() {
       setSecondaryContactMobile('');
       setSecondaryContactPhone('');
       setSecondaryContactEmail('');
+      setAssessmentName(''); // <-- Reset assessmentName state
 
       // Close dialog and hide success message after a delay
       setTimeout(() => {
@@ -759,6 +764,20 @@ export default function AdminDashboardPage() {
                           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-nca-teal-light file:text-nca-teal hover:file:bg-nca-teal-dark hover:file:text-white cursor-pointer"
                         />
                         {logoFile && <p className="text-xs text-gray-500 mt-1">الملف المحدد: {logoFile.name}</p>}
+                      </div>
+                      {/* Assessment Name Input */}
+                      <div>
+                        <Label htmlFor="assessmentName" className="mb-2 block">
+                          اسم التقييم <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="assessmentName"
+                          value={assessmentName}
+                          onChange={(e) => setAssessmentName(e.target.value)}
+                          required
+                          className="text-right"
+                          placeholder="مثال: تقييم الربع الأول 2025"
+                        />
                       </div>
                     </fieldset>
 
