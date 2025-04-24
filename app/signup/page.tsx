@@ -149,9 +149,9 @@ export default function SignUp() {
                 <SelectValue placeholder="اختر القسم" />
               </SelectTrigger>
               <SelectContent className="bg-white text-nca-dark-blue">
-                <SelectItem value="it">تكنولوجيا المعلومات</SelectItem>
-                <SelectItem value="security">الأمن السيبراني</SelectItem>
-                
+                <SelectItem value="الأمن السيبراني">الأمن السيبراني</SelectItem>
+                <SelectItem value="تقنية المعلومات">تقنية المعلومات</SelectItem>
+                <SelectItem value="قسم الحوكمة">قسم الحوكمة</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -165,10 +165,9 @@ export default function SignUp() {
                 <SelectValue placeholder="اختر الدور" />
               </SelectTrigger>
               <SelectContent className="bg-white text-nca-dark-blue">
-                <SelectItem value="manager">مدير</SelectItem>
-                <SelectItem value="analyst">محلل</SelectItem>
-                <SelectItem value="specialist">أخصائي</SelectItem>
-                <SelectItem value="engineer">مهندس</SelectItem>
+                <SelectItem value="DEPARTMENT_MANAGER">مدير القسم</SelectItem>
+                <SelectItem value="SECURITY_MANAGER">مدير الأمن السيبراني</SelectItem>
+                <SelectItem value="USER">موظف</SelectItem>
               </SelectContent>
             </Select>
           </div>

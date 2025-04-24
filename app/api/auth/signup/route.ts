@@ -40,19 +40,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Map role from form to Prisma Role enum
-    let prismaRole: Role = 'USER';
-    switch (userRole) {
-      case 'manager':
-        prismaRole = 'DEPARTMENT_MANAGER';
-        break;
-      case 'analyst':
-      case 'specialist':
-      case 'engineer':
-        prismaRole = 'USER';
-        break;
-      default:
-        prismaRole = 'USER';
+    // Map role string from form to Prisma Role enum
+    let prismaRole: Role;
+    if (userRole === 'DEPARTMENT_MANAGER' || userRole === 'SECURITY_MANAGER' || userRole === 'USER') {
+      // Directly use the value if it's one of the valid enum strings
+      prismaRole = userRole as Role; 
+    } else {
+      // Default or handle unexpected values if necessary
+      console.warn(`Unexpected role value received: ${userRole}. Defaulting to USER.`);
+      prismaRole = 'USER'; 
     }
 
     // Create user
