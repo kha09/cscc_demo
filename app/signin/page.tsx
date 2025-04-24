@@ -33,14 +33,15 @@ export default function SignIn() {
         throw new Error(result.error || "حدث خطأ أثناء تسجيل الدخول")
       }
 
-      // Success
-      setSuccess("تم تسجيل الدخول بنجاح! جاري تحويلك...")
-      
-      // Redirect to the appropriate dashboard
-      setTimeout(() => {
-        router.refresh() // Force a refresh to update the auth state
-        router.push(getDashboardUrl()) // Redirect to the appropriate dashboard based on user role
-      }, 1500)
+      // Success - result.user should contain the logged-in user object
+      if (result.user) {
+        setSuccess("تم تسجيل الدخول بنجاح! جاري تحويلك...")
+        const dashboardUrl = getDashboardUrl(result.user) // Calculate URL immediately
+        router.replace(dashboardUrl) // Use replace for cleaner history
+      } else {
+        // Handle unexpected case where login succeeded but user object is missing
+        setError("حدث خطأ غير متوقع بعد تسجيل الدخول.")
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "حدث خطأ أثناء تسجيل الدخول")
     } finally {

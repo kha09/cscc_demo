@@ -7,10 +7,10 @@ import { User } from '@prisma/client'
 interface AuthContextType {
   user: User | null
   loading: boolean
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  login: (email: string, password: string) => Promise<{ success: boolean; user?: User; error?: string }>
   logout: () => void
   isAuthenticated: boolean
-  getDashboardUrl: () => string
+  getDashboardUrl: (user?: User | null) => string // Allow passing user for immediate redirect
 }
 
 // Create the context with a default value
@@ -72,9 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Store user in state and localStorage
       setUser(data.user)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      const loggedInUser = data.user as User;
+      setUser(loggedInUser)
+      localStorage.setItem('user', JSON.stringify(loggedInUser))
 
-      return { success: true }
+      return { success: true, user: loggedInUser }
     } catch (error) {
       console.error('Login error:', error)
       return {
@@ -94,10 +96,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!user
 
   // Function to get the dashboard URL based on user role
-  const getDashboardUrl = () => {
-    if (!user) return '/signin'
-    
-    switch (user.role) {
+  // Accepts an optional user object to allow immediate calculation after login
+  const getDashboardUrl = (currentUser: User | null = user) => {
+    if (!currentUser) return '/signin'
+
+    switch (currentUser.role) {
       case 'ADMIN':
         return '/admin'
       case 'SECURITY_MANAGER':
