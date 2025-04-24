@@ -4,12 +4,15 @@
 
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
+import { useRouter } from 'next/navigation'; // Import useRouter
+import { useAuth } from "@/lib/auth-context"; // Import useAuth
 // Explicitly import types from the generated client
 import type { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Bell,
   User as UserIcon, // Aliased the User icon
+  LogOut, // Import LogOut icon
   // ClipboardList, // Removed unused import
   BarChart,
   FileText,
@@ -110,6 +113,15 @@ export default function SecurityManagerDashboardPage() {
   const [isAssigningTask, setIsAssigningTask] = useState(false);
   const [taskAssignmentMessage, setTaskAssignmentMessage] = useState<TaskAssignmentMessage>(null);
 
+  // Auth and Routing
+  const { logout } = useAuth();
+  const router = useRouter();
+
+  // Handle Logout
+  const handleLogout = () => {
+    logout();
+    router.push('/signin'); // Redirect to signin page after logout
+  };
 
   // --- Temporary User ID Fetch ---
   // In a real app, get this from auth context/session
@@ -413,6 +425,10 @@ export default function SecurityManagerDashboardPage() {
             </Button>
             <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
               <UserIcon className="h-5 w-5" />
+            </Button>
+            {/* Logout Button */}
+            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700" onClick={handleLogout}>
+              <LogOut className="h-5 w-5" />
             </Button>
             {/* Sidebar Toggle Button */}
             <Button

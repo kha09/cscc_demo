@@ -2,9 +2,12 @@
 
 import { useState, useEffect, ChangeEvent, FormEvent } from "react"; // Added useEffect, ChangeEvent, FormEvent
 import Image from "next/image";
+import { useRouter } from 'next/navigation'; // Import useRouter
 import ProtectedRoute from "@/lib/protected-route";
+import { useAuth } from "@/lib/auth-context"; // Import useAuth
 import {
   Bell,
+  LogOut, // Import LogOut icon
   User, 
   Users, 
   FileText, 
@@ -114,6 +117,9 @@ export default function AdminDashboardPage() {
   const [addSubmitStatus, setAddSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [addSubmitError, setAddSubmitError] = useState<string | null>(null);
 
+  // Auth and Routing
+  const { logout } = useAuth();
+  const router = useRouter();
 
   // Fetch security managers on component mount
   useEffect(() => {
@@ -183,6 +189,12 @@ export default function AdminDashboardPage() {
     } finally {
       setUsersLoading(false);
     }
+  };
+
+  // Handle Logout
+  const handleLogout = () => {
+    logout();
+    router.push('/signin'); // Redirect to signin page after logout
   };
 
   // Handle Edit Button Click
@@ -505,6 +517,10 @@ export default function AdminDashboardPage() {
             </Button>
             <Button variant="ghost" size="icon" className="text-white">
               <User className="h-5 w-5" />
+            </Button>
+            {/* Logout Button */}
+            <Button variant="ghost" size="icon" className="text-white" onClick={handleLogout}>
+              <LogOut className="h-5 w-5" />
             </Button>
             {/* Sidebar Toggle Button */}
             <Button

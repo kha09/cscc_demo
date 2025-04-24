@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
+import { useRouter } from 'next/navigation'; // Import useRouter
+import { useAuth } from "@/lib/auth-context"; // Import useAuth
 // Import necessary types AND values from Prisma
 import {
   User as PrismaUser,
@@ -17,6 +19,7 @@ import {
    Bell,
    // PlusCircle, // Removed unused import
    User as UserIcon,
+   LogOut, // Import LogOut icon
    ClipboardList,
    BarChart,
    FileText,
@@ -92,6 +95,9 @@ export default function DepartmentManagerDashboardPage() {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   // Removed state related to the old incorrect assignment modal
 
+  // Auth and Routing
+  const { logout } = useAuth();
+  const router = useRouter();
 
   // --- Toggle Task Expansion ---
   const toggleTaskExpansion = (taskId: string) => {
@@ -195,6 +201,12 @@ export default function DepartmentManagerDashboardPage() {
           return newStatus;
       }), 5000); // Keep error message longer
     }
+  };
+
+  // Handle Logout
+  const handleLogout = () => {
+    logout();
+    router.push('/signin'); // Redirect to signin page after logout
   };
 
 
@@ -509,6 +521,10 @@ export default function DepartmentManagerDashboardPage() {
              <Button variant="ghost" size="icon" className="text-white">
                <UserIcon className="h-5 w-5" /> {/* Use the aliased icon */}
              </Button>
+             {/* Logout Button */}
+             <Button variant="ghost" size="icon" className="text-white" onClick={handleLogout}>
+               <LogOut className="h-5 w-5" />
+             </Button>
            </div>
          </div>
       </header>
@@ -723,8 +739,6 @@ export default function DepartmentManagerDashboardPage() {
                                               <SelectItem value={TaskStatus.PENDING}>قيد الانتظار</SelectItem>
                                               <SelectItem value={TaskStatus.IN_PROGRESS}>قيد التنفيذ</SelectItem>
                                               <SelectItem value={TaskStatus.COMPLETED}>مكتمل (للمراجعة)</SelectItem>
-                                              <SelectItem value={TaskStatus.APPROVED}>مقبول</SelectItem>
-                                              <SelectItem value={TaskStatus.REJECTED}>مرفوض</SelectItem>
                                               <SelectItem value={TaskStatus.OVERDUE}>متأخر</SelectItem>
                                             </SelectContent>
                                           </Select>

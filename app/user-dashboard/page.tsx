@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react" // Added useEffect, useCallback
 import Image from "next/image"
+import { useRouter } from 'next/navigation'; // Import useRouter
+import { useAuth } from "@/lib/auth-context"; // Import useAuth
 // Import necessary types
 import type {
   User as PrismaUser,
@@ -12,9 +14,10 @@ import type {
   TaskStatus
 } from "@prisma/client";
 import {
-  Bell,
-  User,
-  ClipboardList, 
+   Bell,
+   User,
+   LogOut, // Import LogOut icon
+   ClipboardList, 
   AlertTriangle, 
   Search,
   Filter,
@@ -95,6 +98,16 @@ export default function UserDashboardPage() {
   });
   const [isSaving, setIsSaving] = useState(false); // State for save button loading
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false); // State for date picker popover
+
+  // Auth and Routing
+  const { logout } = useAuth();
+  const router = useRouter();
+
+  // Handle Logout
+  const handleLogout = () => {
+    logout();
+    router.push('/signin'); // Redirect to signin page after logout
+  };
 
   // --- Fetch Current User ---
   // Placeholder: Fetch all users and find the first 'USER'. Replace with actual auth logic.
@@ -323,6 +336,11 @@ export default function UserDashboardPage() {
             </Button>
             <Button variant="ghost" size="icon" className="text-white">
               <User className="h-5 w-5" />
+            </Button>
+            
+            {/* Logout Button */}
+            <Button variant="ghost" size="icon" className="text-white" onClick={handleLogout}>
+              <LogOut className="h-5 w-5" />
             </Button>
           </div>
         </div>
