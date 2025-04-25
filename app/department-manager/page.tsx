@@ -380,7 +380,13 @@ export default function DepartmentManagerDashboardPage() {
     ));
   };
 
-  // --- Calculate Team Assignments Before Return (REMOVED) ---
+  // --- Calculate Team Assignments Before Return ---
+  const teamAssignments = !isLoadingTasks && !isLoadingUsers ? managerTasks.flatMap((task: FrontendTask) =>
+    task.controlAssignments
+      .filter((assignment: FrontendControlAssignment) => assignment.assignedUserId && assignment.assignedUserId !== user?.id) // Use user.id
+      .map((assignment: FrontendControlAssignment) => ({ ...assignment, taskDeadline: task.deadline, taskSystemName: task.sensitiveSystem?.systemName })) // Include parent task info
+   ) : []; // Keep explicit semicolon
+
 
   // Helper function to determine badge class based on status (Restored)
   const getStatusBadgeClass = (status: TaskStatus | undefined | null): string => {
@@ -609,8 +615,10 @@ export default function DepartmentManagerDashboardPage() {
             </div>
           </Card>
 
-          {/* Team Members Card - Now in its own row, below Tasks */}
-          <Card className="mb-6">
+          {/* Two Column Layout for Team Members and Team Tasks */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Team Members Card */}
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-xl font-semibold">أعضاء الفريق</CardTitle>
                 {/* Add User Button/Modal Trigger */}
@@ -639,7 +647,40 @@ export default function DepartmentManagerDashboardPage() {
               </CardContent>
             </Card>
 
-          {/* Team Tasks Section (REMOVED) */}
+            {/* Team Tasks Card - Restored */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold">مهام أعضاء الفريق</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4 max-h-[400px] overflow-y-auto">
+                {isLoadingTasks || isLoadingUsers ? (
+                  <p>جاري تحميل المهام والمستخدمين...</p>
+                ) : teamAssignments.length === 0 ? (
+                  <p className="text-center text-gray-500 py-4">لا توجد ضوابط معينة لأعضاء الفريق حاليًا.</p>
+                ) : (
+                  teamAssignments.map(assignment => (
+                    <div key={assignment.id} className="border rounded-lg p-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-medium truncate" title={`${assignment.taskSystemName} - ${assignment.control.controlNumber}`}>
+                          {assignment.taskSystemName || 'غير محدد'} - {assignment.control.controlNumber}
+                        </span>
+                        <Badge variant={assignment.status === 'COMPLETED' ? 'default' : assignment.status === 'PENDING' ? 'default' : 'secondary'} className={`text-xs ${getStatusBadgeClass(assignment.status)}`}>
+                          {assignment.status} {/* TODO: Translate */}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-2 truncate" title={assignment.control.controlText}>
+                        {assignment.control.controlText}
+                      </p>
+                      <div className="flex justify-between items-center text-xs text-gray-500">
+                        <span>المسؤول: {assignment.assignedUser?.nameAr || assignment.assignedUser?.name || 'غير معروف'}</span>
+                        <span>الاستحقاق: {formatDate(assignment.taskDeadline)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div> {/* Close the two-column grid div */}
 
 
           {/* Add User Modal */}
