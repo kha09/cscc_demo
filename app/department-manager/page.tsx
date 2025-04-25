@@ -85,9 +85,10 @@ export default function DepartmentManagerDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   // Ensure all statuses used in handleSaveNotesAndStatus are included here
   const [assignmentStatus, setAssignmentStatus] = useState<{ [key: string]: 'loading' | 'error' | 'success' | 'saving' | 'saving-success' | 'saving-error' }>({});
-  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set()); // Track expanded tasks
-  // State for managing notes and status edits within expanded rows
-  const [editState, setEditState] = useState<{ [assignmentId: string]: { notes: string | null; complianceLevel: ComplianceLevel | null; status: TaskStatus } }>({}); // Allow null notes and complianceLevel
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set()); // Track expanded tasks for manager's view
+  const [expandedTeamAssignments, setExpandedTeamAssignments] = useState<Set<string>>(new Set()); // Track expanded team assignments
+  // State for managing notes and status edits within expanded rows (REMOVED as per new logic)
+  // const [editState, setEditState] = useState<{ [assignmentId: string]: { notes: string | null; complianceLevel: ComplianceLevel | null; status: TaskStatus } }>({}); // Allow null notes and complianceLevel
 
   // State for modals
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -113,96 +114,24 @@ export default function DepartmentManagerDashboardPage() {
     });
   };
 
-  // --- Handle Edits in Expanded Row ---
-  const handleEditChange = (assignmentId: string, field: 'notes' | 'complianceLevel' | 'status', value: string | ComplianceLevel | TaskStatus | null) => {
-    setEditState(prev => ({
-      ...prev,
-      [assignmentId]: {
-        ...(prev[assignmentId] ?? { notes: null, complianceLevel: null, status: TaskStatus.PENDING }), // Initialize if not present, default status
-        [field]: value as any, // Use 'any' temporarily for union type assignment
+  // --- Toggle Team Assignment Expansion ---
+  const toggleTeamAssignmentExpansion = (assignmentId: string) => {
+    setExpandedTeamAssignments((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(assignmentId)) {
+        newSet.delete(assignmentId);
+      } else {
+        newSet.add(assignmentId);
       }
-    }));
+      return newSet;
+    });
   };
 
-  // --- Save Notes and Compliance Level ---
-  const handleSaveNotesAndStatus = async (assignmentId: string) => {
-    const stateToSave = editState[assignmentId];
-    // Find the original assignment to compare against
-    const originalAssignment = managerTasks
-      .flatMap(task => task.controlAssignments)
-      .find(a => a.id === assignmentId);
+  // --- Handle Edits in Expanded Row (REMOVED) ---
+  // const handleEditChange = ... (Removed)
 
-    // Only proceed if there's actually a change
-    if (!stateToSave && (!originalAssignment || originalAssignment.notes === null && originalAssignment.complianceLevel === null)) {
-        // If nothing in edit state and original is default/null, do nothing
-        return;
-    }
-    if (stateToSave && originalAssignment && stateToSave.notes === (originalAssignment.notes ?? '') && stateToSave.complianceLevel === originalAssignment.complianceLevel) {
-        // If edit state matches original state, do nothing
-        return;
-    }
-
-    // Use edit state if available, otherwise use original state (if only one field was changed)
-    const notesToSave = stateToSave?.notes ?? originalAssignment?.notes ?? null;
-    const complianceLevelToSave = stateToSave?.complianceLevel ?? originalAssignment?.complianceLevel ?? null;
-
-
-    setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'saving' }));
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/control-assignments/${assignmentId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          notes: notesToSave, // Use potentially updated notes
-          complianceLevel: complianceLevelToSave, // Use potentially updated complianceLevel
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to save notes/compliance level: ${response.statusText}`);
-      }
-
-      const updatedAssignment: FrontendControlAssignment = await response.json();
-
-      // Update local state (managerTasks)
-      setManagerTasks(currentTasks => {
-        return currentTasks.map(task => ({
-          ...task,
-          controlAssignments: task.controlAssignments.map(a =>
-            a.id === assignmentId ? { ...a, notes: updatedAssignment.notes, complianceLevel: updatedAssignment.complianceLevel } : a
-          ),
-        }));
-      });
-
-      // Clear edit state for this assignment
-      setEditState(prev => {
-        const newState = { ...prev };
-        delete newState[assignmentId];
-        return newState;
-      });
-
-      setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'saving-success' })); // Use specific success status
-      setTimeout(() => setAssignmentStatus(prev => {
-          const newStatus = { ...prev };
-          delete newStatus[assignmentId];
-          return newStatus;
-      }), 3000);
-
-    } catch (err: unknown) { // Changed any to unknown
-      console.error("Error saving notes/compliance level:", err);
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-      setError(errorMessage || "حدث خطأ أثناء حفظ الملاحظات ومستوى الالتزام.");
-      setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'saving-error' })); // Use specific error status
-       setTimeout(() => setAssignmentStatus(prev => {
-          const newStatus = { ...prev };
-          delete newStatus[assignmentId];
-          return newStatus;
-      }), 5000); // Keep error message longer
-    }
-  };
+  // --- Save Notes and Compliance Level (REMOVED) ---
+  // const handleSaveNotesAndStatus = ... (Removed)
 
   // Handle Logout
   const handleLogout = () => {
@@ -431,6 +360,7 @@ export default function DepartmentManagerDashboardPage() {
     }
   };
 
+
   // Function to open the details modal (now shows Task details with assignments)
   // const handleOpenDetailsModal = (task: FrontendTask) => {
   //   setSelectedTaskForDetailsModal(task);
@@ -463,12 +393,31 @@ export default function DepartmentManagerDashboardPage() {
     ));
   };
 
+  // --- Calculate Team Assignments Before Return ---
+  const teamAssignments = !isLoadingTasks && !isLoadingUsers ? managerTasks.flatMap((task: FrontendTask) =>
+    task.controlAssignments
+      .filter((assignment: FrontendControlAssignment) => assignment.assignedUserId && assignment.assignedUserId !== user?.id) // Use user.id
+      .map((assignment: FrontendControlAssignment) => ({ ...assignment, taskDeadline: task.deadline, taskSystemName: task.sensitiveSystem?.systemName })) // Include parent task info
+   ) : []; // Keep explicit semicolon
+
+  // Helper function to determine badge class based on status (Restored)
+  const getStatusBadgeClass = (status: TaskStatus | undefined | null): string => {
+    switch (status) {
+      case TaskStatus.COMPLETED: return 'bg-green-100 text-green-700';
+      case TaskStatus.PENDING: return 'bg-yellow-100 text-yellow-700';
+      case TaskStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700';
+      case TaskStatus.OVERDUE: return 'bg-red-100 text-red-700';
+      // Temporarily comment out problematic cases to isolate TS/JSX errors
+      // case TaskStatus.APPROVED: return 'bg-purple-100 text-purple-700';
+      // case TaskStatus.REJECTED: return 'bg-orange-100 text-orange-700';
+      default: return 'bg-gray-100 text-gray-700'; // Fallback style
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
       {/* Header */}
       <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
-        {/* ... (header content remains the same) ... */}
          <div className="max-w-7xl mx-auto flex items-center justify-between">
            {/* Logo and Title - Right Side */}
            <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
@@ -476,7 +425,6 @@ export default function DepartmentManagerDashboardPage() {
                <Image
                  src="/static/image/logo.png" width={160} height={160}
                  alt="Logo"
-
                  className="object-contain"
                />
              </div>
@@ -641,115 +589,82 @@ export default function DepartmentManagerDashboardPage() {
                           </div>
                         </td>
                         {/* Actions Column */}
-                        <td className="py-4 pl-4 space-x-2">
-                           {/* Expand/Collapse Button */}
-                           <Button variant="ghost" size="icon" onClick={() => toggleTaskExpansion(task.id)} className="text-slate-600 hover:text-slate-900">
-                             {expandedTasks.has(task.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        <td className="py-4 pl-4">
+                           {/* Button to show/hide details */}
+                           <Button variant="ghost" size="sm" onClick={() => toggleTaskExpansion(task.id)}>
+                             {expandedTasks.has(task.id) ? (
+                               <ChevronUp className="h-4 w-4" />
+                             ) : (
+                               <ChevronDown className="h-4 w-4" />
+                             )}
                            </Button>
-                           {/* Details Button (Optional - can be removed if details are shown inline) */}
-                           {/* <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900" onClick={() => handleOpenDetailsModal(task)}>
-                             عرض التفاصيل
-                           </Button> */}
-                         </td>
-                       </tr>
-                       {/* Expanded Row for Control Assignments */}
-                       {expandedTasks.has(task.id) && (
-                         <tr className="bg-gray-50 border-b border-gray-200">
-                           <td colSpan={7} className="p-4"> {/* Updated colSpan */}
-                             <h4 className="font-semibold mb-2 text-sm">تعيين الضوابط:</h4>
-                             <div className="space-y-3">
-                               {task.controlAssignments.length > 0 ? (
-                                 task.controlAssignments.map((assignment: FrontendControlAssignment) => ( // Add type
-                                   <div key={assignment.id} className="p-3 border rounded-md bg-white"> {/* Main container for each assignment */}
-                                     {/* Top section: Info and User Assignment */}
-                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2">
-                                       <div className="flex-1 mb-2 sm:mb-0 sm:mr-4">
-                                         <p className="font-medium text-sm mb-2" title={assignment.control.controlText}>
-                                           {assignment.control.controlNumber} - {assignment.control.controlText}
-                                         </p>
-                          <span className={`px-2 py-1 rounded ${getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}`}>
-                            {getComplianceLevelText(assignment.complianceLevel)}
-                          </span>
-                                       </div>
-                                       <div className="w-full sm:w-auto flex items-center space-x-2 space-x-reverse">
-                                         <Select
-                                          dir="rtl"
-                                          value={assignment.assignedUserId ?? "UNASSIGNED"}
-                                          onValueChange={(value) => handleAssignControl(assignment.id, value === "UNASSIGNED" ? null : value)}
+                           {/* Add other actions like 'View Details' if needed */}
+                        </td>
+                      </tr>
+                      {/* Expanded Row for Control Assignments */}
+                      {expandedTasks.has(task.id) && (
+                        <tr className="bg-gray-100">
+                          <td colSpan={7} className="p-4"> {/* Updated colSpan */}
+                            <h4 className="font-semibold mb-2 text-sm">الضوابط المعينة لهذه المهمة:</h4>
+                            {task.controlAssignments && task.controlAssignments.length > 0 ? (
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b">
+                                    <th className="pb-2 font-medium text-gray-600 text-right pr-2">الضابط</th>
+                                    <th className="pb-2 font-medium text-gray-600 text-right">النص</th>
+                                    <th className="pb-2 font-medium text-gray-600 text-right">المستخدم المعين</th>
+                                    <th className="pb-2 font-medium text-gray-600 text-right">الحالة</th>
+                                    <th className="pb-2 font-medium text-gray-600 text-right">مستوى الامتثال</th>
+                                    <th className="pb-2 font-medium text-gray-600 text-right pl-2">الإجراء</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {task.controlAssignments.map(assignment => (
+                                    <tr key={assignment.id} className="border-b border-gray-200">
+                                      <td className="py-2 pr-2">{assignment.control.controlNumber}</td>
+                                      <td className="py-2">{assignment.control.controlText}</td>
+                                      <td className="py-2">
+                                        <Select
+                                          value={assignment.assignedUserId ?? 'unassigned'} // Default to 'unassigned' if null
+                                          onValueChange={(value) => handleAssignControl(assignment.id, value === 'unassigned' ? null : value)}
                                           disabled={assignmentStatus[assignment.id] === 'loading'}
                                         >
-                                          <SelectTrigger className="w-full sm:w-[200px] text-right">
+                                          <SelectTrigger className="w-[180px]">
                                             <SelectValue placeholder="اختر مستخدم..." />
                                           </SelectTrigger>
                                           <SelectContent>
-                                            <SelectItem value="UNASSIGNED">-- غير معين --</SelectItem>
-                                            {teamMembers.map((user: FrontendUser) => (
-                                              <SelectItem key={user.id} value={user.id}>
-                                                {user.nameAr || user.name}
+                                            <SelectItem value="unassigned">غير معين</SelectItem>
+                                            {teamMembers.map(member => (
+                                              <SelectItem key={member.id} value={member.id}>
+                                                {member.nameAr || member.name}
                                               </SelectItem>
                                             ))}
                                           </SelectContent>
                                         </Select>
-                                        {assignmentStatus[assignment.id] === 'loading' && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
-                                        {assignmentStatus[assignment.id] === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
-                                        {assignmentStatus[assignment.id] === 'error' && <AlertTriangle className="h-4 w-4 text-red-500" />}
-                                      </div>
-                                    </div>
-                                    {/* Bottom section: Notes and Status Update */}
-                                    <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-                                      <Label htmlFor={`notes-${assignment.id}`} className="text-xs font-medium text-gray-600">ملاحظات المقيّم</Label>
-                                      <Textarea
-                                        id={`notes-${assignment.id}`}
-                                        value={editState[assignment.id]?.notes ?? assignment.notes ?? ''}
-                                        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handleEditChange(assignment.id, 'notes', e.target.value)}
-                                        placeholder="أضف ملاحظات للمستخدم هنا..."
-                                        className="text-sm min-h-[60px]"
-                                        dir="rtl"
-                                      />
-                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                                        <div className="w-full sm:w-auto flex-grow">
-                                          <Label htmlFor={`status-${assignment.id}`} className="text-xs font-medium text-gray-600">حالة الضابط:</Label>
-                                          <Select
-                                            dir="rtl"
-                                            value={editState[assignment.id]?.status ?? assignment.status}
-                                            onValueChange={(value) => handleEditChange(assignment.id, 'status', value as TaskStatus)}
-                                          >
-                                            <SelectTrigger id={`status-${assignment.id}`} className="w-full text-right text-sm">
-                                            <SelectValue placeholder="اختر الحالة..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="APPROVED">معتمد</SelectItem>
-                                              <SelectItem value="IN_PROGRESS">طلب تنفيذ</SelectItem>
-                                              <SelectItem value="REJECTED">طلب تعديل</SelectItem>
-                                              {/* Keep other statuses for display if needed, but only allow selection of the requested three */}
-                                              {/* <SelectItem value="PENDING">قيد الانتظار</SelectItem> */}
-                                              {/* <SelectItem value="COMPLETED">مكتمل (للمراجعة)</SelectItem> */}
-                                              {/* <SelectItem value="OVERDUE">متأخر</SelectItem> */}
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-                                        <Button
-                                          size="sm"
-                                          onClick={() => handleSaveNotesAndStatus(assignment.id)}
-                                          disabled={assignmentStatus[assignment.id] === 'saving'}
-                                          className="mt-2 sm:mt-0 sm:self-end bg-nca-teal hover:bg-nca-teal-dark text-white"
-                                        >
-                                          {assignmentStatus[assignment.id] === 'saving' ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
-                                          حفظ الملاحظة والحالة
-                                        </Button>
-                                      </div>
-                                      {/* Save Status indicators */}
-                                      <div className="h-4 mt-1"> {/* Placeholder for spacing */}
-                                        {assignmentStatus[assignment.id] === 'saving-success' && <p className="text-xs text-green-600 flex items-center"><CheckCircle className="h-3 w-3 mr-1"/> تم الحفظ بنجاح.</p>}
-                                        {assignmentStatus[assignment.id] === 'saving-error' && <p className="text-xs text-red-600 flex items-center"><AlertTriangle className="h-3 w-3 mr-1"/> فشل الحفظ.</p>}
-                                      </div>
-                                    </div>
-                                  </div> // Closing div for the entire assignment block
-                                ))
-                              ) : (
-                                <p className="text-sm text-gray-500">لا توجد ضوابط محددة لهذه المهمة.</p>
-                              )}
-                            </div>
+                                        {assignmentStatus[assignment.id] === 'loading' && <span className="text-xs ml-2">جاري الحفظ...</span>}
+                                        {assignmentStatus[assignment.id] === 'success' && <CheckCircle className="h-4 w-4 text-green-500 inline ml-2" />}
+                                        {assignmentStatus[assignment.id] === 'error' && <AlertTriangle className="h-4 w-4 text-red-500 inline ml-2" />}
+                                      </td>
+                                      <td className="py-2">
+                                        <Badge variant="secondary" className={getStatusBadgeClass(assignment.status)}>
+                                          {assignment.status} {/* TODO: Map status */}
+                                        </Badge>
+                                      </td>
+                                      <td className="py-2">
+                                        <Badge variant="secondary" className={getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}>
+                                          {getComplianceLevelText(assignment.complianceLevel)}
+                                        </Badge>
+                                      </td>
+                                      <td className="py-2 pl-2">
+                                        {/* Maybe add a button to view assignment details if needed */}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ) : (
+                              <p className="text-sm text-gray-500">لا توجد ضوابط معينة لهذه المهمة.</p>
+                            )}
                           </td>
                         </tr>
                       )}
@@ -761,249 +676,119 @@ export default function DepartmentManagerDashboardPage() {
             </div>
           </Card>
 
+          {/* Team Tasks Section */}
+          <Card className="p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">مهام الفريق</h2>
+              {/* Add filter/export buttons if needed */}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-right border-b border-gray-200">
+                    <th className="pb-3 font-medium text-gray-700 pr-4">الضابط</th>
+                    <th className="pb-3 font-medium text-gray-700">النظام</th>
+                    <th className="pb-3 font-medium text-gray-700">المستخدم المعين</th>
+                    <th className="pb-3 font-medium text-gray-700">الموعد النهائي للمهمة</th>
+                    <th className="pb-3 font-medium text-gray-700">الحالة</th>
+                    <th className="pb-3 font-medium text-gray-700">مستوى الامتثال</th>
+                    <th className="pb-3 font-medium text-gray-700 pl-4">الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoadingTasks || isLoadingUsers ? (
+                    <tr><td colSpan={7} className="text-center py-4">جاري تحميل مهام الفريق...</td></tr>
+                  ) : teamAssignments.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-4">لا توجد مهام معينة لأعضاء الفريق.</td></tr>
+                  ) : (
+                    teamAssignments.map((assignment: FrontendControlAssignment & { taskDeadline?: string, taskSystemName?: string }) => ( // Add type for extra props
+                      <React.Fragment key={assignment.id}>
+                        <tr className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-4 pr-4">{assignment.control.controlNumber}</td>
+                          <td className="py-4">{assignment.taskSystemName || 'غير محدد'}</td>
+                          <td className="py-4">{assignment.assignedUser?.nameAr || assignment.assignedUser?.name || 'غير محدد'}</td>
+                          <td className="py-4">{formatDate(assignment.taskDeadline)}</td>
+                          <td className="py-4">
+                            <Badge variant="secondary" className={getStatusBadgeClass(assignment.status)}>
+                              {assignment.status} {/* TODO: Map status */}
+                            </Badge>
+                          </td>
+                          <td className="py-4">
+                            <Badge variant="secondary" className={getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}>
+                              {getComplianceLevelText(assignment.complianceLevel)}
+                            </Badge>
+                          </td>
+                          <td className="py-4 pl-4">
+                            <Button variant="ghost" size="sm" onClick={() => toggleTeamAssignmentExpansion(assignment.id)}>
+                              {expandedTeamAssignments.has(assignment.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </Button>
+                            {/* Maybe add reassign button here too? Or keep it in manager's view? */}
+                          </td>
+                        </tr>
+                        {/* Expanded Row for Team Assignment Details */}
+                        {expandedTeamAssignments.has(assignment.id) && (
+                          <tr className="bg-gray-100">
+                            <td colSpan={7} className="p-4">
+                              <h4 className="font-semibold mb-2 text-sm">تفاصيل الضابط: {assignment.control.controlNumber}</h4>
+                              <p className="text-sm mb-1"><strong>النص:</strong> {assignment.control.controlText}</p>
+                              <p className="text-sm mb-1"><strong>المكون الرئيسي:</strong> {assignment.control.mainComponent}</p>
+                              <p className="text-sm mb-1"><strong>المكون الفرعي:</strong> {assignment.control.subComponent}</p>
+                              <p className="text-sm mb-3"><strong>نوع الضابط:</strong> {assignment.control.controlType}</p>
+                              <Label htmlFor={`notes-${assignment.id}`}>الملاحظات:</Label>
+                              <Textarea
+                                id={`notes-${assignment.id}`}
+                                value={assignment.notes ?? ''}
+                                readOnly // Department manager likely shouldn't edit notes here
+                                className="w-full mt-1 bg-white"
+                                rows={3}
+                              />
+                              {/* Add compliance level/status details if needed */}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
 
-          {/* Two Column Layout */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Add User Modal */}
+          <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="fixed bottom-6 left-6 bg-nca-teal hover:bg-nca-dark-teal text-white rounded-full p-4 shadow-lg">
+                <UserPlus className="h-6 w-6" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]" dir="rtl">
+              <DialogHeader>
+                <DialogTitle>إضافة مستخدم إلى فريقك ({user?.department})</DialogTitle> {/* Use user.department */}
+                <DialogDescription>
+                  اختر مستخدمًا من القائمة لإضافته إلى قسمك الحالي.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 max-h-[400px] overflow-y-auto">
+                {isLoadingUsers ? (
+                  <p>جاري تحميل المستخدمين المتاحين...</p>
+                ) : availableUsers.length > 0 ? (
+                  renderUserList(availableUsers, (userToAdd) => ( // Renamed parameter
+                    <Button onClick={() => handleAddUserToTeam(userToAdd.id)}>إضافة للفريق</Button>
+                  ))
+                ) : (
+                  <p>لا يوجد مستخدمون متاحون للإضافة.</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddUserModalOpen(false)}>إغلاق</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-            {/* Team Members Card */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xl font-semibold">أعضاء الفريق</CardTitle>
-                {/* Add User Button/Modal Trigger */}
-                <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1 text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white">
-                      <UserPlus className="h-4 w-4" />
-                      إضافة عضو
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="text-right sm:max-w-[500px]">
-                    <DialogHeader>
-                      <DialogTitle>إضافة عضو جديد للفريق</DialogTitle>
-                      <DialogDescription>
-                        اختر مستخدمًا من القائمة لإضافته إلى قسمك. سيتمكن المستخدمون المضافون من استلام المهام.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 max-h-[60vh] overflow-y-auto">
-                      {renderUserList(availableUsers, (user) => (
-                        <Button
-                          size="sm"
-                          onClick={() => handleAddUserToTeam(user.id)}
-                          className="bg-nca-teal hover:bg-nca-teal-dark text-white"
-                        >
-                          إضافة للفريق
-                        </Button>
-                      ))}
-                      {/* Handle case where no users are available */}
-                      {!isLoadingUsers && availableUsers.length === 0 && (
-                        <p className="text-center text-gray-500 py-4">لا يوجد مستخدمون متاحون للإضافة حاليًا.</p>
-                      )}
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsAddUserModalOpen(false)}>إلغاء</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-4 max-h-[400px] overflow-y-auto">
-                 {/* Render Team Members */}
-                 {renderUserList(teamMembers, (_user) => ( // Prefixed unused 'user' with '_'
-                   <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                     عرض التفاصيل {/* Placeholder for future action */}
-                   </Button>
-                 ))}
-                 {/* Handle loading and empty states */}
-                 {isLoadingUsers && <p>جاري تحميل أعضاء الفريق...</p>}
-                 {!isLoadingUsers && teamMembers.length === 0 && (
-                   <p className="text-center text-gray-500 py-4">لا يوجد أعضاء في هذا الفريق بعد.</p>
-                 )}
-              </CardContent>
-              {/* Optional Footer for "View All" if list is truncated */}
-              {/* <CardFooter>
-                <Button variant="outline" className="w-full text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white">
-                  عرض جميع أعضاء الفريق
-                </Button>
-              </CardFooter> */}
-            </Card>
+          {/* Removed Details Modal as it wasn't fully implemented/used */}
 
-
-            {/* Team Tasks Card - Updated to show assigned controls */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl font-semibold">مهام أعضاء الفريق</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-4 max-h-[400px] overflow-y-auto">
-                {isLoadingTasks || isLoadingUsers ? (
-                  <p>جاري تحميل المهام والمستخدمين...</p>
-                ) : (() => {
-                    // Prepare data: Map assignments to include their parent task details
-                    const teamAssignments = managerTasks.flatMap((task: FrontendTask) =>
-                      task.controlAssignments
-                        .filter((assignment: FrontendControlAssignment) => assignment.assignedUserId && assignment.assignedUserId !== user?.id) // Use user.id
-                        .map((assignment: FrontendControlAssignment) => ({ ...assignment, taskDeadline: task.deadline, taskSystemName: task.sensitiveSystem?.systemName })) // Include parent task info
-                    );
-
-                    if (teamAssignments.length === 0) {
-                      return <p className="text-center text-gray-500 py-4">لا توجد ضوابط معينة لأعضاء الفريق حاليًا.</p>;
-                    }
-
-                    // Use the properties added to the assignment object
-                    return teamAssignments.map(assignment => (
-                      <div key={assignment.id} className="border rounded-lg p-3">
-                        <div className="flex justify-between items-center mb-1">
-                          {/* Use assignment.taskSystemName */}
-                          <span className="text-sm font-medium truncate" title={`${assignment.taskSystemName} - ${assignment.control.controlNumber}`}>
-                            {assignment.taskSystemName} - {assignment.control.controlNumber}
-                          </span>
-                          {/* Map Badge variants correctly */}
-                          <Badge variant={assignment.status === 'COMPLETED' ? 'default' : assignment.status === 'PENDING' ? 'default' : 'secondary'} className={`text-xs ${
-                              assignment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                              assignment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                              assignment.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                              assignment.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                              'bg-gray-100 text-gray-700' // Fallback style
-                          }`}>
-                            {assignment.status} {/* TODO: Translate */}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-gray-600 mb-2 truncate" title={assignment.control.controlText}>
-                          {assignment.control.controlText}
-                        </p>
-                        <div className="flex justify-between items-center text-xs text-gray-500">
-                          <span>المسؤول: {assignment.assignedUser?.nameAr || assignment.assignedUser?.name || 'غير معروف'}</span>
-                          {/* Use assignment.taskDeadline */}
-                          <span>الاستحقاق: {formatDate(assignment.taskDeadline)}</span>
-                        </div>
-                      </div>
-                    ));
-                  })()}
-              </CardContent>
-            </Card>
-          </div> {/* Close the two-column grid div */}
-
-          {/* Compliance Status Card */}
-          {/* ... */}
-           <Card className="p-6 mt-6">
-             <h2 className="text-xl font-semibold mb-4">حالة الامتثال للقسم</h2>
-             {/* ... compliance content ... */}
-              <div className="space-y-6">
-               <div>
-                 <div className="flex justify-between items-center mb-2">
-                   <h3 className="font-medium">حوكمة الأمن السيبراني</h3>
-                   <span className="text-sm">75%</span>
-                 </div>
-                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                   <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '75%' }}></div>
-                 </div>
-               </div>
-
-               <div>
-                 <div className="flex justify-between items-center mb-2">
-                   <h3 className="font-medium">تعزيز الأمن السيبراني</h3>
-                   <span className="text-sm">60%</span>
-                 </div>
-                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                   <div className="bg-yellow-500 h-2.5 rounded-full" style={{ width: '60%' }}></div>
-                 </div>
-               </div>
-
-               <div>
-                 <div className="flex justify-between items-center mb-2">
-                   <h3 className="font-medium">صمود الأمن السيبراني</h3>
-                   <span className="text-sm">80%</span>
-                 </div>
-                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                   <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '80%' }}></div>
-                 </div>
-               </div>
-
-               <div>
-                 <div className="flex justify-between items-center mb-2">
-                   <h3 className="font-medium">الأمن السيبراني المتعلق بالأطراف الخارجية</h3>
-                   <span className="text-sm">55%</span>
-                 </div>
-                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                   <div className="bg-yellow-500 h-2.5 rounded-full" style={{ width: '55%' }}></div>
-                 </div>
-               </div>
-             </div>
-
-             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-               <div className="border rounded-lg p-4 text-center">
-                 <div className="flex justify-center mb-2">
-                   <CheckCircle className="h-6 w-6 text-green-500" />
-                 </div>
-                 <p className="text-sm font-medium">15 ضابط ممتثل</p>
-               </div>
-
-               <div className="border rounded-lg p-4 text-center">
-                 <div className="flex justify-center mb-2">
-                   <AlertTriangle className="h-6 w-6 text-yellow-500" />
-                 </div>
-                 <p className="text-sm font-medium">8 ضوابط جزئية</p>
-               </div>
-
-               <div className="border rounded-lg p-4 text-center">
-                 <div className="flex justify-center mb-2">
-                   <AlertTriangle className="h-6 w-6 text-red-500" />
-                 </div>
-                 <p className="text-sm font-medium">5 ضوابط غير ممتثلة</p>
-               </div>
-
-               <div className="border rounded-lg p-4 text-center">
-                 <div className="flex justify-center mb-2">
-                   <FileText className="h-6 w-6 text-nca-teal" />
-                 </div>
-                 <p className="text-sm font-medium">4 ضوابط معلقة</p>
-               </div>
-             </div>
-
-             <div className="flex justify-end mt-6">
-               <Button className="bg-nca-teal text-white hover:bg-nca-teal-dark gap-2">
-                 <FileText className="h-4 w-4" />
-                 عرض التقرير التفصيلي
-               </Button>
-             </div>
-           </Card>
         </div>
       </main>
-
-      {/* Task Details Modal (remains the same) */}
-      {/* ... */}
-       {/* Task Details Modal - Updated to show Control Assignments */}
-       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-         <DialogContent className="text-right sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-           <DialogHeader className="text-right">
-             <DialogTitle>تفاصيل المهمة والضوابط</DialogTitle>
-             <DialogDescription>
-               النظام: {selectedTaskForDetailsModal?.sensitiveSystem?.systemName ?? 'غير محدد'} {/* Use nullish coalescing */}
-               <br />
-               الموعد النهائي: {formatDate(selectedTaskForDetailsModal?.deadline)}
-             </DialogDescription>
-           </DialogHeader>
-           <div className="grid gap-4 py-4 text-right">
-             <h4 className="font-semibold">الضوابط المعينة:</h4>
-             {/* Add null check for selectedTaskForDetailsModal */}
-             {selectedTaskForDetailsModal?.controlAssignments && selectedTaskForDetailsModal.controlAssignments.length > 0 ? (
-               selectedTaskForDetailsModal.controlAssignments.map((assignment: FrontendControlAssignment) => ( // Add type
-                 <div key={assignment.id} className="border rounded-md p-3 space-y-1 text-right">
-                   <p><span className="font-semibold">الضابط:</span> {assignment.control.controlNumber} - {assignment.control.controlText}</p>
-                   <p><span className="font-semibold">الحالة:</span> {assignment.status}</p> {/* TODO: Translate */}
-                   <p><span className="font-semibold">المستخدم المسؤول:</span> {assignment.assignedUser?.nameAr || assignment.assignedUser?.name || 'غير معين'}</p>
-                 </div>
-               ))
-             ) : (
-               <p>لا توجد ضوابط مرتبطة بهذه المهمة.</p>
-             )}
-           </div>
-           <DialogFooter>
-             <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>إغلاق</Button>
-           </DialogFooter>
-         </DialogContent>
-       </Dialog>
-
-       {/* Removed the old Assign Task Modal */}
-
     </div>
-  )
+  );
 }

@@ -1,0 +1,119 @@
+# How to Fix the Build Error in department-manager/page.tsx
+
+## Problem Description
+
+The Next.js application is failing to compile with the following error:
+
+```
+Build Error
+Failed to compile
+
+Next.js (14.2.16) is outdated (learn more)
+./app/department-manager/page.tsx
+Error: 
+  × Unexpected token `div`. Expected jsx identifier
+     ╭─[C:\Code\MasterProject\code\cscc_demo\app\department-manager\page.tsx:415:1]
+ 415 │   };
+ 416 │ 
+ 417 │   return (
+ 418 │     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
+     ·      ───
+ 419 │       {/* Header */}
+ 420 │       <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
+ 420 │          <div className="max-w-7xl mx-auto flex items-center justify-between">
+     ╰────
+
+Caused by:
+    Syntax Error
+```
+
+## Root Cause
+
+The error is occurring because the file is incomplete and has unclosed JSX tags. The file appears to be truncated at the end, specifically at a `<Button variant="ghost"` line. This is causing the JSX parser to get confused because it's expecting proper closing tags for all opened elements.
+
+The specific error message points to line 418-420, where there's an issue with the JSX structure. The parser is expecting a JSX identifier after the opening `<div>` tag, but it's finding something unexpected.
+
+## Solution
+
+To fix this issue, you need to ensure that all JSX tags in the file are properly closed. Here are the steps to fix it:
+
+1. Open the file `app/department-manager/page.tsx`
+2. Check for any unclosed JSX tags throughout the file
+3. Pay special attention to the end of the file, which appears to be truncated
+4. Make sure all opening tags have corresponding closing tags
+5. Ensure proper nesting of JSX elements
+
+Here's a checklist of JSX elements that need to be properly closed:
+- `<div className="min-h-screen bg-gray-50 font-sans" dir="rtl">` needs a closing `</div>`
+- `<header>` needs a closing `</header>`
+- `<main>` needs a closing `</main>`
+- `<Card>` needs a closing `</Card>`
+- `<table>` needs a closing `</table>`
+- `<tbody>` needs a closing `</tbody>`
+- `<React.Fragment>` needs a closing `</React.Fragment>`
+- `<tr>` needs a closing `</tr>`
+- `<td>` needs a closing `</td>`
+- Any `<Button>` tags need closing `</Button>` tags
+
+The file appears to be truncated at a `<Button variant="ghost"` line, so you'll need to complete this button tag and ensure all subsequent JSX elements are properly closed.
+
+## Specific Fix for the Current Error
+
+For the specific error at lines 418-420, check if there's any issue with the JSX structure in the header section. Make sure there are no unexpected characters or comments that might be interfering with the JSX parsing.
+
+Here's how the header section should look:
+
+```jsx
+{/* Header */}
+<header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
+  <div className="max-w-7xl mx-auto flex items-center justify-between">
+    {/* Logo and Title - Right Side */}
+    <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
+      {/* ... rest of header content ... */}
+    </div>
+    {/* ... rest of header content ... */}
+  </div>
+</header>
+```
+
+## Fixing the Truncated File
+
+If the file is truncated, you'll need to restore the missing content. Here's a general structure for how the end of the file should look:
+
+```jsx
+{/* ... existing content ... */}
+<Button variant="ghost" size="sm" onClick={() => toggleTaskExpansion(task.id)}>
+  {expandedTasks.has(task.id) ? (
+    <ChevronUp className="h-4 w-4" />
+  ) : (
+    <ChevronDown className="h-4 w-4" />
+  )}
+</Button>
+{/* ... rest of content ... */}
+</td>
+</tr>
+{/* ... rest of content ... */}
+</tbody>
+</table>
+</div>
+</Card>
+{/* ... rest of content ... */}
+</div>
+</main>
+</div>
+);
+}
+```
+
+## Why This Works
+
+JSX requires that all tags be properly closed and nested. By ensuring that each opening tag has a corresponding closing tag and that the nesting is correct, you'll fix the syntax error that's causing the build to fail.
+
+## Additional Notes
+
+- This is a common issue in JSX when files are large and complex
+- Always ensure that JSX tags are properly closed and nested
+- Use an editor with JSX/React support to help identify unclosed tags
+- Consider breaking large components into smaller, more manageable components
+
+After making these changes, the build should compile successfully.
