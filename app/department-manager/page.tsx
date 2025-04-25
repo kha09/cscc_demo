@@ -445,11 +445,18 @@ export default function DepartmentManagerDashboardPage() {
    const averageCompliance = isLoadingTasks || managerTasks.length === 0
      ? 0 // Default to 0 if loading or no tasks
      : Math.round(
-         managerTasks.reduce((sum, task) => sum + calculateProgress(task), 0) / managerTasks.length
-       );
- 
-   // Return statement now only includes the main content for the page,
-   // as the header and sidebar are handled by layout.tsx
+          managerTasks.reduce((sum, task) => sum + calculateProgress(task), 0) / managerTasks.length
+        );
+  
+    // --- Calculate Pending Controls Count Before Return ---
+    const pendingControlsCount = isLoadingTasks
+      ? 0 // Default to 0 if loading
+      : managerTasks.flatMap(task => task.controlAssignments)
+                    .filter(assignment => assignment.complianceLevel === null)
+                    .length;
+  
+    // Return statement now only includes the main content for the page,
+    // as the header and sidebar are handled by layout.tsx
   return (
     // Removed outer div and header
     // <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
@@ -516,12 +523,15 @@ export default function DepartmentManagerDashboardPage() {
               <div className="text-sm text-gray-600 mt-2">أعضاء الفريق</div>
             </Card>
 
-             <Card className="p-6">
-               <div className="flex justify-between items-center">
-                 <div className="text-3xl font-bold">7</div> {/* Placeholder */}
-                 <AlertTriangle className="h-6 w-6 text-yellow-500" />
-               </div>
-               <div className="text-sm text-gray-600 mt-2">مهام معلقة</div>
+              <Card className="p-6">
+                <div className="flex justify-between items-center">
+                  {/* Display the count of pending controls */}
+                  <div className="text-3xl font-bold">
+                    {isLoadingTasks ? '...' : pendingControlsCount}
+                  </div>
+                  <AlertTriangle className="h-6 w-6 text-yellow-500" />
+                </div>
+                <div className="text-sm text-gray-600 mt-2">ضوابط معلقة</div> {/* Updated text to reflect controls */}
              </Card>
             {/* ... other cards ... */}
           </div>
