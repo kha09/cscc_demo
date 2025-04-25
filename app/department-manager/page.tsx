@@ -86,9 +86,7 @@ export default function DepartmentManagerDashboardPage() {
   // Ensure all statuses used in handleSaveNotesAndStatus are included here
   const [assignmentStatus, setAssignmentStatus] = useState<{ [key: string]: 'loading' | 'error' | 'success' | 'saving' | 'saving-success' | 'saving-error' }>({});
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set()); // Track expanded tasks for manager's view
-  const [expandedTeamAssignments, setExpandedTeamAssignments] = useState<Set<string>>(new Set()); // Track expanded team assignments
-  // State for managing notes and status edits within expanded rows (REMOVED as per new logic)
-  // const [editState, setEditState] = useState<{ [assignmentId: string]: { notes: string | null; complianceLevel: ComplianceLevel | null; status: TaskStatus } }>({}); // Allow null notes and complianceLevel
+  // Removed expandedTeamAssignments state
 
   // State for modals
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -114,18 +112,7 @@ export default function DepartmentManagerDashboardPage() {
     });
   };
 
-  // --- Toggle Team Assignment Expansion ---
-  const toggleTeamAssignmentExpansion = (assignmentId: string) => {
-    setExpandedTeamAssignments((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(assignmentId)) {
-        newSet.delete(assignmentId);
-      } else {
-        newSet.add(assignmentId);
-      }
-      return newSet;
-    });
-  };
+  // --- Toggle Team Assignment Expansion (REMOVED) ---
 
   // --- Handle Edits in Expanded Row (REMOVED) ---
   // const handleEditChange = ... (Removed)
@@ -393,12 +380,7 @@ export default function DepartmentManagerDashboardPage() {
     ));
   };
 
-  // --- Calculate Team Assignments Before Return ---
-  const teamAssignments = !isLoadingTasks && !isLoadingUsers ? managerTasks.flatMap((task: FrontendTask) =>
-    task.controlAssignments
-      .filter((assignment: FrontendControlAssignment) => assignment.assignedUserId && assignment.assignedUserId !== user?.id) // Use user.id
-      .map((assignment: FrontendControlAssignment) => ({ ...assignment, taskDeadline: task.deadline, taskSystemName: task.sensitiveSystem?.systemName })) // Include parent task info
-   ) : []; // Keep explicit semicolon
+  // --- Calculate Team Assignments Before Return (REMOVED) ---
 
   // Helper function to determine badge class based on status (Restored)
   const getStatusBadgeClass = (status: TaskStatus | undefined | null): string => {
@@ -414,60 +396,15 @@ export default function DepartmentManagerDashboardPage() {
     }
   };
 
+  // Return statement now only includes the main content for the page,
+  // as the header and sidebar are handled by layout.tsx
   return (
-    <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
-      {/* Header */}
-      <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
-         <div className="max-w-7xl mx-auto flex items-center justify-between">
-           {/* Logo and Title - Right Side */}
-           <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
-             <div className="relative h-16 w-16">
-               <Image
-                 src="/static/image/logo.png" width={160} height={160}
-                 alt="Logo"
-                 className="object-contain"
-               />
-             </div>
-           </div>
-
-           {/* Navigation - Center */}
-           <nav className="hidden md:flex items-center space-x-8 space-x-reverse">
-             <Link href="/dashboard" className="text-white hover:text-gray-300 px-3 py-2">
-               الرئيسية
-             </Link>
-             <Link href="#" className="text-white hover:text-gray-300 px-3 py-2">
-               التقارير
-             </Link>
-             <Link href="/assessment" className="text-white hover:text-gray-300 px-3 py-2">
-               التقييم
-             </Link>
-             <Link href="#" className="text-white hover:text-gray-300 px-3 py-2">
-               الدعم
-             </Link>
-             <Link href="/department-manager" className="text-white bg-nca-teal px-3 py-2 rounded">
-               مدير القسم
-             </Link>
-           </nav>
-
-           {/* User Profile and Bell - Left Side */}
-           <div className="flex items-center space-x-4 space-x-reverse">
-             <Button variant="ghost" size="icon" className="text-white">
-               <Bell className="h-5 w-5" />
-             </Button>
-             <Button variant="ghost" size="icon" className="text-white">
-               <UserIcon className="h-5 w-5" /> {/* Use the aliased icon */}
-             </Button>
-             {/* Logout Button */}
-             <Button variant="ghost" size="icon" className="text-white" onClick={handleLogout}>
-               <LogOut className="h-5 w-5" />
-             </Button>
-           </div>
-         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+    // Removed outer div and header
+    // <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
+      // {/* Header Removed */}
+      // <main className="p-6"> // Main tag is handled by layout
+        // <div className="max-w-7xl mx-auto"> // Removed max-width container, layout handles structure
+        <> {/* Use Fragment to return multiple top-level elements */}
           {/* Display General Errors */}
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
@@ -672,83 +609,8 @@ export default function DepartmentManagerDashboardPage() {
             </div>
           </Card>
 
-          {/* Team Tasks Section */}
-          <Card className="p-6 mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">مهام الفريق</h2>
-              {/* Add filter/export buttons if needed */}
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-right border-b border-gray-200">
-                    <th className="pb-3 font-medium text-gray-700 pr-4">الضابط</th>
-                    <th className="pb-3 font-medium text-gray-700">النظام</th>
-                    <th className="pb-3 font-medium text-gray-700">المستخدم المعين</th>
-                    <th className="pb-3 font-medium text-gray-700">الموعد النهائي للمهمة</th>
-                    <th className="pb-3 font-medium text-gray-700">الحالة</th>
-                    <th className="pb-3 font-medium text-gray-700">مستوى الامتثال</th>
-                    <th className="pb-3 font-medium text-gray-700 pl-4">الإجراءات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoadingTasks || isLoadingUsers ? (
-                    <tr><td colSpan={7} className="text-center py-4">جاري تحميل مهام الفريق...</td></tr>
-                  ) : teamAssignments.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center py-4">لا توجد مهام معينة لأعضاء الفريق.</td></tr>
-                  ) : (
-                    teamAssignments.map((assignment: FrontendControlAssignment & { taskDeadline?: string, taskSystemName?: string }) => ( // Add type for extra props
-                      <React.Fragment key={assignment.id}>
-                        <tr className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-4 pr-4">{assignment.control.controlNumber}</td>
-                          <td className="py-4">{assignment.taskSystemName || 'غير محدد'}</td>
-                          <td className="py-4">{assignment.assignedUser?.nameAr || assignment.assignedUser?.name || 'غير محدد'}</td>
-                          <td className="py-4">{formatDate(assignment.taskDeadline)}</td>
-                          <td className="py-4">
-                            <Badge variant="secondary" className={getStatusBadgeClass(assignment.status)}>
-                              {assignment.status} {/* TODO: Map status */}
-                            </Badge>
-                          </td>
-                          <td className="py-4">
-                            <Badge variant="secondary" className={getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}>
-                              {getComplianceLevelText(assignment.complianceLevel)}
-                            </Badge>
-                          </td>
-                          <td className="py-4 pl-4">
-                            <Button variant="link" size="sm" onClick={() => toggleTeamAssignmentExpansion(assignment.id)} className="text-nca-teal hover:underline">
-                              {expandedTeamAssignments.has(assignment.id) ? "إخفاء التفاصيل" : "عرض التفاصيل"}
-                            </Button>
-                            {/* Maybe add reassign button here too? Or keep it in manager's view? */}
-                          </td>
-                        </tr>
-                        {/* Expanded Row for Team Assignment Details */}
-                        {expandedTeamAssignments.has(assignment.id) && (
-                          <tr className="bg-gray-100">
-                            <td colSpan={7} className="p-4">
-                              <h4 className="font-semibold mb-2 text-sm">تفاصيل الضابط: {assignment.control.controlNumber}</h4>
-                              <p className="text-sm mb-1"><strong>النص:</strong> {assignment.control.controlText}</p>
-                              <p className="text-sm mb-1"><strong>المكون الرئيسي:</strong> {assignment.control.mainComponent}</p>
-                              <p className="text-sm mb-1"><strong>المكون الفرعي:</strong> {assignment.control.subComponent}</p>
-                              <p className="text-sm mb-3"><strong>نوع الضابط:</strong> {assignment.control.controlType}</p>
-                              <Label htmlFor={`notes-${assignment.id}`}>ملاحظات المقيّيم:</Label>
-                              <Textarea
-                                id={`notes-${assignment.id}`}
-                                value={assignment.notes ?? ''}
-                                readOnly // Department manager likely shouldn't edit notes here
-                                className="w-full mt-1 bg-white"
-                                rows={3}
-                              />
-                              {/* Add compliance level/status details if needed */}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          {/* Team Tasks Section (REMOVED) */}
+
 
           {/* Add User Modal */}
           <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
@@ -783,8 +645,9 @@ export default function DepartmentManagerDashboardPage() {
 
           {/* Removed Details Modal as it wasn't fully implemented/used */}
 
-        </div>
-      </main>
-    </div>
+        {/* </div> // Removed max-width container div */}
+      {/* </main> // Main tag is handled by layout */}
+    {/* </div> // Removed outer div */}
+    </> // Close Fragment
   );
 }
