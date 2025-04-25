@@ -488,7 +488,10 @@ export default function DepartmentManagerDashboardPage() {
             {/* ... other cards ... */}
              <Card className="p-6">
                <div className="flex justify-between items-center">
-                 <div className="text-3xl font-bold">8</div> {/* Placeholder */}
+                 {/* Display the count of manager's tasks */}
+                 <div className="text-3xl font-bold">
+                   {isLoadingTasks ? '...' : managerTasks.length}
+                 </div>
                  <ClipboardList className="h-6 w-6 text-nca-teal" />
                </div>
                <div className="text-sm text-gray-600 mt-2">التقييمات النشطة والمنجزة</div>
