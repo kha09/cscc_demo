@@ -11,6 +11,9 @@ const updateControlAssignmentSchema = z.object({
   correctiveActions: z.string().optional().nullable(), // إجراءات التصحيح
   expectedComplianceDate: z.string().datetime({ message: "Invalid date format for expected compliance date" }).optional().nullable(), // تاريخ الالتزام المتوقع (string from client)
   complianceLevel: z.nativeEnum(ComplianceLevel).optional().nullable(), // مستوى الالتزام
+  // --- Added Manager Review Fields ---
+  managerStatus: z.string().optional().nullable(), // حالة مراجعة المدير
+  managerNote: z.string().optional().nullable(),   // ملاحظة المدير للمستخدم
 });
 
 // PATCH handler to update a specific ControlAssignment
@@ -41,7 +44,9 @@ export async function PATCH(
         notes,
         correctiveActions,
         expectedComplianceDate,
-        complianceLevel
+        complianceLevel,
+        managerStatus, // Added
+        managerNote    // Added
     } = validation.data;
 
     // TODO: Add authorization check: Ensure the user making the request is the assigned user for this assignment,
@@ -106,6 +111,14 @@ export async function PATCH(
     if (complianceLevel !== undefined) {
         updateData.complianceLevel = complianceLevel;
     }
+    // --- Handle Manager Review Fields ---
+    if (managerStatus !== undefined) {
+        updateData.managerStatus = managerStatus;
+    }
+    if (managerNote !== undefined) {
+        updateData.managerNote = managerNote;
+    }
+    // --- End Handle Manager Review Fields ---
 
     // Check if there's anything to update
     if (Object.keys(updateData).length === 0) {

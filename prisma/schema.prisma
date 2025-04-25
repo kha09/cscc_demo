@@ -188,6 +188,10 @@ model ControlAssignment {
   expectedComplianceDate DateTime?  // تاريخ الالتزام المتوقع
   complianceLevel        ComplianceLevel? // مستوى الالتزام
 
+  // --- Manager Review Fields ---
+  managerStatus          String?    // حالة مراجعة المدير (e.g., معتمد, طلب تنفيذ, طلب مراجعة)
+  managerNote            String?    // ملاحظة المدير للمستخدم
+
   // @@index([taskId]) // Removed duplicate
   // @@index([controlId]) // Removed duplicate
   @@index([assignedUserId])

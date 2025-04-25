@@ -67,6 +67,8 @@ interface FrontendControlAssignment {
   correctiveActions?: string | null; // Optional
   expectedComplianceDate?: Date | string | null; // Optional, allow string from fetch
   complianceLevel?: ComplianceLevel | null; // Optional
+  managerStatus?: string | null; // Added manager status
+  managerNote?: string | null;   // Added manager note
   control: FrontendControl; // Relation
   task: FrontendTask; // Relation
 }
@@ -548,6 +550,26 @@ export default function UserDashboardPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* --- Display Manager Review (Read-Only) --- */}
+            {selectedAssignment?.managerStatus && (
+              <div className="grid grid-cols-4 items-center gap-4 mt-4 pt-4 border-t">
+                <Label className="text-right col-span-1 font-semibold">حالة المراجعة</Label>
+                <Badge variant="secondary" className="col-span-3 justify-start">
+                  {selectedAssignment.managerStatus}
+                </Badge>
+              </div>
+            )}
+            {selectedAssignment?.managerNote && (
+              <div className="grid grid-cols-4 items-start gap-4 mt-2">
+                <Label className="text-right col-span-1 font-semibold pt-1">ملاحظة المدير</Label>
+                <p className="col-span-3 text-sm bg-gray-100 p-2 rounded border">
+                  {selectedAssignment.managerNote}
+                </p>
+              </div>
+            )}
+            {/* --- End Display Manager Review --- */}
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)} disabled={isSaving}>

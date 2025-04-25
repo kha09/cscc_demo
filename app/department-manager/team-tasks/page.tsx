@@ -16,8 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select imports
 import { ChevronDown, ChevronUp } from "lucide-react";
-import React from "react";
+import React from "react"; // Keep React import if needed elsewhere, though useState/useEffect cover Fragment usage
 
 // --- Type Definitions (Copied from original page.tsx) ---
 type FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'>;
@@ -25,9 +26,11 @@ type FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role'
 interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'createdAt' | 'updatedAt' | 'control' | 'assignedUser'> {
   control: Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText' | 'mainComponent' | 'subComponent' | 'controlType'>;
   assignedUser: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null;
-  notes: string | null;
+  notes: string | null; // User notes
   status: TaskStatus;
   complianceLevel: ComplianceLevel | null;
+  managerStatus?: string | null; // Added manager status
+  managerNote?: string | null;   // Added manager note
 }
 
 interface FrontendTask extends Omit<PrismaTask, 'deadline' | 'createdAt' | 'updatedAt' | 'sensitiveSystem' | 'assignedTo' | 'controlAssignments'> {
@@ -49,6 +52,11 @@ export default function TeamTasksPage() {
   // Removed isLoadingUsers as it's not directly used here for now
   const [error, setError] = useState<string | null>(null);
   const [expandedTeamAssignments, setExpandedTeamAssignments] = useState<Set<string>>(new Set());
+  // State to hold manager updates for each assignment
+  const [assignmentUpdates, setAssignmentUpdates] = useState<{
+    [key: string]: { managerStatus?: string; managerNote?: string }
+  }>({});
+
 
   // --- Helper Functions (Copied from original page.tsx) ---
   const formatDate = (dateString: string | Date | undefined) => {
@@ -103,7 +111,76 @@ export default function TeamTasksPage() {
       return newSet;
     });
   };
+
+  // Handler for updating manager status/notes locally
+  const handleAssignmentUpdateChange = (
+    assignmentId: string,
+    field: 'managerStatus' | 'managerNote',
+    value: string
+  ) => {
+    setAssignmentUpdates(prev => ({
+      ...prev,
+      [assignmentId]: {
+        ...prev[assignmentId],
+        [field]: value,
+      },
+    }));
+  };
+
+  // Function to save manager updates via API
+  const handleSaveChanges = async (assignmentId: string) => {
+    const updateData = assignmentUpdates[assignmentId];
+    if (!updateData || (!updateData.managerStatus && !updateData.managerNote)) {
+      // Don't save if no data or both fields are empty/undefined
+      // Consider adding a user message here if needed
+      return;
+    }
+
+    // Filter out undefined values before sending
+    const payload = Object.entries(updateData).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key as keyof typeof updateData] = value;
+      }
+      return acc;
+    }, {} as { managerStatus?: string; managerNote?: string });
+
+
+    // Add loading state for the specific button if desired
+    console.log(`Saving changes for assignment ${assignmentId}:`, payload);
+
+    try {
+      const response = await fetch(`/api/control-assignments/${assignmentId}`, {
+        method: 'PATCH', // Use PATCH as we are partially updating
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+        throw new Error(errorData.message || `فشل حفظ التغييرات: ${response.statusText}`);
+      }
+
+      // Optionally: Refetch data or update local state more precisely
+      // For now, just show success and maybe clear the update state for this item
+      alert('تم حفظ التغييرات بنجاح!');
+      // Clear the updates for this specific assignment after successful save
+      setAssignmentUpdates(prev => {
+        const newState = { ...prev };
+        delete newState[assignmentId];
+        return newState;
+      });
+      // Consider refetching tasks to show updated data immediately
+      // fetchManagerTasks(); // Keep original name for now, will rename later
+
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      alert(error instanceof Error ? error.message : 'فشل حفظ التغييرات.');
+    } finally {
+      // Remove loading state if added
+    }
+  };
   // --- End Helper Functions ---
+
 
   // --- Fetch Manager's Tasks (to derive team assignments) ---
   const fetchManagerTasks = useCallback(async () => {
@@ -219,6 +296,55 @@ export default function TeamTasksPage() {
                               className="w-full mt-1 bg-white"
                               rows={3}
                             />
+
+                            {/* Manager Review Section */}
+                            <div className="mt-4 pt-4 border-t border-gray-300">
+                              <h5 className="font-semibold mb-3 text-sm">مراجعة المدير</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor={`manager-status-${assignment.id}`} className="mb-1 block">حالة الضابط</Label>
+                                  <Select
+                                    // Prioritize local updates, fallback to fetched value
+                                    value={assignmentUpdates[assignment.id]?.managerStatus !== undefined
+                                           ? assignmentUpdates[assignment.id]?.managerStatus
+                                           : assignment.managerStatus ?? ''}
+                                    onValueChange={(value) => handleAssignmentUpdateChange(assignment.id, 'managerStatus', value)}
+                                  >
+                                    <SelectTrigger id={`manager-status-${assignment.id}`} className="w-full bg-white">
+                                      <SelectValue placeholder="اختر الحالة" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="معتمد">معتمد</SelectItem>
+                                      <SelectItem value="طلب تنفيذ">طلب تنفيذ</SelectItem>
+                                      <SelectItem value="طلب مراجعة">طلب مراجعة</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor={`manager-note-${assignment.id}`} className="mb-1 block">ملاحظة للمستخدم</Label>
+                                  <Textarea
+                                    id={`manager-note-${assignment.id}`}
+                                    placeholder="أضف ملاحظة للمستخدم هنا..."
+                                    // Prioritize local updates, fallback to fetched value
+                                    value={assignmentUpdates[assignment.id]?.managerNote !== undefined
+                                           ? assignmentUpdates[assignment.id]?.managerNote
+                                           : assignment.managerNote ?? ''}
+                                    onChange={(e) => handleAssignmentUpdateChange(assignment.id, 'managerNote', e.target.value)}
+                                    className="w-full bg-white"
+                                    rows={3}
+                                  />
+                                </div>
+                              </div>
+                              <div className="mt-3 text-right">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSaveChanges(assignment.id)}
+                                  disabled={!assignmentUpdates[assignment.id]?.managerStatus && !assignmentUpdates[assignment.id]?.managerNote} // Disable if no changes
+                                >
+                                  حفظ التغييرات
+                                </Button>
+                              </div>
+                            </div>
                           </td>
                         </tr>
                       )}
