@@ -518,7 +518,7 @@ export default function DepartmentManagerDashboardPage() {
                     <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th>
                     <th className="pb-3 font-medium text-gray-700">الحالة</th>
                     <th className="pb-3 font-medium text-gray-700">التقدم</th>
-                    <th className="pb-3 font-medium text-gray-700 pl-4">الإجراءات</th>
+                    {/*<th className="pb-3 font-medium text-gray-700 pl-4">الإجراءات</th>*/}
                   </tr>
                 </thead>
                 <tbody>
@@ -579,9 +579,9 @@ export default function DepartmentManagerDashboardPage() {
                                     <th className="pb-2 font-medium text-gray-600 text-right pr-2">الضابط</th>
                                     <th className="pb-2 font-medium text-gray-600 text-right">النص</th>
                                     <th className="pb-2 font-medium text-gray-600 text-right">المستخدم المعين</th>
-                                    <th className="pb-2 font-medium text-gray-600 text-right">الحالة</th>
+                                    {/* Removed الحالة Header */}
                                     <th className="pb-2 font-medium text-gray-600 text-right">مستوى الامتثال</th>
-                                    <th className="pb-2 font-medium text-gray-600 text-right pl-2">الإجراء</th>
+                                    {/*<th className="pb-2 font-medium text-gray-600 text-right pl-2">الإجراء</th>*/}
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -611,11 +611,7 @@ export default function DepartmentManagerDashboardPage() {
                                         {assignmentStatus[assignment.id] === 'success' && <CheckCircle className="h-4 w-4 text-green-500 inline ml-2" />}
                                         {assignmentStatus[assignment.id] === 'error' && <AlertTriangle className="h-4 w-4 text-red-500 inline ml-2" />}
                                       </td>
-                                      <td className="py-2">
-                                        <Badge variant="secondary" className={getStatusBadgeClass(assignment.status)}>
-                                          {assignment.status} {/* TODO: Map status */}
-                                        </Badge>
-                                      </td>
+                                      {/* Removed الحالة Cell */}
                                       <td className="py-2">
                                         <Badge variant="secondary" className={getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}>
                                           {getComplianceLevelText(assignment.complianceLevel)}
@@ -691,8 +687,9 @@ export default function DepartmentManagerDashboardPage() {
                         <span className="text-sm font-medium truncate" title={`${assignment.taskSystemName} - ${assignment.control.controlNumber}`}>
                           {assignment.taskSystemName || 'غير محدد'} - {assignment.control.controlNumber}
                         </span>
-                        <Badge variant={assignment.status === 'COMPLETED' ? 'default' : assignment.status === 'PENDING' ? 'default' : 'secondary'} className={`text-xs ${getStatusBadgeClass(assignment.status)}`}>
-                          {assignment.status} {/* TODO: Translate */}
+                        {/* Replace TaskStatus badge with ComplianceLevel badge */}
+                        <Badge variant="secondary" className={`text-xs ${getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}`}>
+                          {getComplianceLevelText(assignment.complianceLevel)}
                         </Badge>
                       </div>
                       <p className="text-xs text-gray-600 mb-2 truncate" title={assignment.control.controlText}>
