@@ -689,20 +689,23 @@ export default function DepartmentManagerDashboardPage() {
                                       />
                                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                                         <div className="w-full sm:w-auto flex-grow">
-                                          <Label htmlFor={`status-${assignment.id}`} className="text-xs font-medium text-gray-600">تغيير الحالة:</Label>
+                                          <Label htmlFor={`status-${assignment.id}`} className="text-xs font-medium text-gray-600">حالة الضابط:</Label>
                                           <Select
                                             dir="rtl"
                                             value={editState[assignment.id]?.status ?? assignment.status}
                                             onValueChange={(value) => handleEditChange(assignment.id, 'status', value as TaskStatus)}
                                           >
                                             <SelectTrigger id={`status-${assignment.id}`} className="w-full text-right text-sm">
-                                              <SelectValue placeholder="اختر الحالة..." />
+                                            <SelectValue placeholder="اختر الحالة..." />
                                             </SelectTrigger>
                                             <SelectContent>
-                                              <SelectItem value={TaskStatus.PENDING}>قيد الانتظار</SelectItem>
-                                              <SelectItem value={TaskStatus.IN_PROGRESS}>قيد التنفيذ</SelectItem>
-                                              <SelectItem value={TaskStatus.COMPLETED}>مكتمل (للمراجعة)</SelectItem>
-                                              <SelectItem value={TaskStatus.OVERDUE}>متأخر</SelectItem>
+                                              <SelectItem value="APPROVED">معتمد</SelectItem>
+                                              <SelectItem value="IN_PROGRESS">طلب تنفيذ</SelectItem>
+                                              <SelectItem value="REJECTED">طلب تعديل</SelectItem>
+                                              {/* Keep other statuses for display if needed, but only allow selection of the requested three */}
+                                              {/* <SelectItem value="PENDING">قيد الانتظار</SelectItem> */}
+                                              {/* <SelectItem value="COMPLETED">مكتمل (للمراجعة)</SelectItem> */}
+                                              {/* <SelectItem value="OVERDUE">متأخر</SelectItem> */}
                                             </SelectContent>
                                           </Select>
                                         </div>
