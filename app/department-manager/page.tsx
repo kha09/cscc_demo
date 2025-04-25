@@ -312,6 +312,34 @@ export default function DepartmentManagerDashboardPage() {
     }
   };
 
+  // --- Helper function to determine Department Manager Task Status ---
+  const getDMTaskStatus = (task: FrontendTask): { text: string; className: string } => {
+    // Check if controlAssignments exist and are not empty
+    if (!task.controlAssignments || task.controlAssignments.length === 0) {
+      // If no controls, default to 'In Progress'
+      return { text: 'قيد التنفيذ', className: 'bg-blue-100 text-blue-700' };
+    }
+
+    const totalControls = task.controlAssignments.length;
+    const evaluatedControls = task.controlAssignments.filter(
+      (assignment) => assignment.complianceLevel !== null
+    ).length;
+
+    // Condition: All controls have been evaluated (complianceLevel is set)
+    if (evaluatedControls === totalControls) {
+      return { text: 'مكتمل للمراجعة والاعتماد', className: 'bg-green-100 text-green-700' };
+    }
+
+    // Otherwise, it's still in progress
+    return { text: 'قيد التنفيذ', className: 'bg-blue-100 text-blue-700' };
+
+    // Deferred 'معتمد' logic (See معتمد.mdc):
+    // Check assessment status
+    // if (assessmentIsApproved) {
+    //   return { text: 'معتمد', className: 'bg-purple-100 text-purple-700' };
+    // }
+  };
+
 
   // Helper function to format date
   // (This function remains the same)
@@ -510,16 +538,15 @@ export default function DepartmentManagerDashboardPage() {
                         </td>
                         <td className="py-4">{formatDate(task.deadline)}</td>
                         <td className="py-4">
-                          {/* Use Badge component for status */}
-                          <Badge variant={task.status === 'COMPLETED' ? 'default' : task.status === 'PENDING' ? 'default' : 'secondary'} className={
-                            task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                            task.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                            task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                            task.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700' // Fallback style
-                          }>
-                            {task.status} {/* TODO: Map status keys to Arabic */}
-                          </Badge>
+                          {/* Use new helper function for DM-specific status */}
+                          {(() => {
+                            const { text, className } = getDMTaskStatus(task);
+                            return (
+                              <Badge variant="secondary" className={className}>
+                                {text}
+                              </Badge>
+                            );
+                          })()}
                         </td>
                         <td className="py-4">
                           {/* Progress calculation might need adjustment based on controlAssignments */}

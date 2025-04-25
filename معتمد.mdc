@@ -1,0 +1,18 @@
+# Logic for "معتمد" Status (Department Manager View)
+
+This file outlines the logic for displaying the "معتمد" (Approved) status for a task in the "المهام المعينة لك" (Tasks Assigned to You) section of the Department Manager dashboard (`app/department-manager/page.tsx`).
+
+**Condition:**
+
+The task status should display as "معتمد" **only if** the associated assessment has been formally approved by the Security Manager.
+
+**Implementation Notes (Deferred):**
+
+*   This requires checking the status of the parent `Assessment` related to the `Task`.
+*   The `Assessment` model currently does not have an explicit `status` field (e.g., `PENDING_APPROVAL`, `APPROVED`, `REJECTED`). This might need to be added to the `prisma/schema.prisma`.
+*   Alternatively, the approval logic might reside elsewhere, potentially involving a separate approval record or workflow state.
+*   The `getDMTaskStatus` function in `app/department-manager/page.tsx` will need to be updated to fetch or receive the assessment's approval status and incorporate this check.
+
+**Current Status:**
+
+This logic is **deferred**. The current implementation only handles "قيد التنفيذ" and "مكتمل للمراجعة والاعتماد".

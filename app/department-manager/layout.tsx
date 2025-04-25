@@ -132,7 +132,7 @@ export default function DepartmentManagerLayout({
 
         {/* Main Content Area */}
         {/* Adjusted margin-right based on sidebar state for larger screens */}
-        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-64' : 'md:mr-20'}`}>
+        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
           {/* Overlay for mobile when sidebar is open */}
           {isSidebarOpen && (
             <div
