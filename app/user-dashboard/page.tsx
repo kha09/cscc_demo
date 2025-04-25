@@ -513,7 +513,7 @@ export default function UserDashboardPage() {
                   >
                     <CalendarIcon className="ml-2 h-4 w-4" />
                     {modalFormData.expectedComplianceDate ? (
-                      format(modalFormData.expectedComplianceDate, "PPP", { locale: require("date-fns/locale/ar-SA") }) // Use Arabic locale if available
+                      format(modalFormData.expectedComplianceDate, "PPP") // Removed locale option
                     ) : (
                       <span>اختر تاريخًا</span>
                     )}
