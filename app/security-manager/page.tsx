@@ -525,7 +525,7 @@ export default function SecurityManagerDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
              <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">التقييمات المعينة</CardTitle>
+                <CardTitle className="text-sm font-medium">التقييمات النشطة والمنجزة </CardTitle>
                 <ShieldCheck className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -591,6 +591,8 @@ export default function SecurityManagerDashboardPage() {
                 <table className="w-full">
                 <thead>
                   <tr className="text-right border-b border-gray-200">
+                  <th className="pb-3 font-medium text-gray-700">اسم التقييم</th> {/* Added Assessment Name Header */}
+
                     <th className="pb-3 font-medium text-gray-700 pr-4">اسم الشركة (عربي)</th>
                     <th className="pb-3 font-medium text-gray-700">اسم الشركة (انجليزي)</th>
                     <th className="pb-3 font-medium text-gray-700">تاريخ الإنشاء</th>
@@ -615,6 +617,8 @@ export default function SecurityManagerDashboardPage() {
                   ) : (
                     filteredAssessments.map((assessment) => (
                       <tr key={assessment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4">{(assessment as AssessmentWithName).assessmentName || '-'}</td> {/* Added Assessment Name Data */}
+
                         <td className="py-4 pr-4">{assessment.companyNameAr}</td>
                         <td className="py-4">{assessment.companyNameEn}</td>
                         <td className="py-4">{formatDate(assessment.createdAt)}</td>

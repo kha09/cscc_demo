@@ -86,7 +86,7 @@ export default function AdminDashboardPage() {
   const [secondaryContactMobile, setSecondaryContactMobile] = useState('');
   const [secondaryContactPhone, setSecondaryContactPhone] = useState('');
   const [secondaryContactEmail, setSecondaryContactEmail] = useState('');
-  const [assessmentName, setAssessmentName] = useState(''); // <-- Add state for assessment name
+const [assessmentName, setAssessmentName] = useState('غير محدد'); // Default hidden assessment name
   const [isLoading, setIsLoading] = useState(false); // Loading state for fetching managers
   const [fetchError, setFetchError] = useState<string | null>(null); // Error state for fetching managers
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle'); // For form submission feedback
@@ -765,20 +765,7 @@ export default function AdminDashboardPage() {
                         />
                         {logoFile && <p className="text-xs text-gray-500 mt-1">الملف المحدد: {logoFile.name}</p>}
                       </div>
-                      {/* Assessment Name Input */}
-                      <div>
-                        <Label htmlFor="assessmentName" className="mb-2 block">
-                          اسم التقييم <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="assessmentName"
-                          value={assessmentName}
-                          onChange={(e) => setAssessmentName(e.target.value)}
-                          required
-                          className="text-right"
-                          placeholder="مثال: تقييم الربع الأول 2025"
-                        />
-                      </div>
+                      <input type="hidden" name="assessmentName" value={assessmentName} />
                     </fieldset>
 
                     {/* Security Manager Info */}
