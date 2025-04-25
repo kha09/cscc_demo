@@ -163,14 +163,25 @@ export default function TeamTasksPage() {
       // Optionally: Refetch data or update local state more precisely
       // For now, just show success and maybe clear the update state for this item
       alert('تم حفظ التغييرات بنجاح!');
-      // Clear the updates for this specific assignment after successful save
-      setAssignmentUpdates(prev => {
-        const newState = { ...prev };
-        delete newState[assignmentId];
-        return newState;
-      });
-      // Consider refetching tasks to show updated data immediately
-      // fetchManagerTasks(); // Keep original name for now, will rename later
+      // Update the main tasks state to reflect the saved changes immediately
+      setManagerTasks(prevTasks => prevTasks.map(task => ({
+        ...task,
+        controlAssignments: task.controlAssignments.map(assignment => {
+          if (assignment.id === assignmentId) {
+            // Update the specific assignment with the saved data
+            return {
+              ...assignment,
+              managerStatus: payload.managerStatus ?? assignment.managerStatus, // Use saved value or keep old if undefined
+              managerNote: payload.managerNote ?? assignment.managerNote,     // Use saved value or keep old if undefined
+            };
+          }
+          return assignment;
+        }),
+      })));
+      // No need to refetch if we update the state directly.
+      // We also don't clear assignmentUpdates here anymore; the updated managerTasks
+      // state will now correctly feed the value prop of the inputs.
+      // assignmentUpdates is now primarily used to track unsaved changes for the button's disabled state.
 
     } catch (error) {
       console.error('Error saving changes:', error);
