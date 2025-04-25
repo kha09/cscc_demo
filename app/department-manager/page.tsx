@@ -468,8 +468,8 @@ export default function DepartmentManagerDashboardPage() {
             {/* ... other cards ... */}
           </div>
 
-          {/* Tasks Assigned TO MANAGER Section */}
-          <Card className="p-6 mb-6">
+            {/* Tasks Assigned TO MANAGER Section - Now in its own row */}
+            <Card className="p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">المهام المعينة لك ({user?.nameAr || user?.name})</h2> {/* Use user.nameAr or user.name */}
               {/* ... (filter/export buttons) ... */}
@@ -609,16 +609,43 @@ export default function DepartmentManagerDashboardPage() {
             </div>
           </Card>
 
+          {/* Team Members Card - Now in its own row, below Tasks */}
+          <Card className="mb-6">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xl font-semibold">أعضاء الفريق</CardTitle>
+                {/* Add User Button/Modal Trigger */}
+                <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white">
+                      <UserPlus className="h-4 w-4" />
+                      إضافة عضو
+                    </Button>
+                  </DialogTrigger>
+                  {/* Modal Content is defined later, only trigger is here */}
+                </Dialog>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4 max-h-[400px] overflow-y-auto">
+                 {/* Render Team Members */}
+                 {renderUserList(teamMembers, (_user) => ( // Prefixed unused 'user' with '_'
+                   <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
+                     عرض التفاصيل {/* Placeholder for future action */}
+                   </Button>
+                 ))}
+                 {/* Handle loading and empty states */}
+                 {isLoadingUsers && <p>جاري تحميل أعضاء الفريق...</p>}
+                 {!isLoadingUsers && teamMembers.length === 0 && (
+                   <p className="text-center text-gray-500 py-4">لا يوجد أعضاء في هذا الفريق بعد.</p>
+                 )}
+              </CardContent>
+            </Card>
+
           {/* Team Tasks Section (REMOVED) */}
 
 
           {/* Add User Modal */}
+          {/* Trigger is now inside the Team Members Card Header */}
           <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="fixed bottom-6 left-6 bg-nca-teal hover:bg-nca-dark-teal text-white rounded-full p-4 shadow-lg">
-                <UserPlus className="h-6 w-6" />
-              </Button>
-            </DialogTrigger>
+            {/* NO TRIGGER HERE */}
             <DialogContent className="sm:max-w-[600px]" dir="rtl">
               <DialogHeader>
                 <DialogTitle>إضافة مستخدم إلى فريقك ({user?.department})</DialogTitle> {/* Use user.department */}
