@@ -81,7 +81,6 @@ export default function DepartmentManagerDashboardPage() {
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<FrontendUser | null>(null);
   // Ensure all statuses used in handleSaveNotesAndStatus are included here
   const [assignmentStatus, setAssignmentStatus] = useState<{ [key: string]: 'loading' | 'error' | 'success' | 'saving' | 'saving-success' | 'saving-error' }>({});
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set()); // Track expanded tasks
@@ -96,7 +95,7 @@ export default function DepartmentManagerDashboardPage() {
   // Removed state related to the old incorrect assignment modal
 
   // Auth and Routing
-  const { logout } = useAuth();
+  const { user, logout } = useAuth(); // Get user from auth context
   const router = useRouter();
 
   // --- Toggle Task Expansion ---
@@ -210,44 +209,9 @@ export default function DepartmentManagerDashboardPage() {
   };
 
 
-  // --- Fetch Current User (Department Manager) ---
-  // (This useEffect remains largely the same)
-  useEffect(() => {
-    const fetchDeptManager = async () => {
-      setIsLoadingUsers(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/users');
-        if (!response.ok) throw new Error(`Failed to fetch users: ${response.statusText}`);
-        const users: PrismaUser[] = await response.json();
-        const deptManager = users.find(user => user.role === 'DEPARTMENT_MANAGER');
-
-        if (deptManager) {
-          setCurrentUser({
-            id: deptManager.id,
-            name: deptManager.name,
-            nameAr: deptManager.nameAr,
-            email: deptManager.email,
-            role: deptManager.role,
-            department: deptManager.department
-          });
-        } else {
-          setError("Logged-in user is not a Department Manager or user not found.");
-        }
-      } catch (err: unknown) { // Changed any to unknown
-        console.error("Error fetching current user:", err);
-        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-        setError(errorMessage || "Failed to get current user information.");
-      }
-      // Loading state handled by fetchUsers now
-    };
-    fetchDeptManager();
-  }, []);
-
   // --- Fetch Team Members and Available Users ---
-  // (This useCallback remains largely the same)
   const fetchUsers = useCallback(async () => {
-    if (!currentUser?.department) {
+    if (!user?.department) { // Use user from useAuth
         setIsLoadingUsers(false);
         return;
     }
@@ -256,7 +220,7 @@ export default function DepartmentManagerDashboardPage() {
     // setError(null);
 
     try {
-        const teamResponse = await fetch(`/api/users?department=${currentUser.department}&role=USER`);
+        const teamResponse = await fetch(`/api/users?department=${user.department}&role=USER`); // Use user.department
         if (!teamResponse.ok) throw new Error(`Failed to fetch team members: ${teamResponse.statusText}`);
         const teamData: FrontendUser[] = await teamResponse.json();
         setTeamMembers(teamData);
@@ -265,7 +229,7 @@ export default function DepartmentManagerDashboardPage() {
         if (!availableResponse.ok) throw new Error(`Failed to fetch available users: ${availableResponse.statusText}`);
         const allUserData: FrontendUser[] = await availableResponse.json();
         const currentTeamMemberIds = new Set(teamData.map(member => member.id));
-        const availableData = allUserData.filter(user => !currentTeamMemberIds.has(user.id));
+        const availableData = allUserData.filter(availableUser => !currentTeamMemberIds.has(availableUser.id)); // Renamed parameter
         setAvailableUsers(availableData);
 
     } catch (err: unknown) { // Changed any to unknown
@@ -277,7 +241,7 @@ export default function DepartmentManagerDashboardPage() {
     } finally {
         setIsLoadingUsers(false);
     }
-  }, [currentUser, error]); // Keep dependencies
+  }, [user, error]); // Depend on user
 
   useEffect(() => {
     fetchUsers();
@@ -287,7 +251,7 @@ export default function DepartmentManagerDashboardPage() {
    // --- Fetch Tasks (Assigned to Manager) ---
    // Renamed fetchAllTasks to fetchManagerTasks for clarity
    const fetchManagerTasks = useCallback(async () => {
-    if (!currentUser?.id) {
+    if (!user?.id) { // Use user from useAuth
       if (!isLoadingUsers && !error) {
            setIsLoadingTasks(false);
       }
@@ -301,7 +265,7 @@ export default function DepartmentManagerDashboardPage() {
     try {
       // Fetch tasks assigned directly TO the current manager, including control assignments
       // Add cache: 'no-store' to prevent caching
-      const response = await fetch(`/api/tasks?assignedToId=${currentUser.id}`, { cache: 'no-store' });
+      const response = await fetch(`/api/tasks?assignedToId=${user.id}`, { cache: 'no-store' }); // Use user.id
       if (!response.ok) {
         throw new Error(`Failed to fetch manager tasks: ${response.statusText}`);
       }
@@ -325,8 +289,8 @@ export default function DepartmentManagerDashboardPage() {
     } finally {
       setIsLoadingTasks(false);
     }
-  // Depend on currentUser.id, isLoadingUsers, and error state
-  }, [currentUser, isLoadingUsers, error]); // Added error dependency
+  // Depend on user.id, isLoadingUsers, and error state
+  }, [user, isLoadingUsers, error]); // Depend on user
 
   useEffect(() => {
     fetchManagerTasks();
@@ -334,9 +298,8 @@ export default function DepartmentManagerDashboardPage() {
 
 
   // --- Add User to Team ---
-  // (This function remains the same)
   const handleAddUserToTeam = async (userId: string) => {
-    if (!currentUser?.department) {
+    if (!user?.department) { // Use user from useAuth
       setError("لا يمكن إضافة المستخدم: لم يتم تحديد قسم المدير.");
       return;
     }
@@ -344,7 +307,7 @@ export default function DepartmentManagerDashboardPage() {
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ department: currentUser.department }),
+        body: JSON.stringify({ department: user.department }), // Use user.department
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -543,7 +506,7 @@ export default function DepartmentManagerDashboardPage() {
           <div className="flex justify-between items-center mb-6">
             {/* Dynamically display department name */}
             <h1 className="text-2xl font-bold text-slate-800">
-              لوحة مدير القسم {currentUser?.department ? `- ${currentUser.department}` : ''}
+              لوحة مدير القسم {user?.department ? `- ${user.department}` : ''} {/* Use user.department */}
             </h1>
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -598,7 +561,7 @@ export default function DepartmentManagerDashboardPage() {
           {/* Tasks Assigned TO MANAGER Section */}
           <Card className="p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">المهام المعينة لك ({currentUser?.nameAr || currentUser?.name})</h2>
+              <h2 className="text-xl font-semibold">المهام المعينة لك ({user?.nameAr || user?.name})</h2> {/* Use user.nameAr or user.name */}
               {/* ... (filter/export buttons) ... */}
             </div>
             <div className="overflow-x-auto">
@@ -854,7 +817,7 @@ export default function DepartmentManagerDashboardPage() {
                     // Prepare data: Map assignments to include their parent task details
                     const teamAssignments = managerTasks.flatMap((task: FrontendTask) =>
                       task.controlAssignments
-                        .filter((assignment: FrontendControlAssignment) => assignment.assignedUserId && assignment.assignedUserId !== currentUser?.id)
+                        .filter((assignment: FrontendControlAssignment) => assignment.assignedUserId && assignment.assignedUserId !== user?.id) // Use user.id
                         .map((assignment: FrontendControlAssignment) => ({ ...assignment, taskDeadline: task.deadline, taskSystemName: task.sensitiveSystem?.systemName })) // Include parent task info
                     );
 

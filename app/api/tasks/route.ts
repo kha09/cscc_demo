@@ -150,15 +150,10 @@ export async function GET(request: NextRequest) {
       // Use include for sensitiveSystem, then select within it
       const includeOptions = {
         sensitiveSystem: {     // Include sensitiveSystem relation
-          select: {            // Select specific fields from sensitiveSystem
-            systemName: true,
-           assessment: {        // Include the assessment relation within sensitiveSystem
-             select: {
-               id: true, // Try selecting 'id' instead of 'assessmentName'
-             }
-           }
-        }
-      },
+          include: {           // Include the nested assessment relation
+            assessment: true,
+          }
+        },
       assignedBy: { select: { id: true, name: true } },
       assignedTo: { select: { id: true, name: true, nameAr: true, department: true } },
       // Include controlAssignments with control and assigned user details
