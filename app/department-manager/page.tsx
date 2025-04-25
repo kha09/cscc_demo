@@ -438,11 +438,18 @@ export default function DepartmentManagerDashboardPage() {
       // case TaskStatus.APPROVED: return 'bg-purple-100 text-purple-700';
       // case TaskStatus.REJECTED: return 'bg-orange-100 text-orange-700';
       default: return 'bg-gray-100 text-gray-700'; // Fallback style
-    }
-  };
-
-  // Return statement now only includes the main content for the page,
-  // as the header and sidebar are handled by layout.tsx
+     }
+   };
+ 
+   // --- Calculate Average Compliance Before Return ---
+   const averageCompliance = isLoadingTasks || managerTasks.length === 0
+     ? 0 // Default to 0 if loading or no tasks
+     : Math.round(
+         managerTasks.reduce((sum, task) => sum + calculateProgress(task), 0) / managerTasks.length
+       );
+ 
+   // Return statement now only includes the main content for the page,
+   // as the header and sidebar are handled by layout.tsx
   return (
     // Removed outer div and header
     // <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
@@ -484,15 +491,18 @@ export default function DepartmentManagerDashboardPage() {
                  <div className="text-3xl font-bold">8</div> {/* Placeholder */}
                  <ClipboardList className="h-6 w-6 text-nca-teal" />
                </div>
-               <div className="text-sm text-gray-600 mt-2">التقييمات النشطة</div>
+               <div className="text-sm text-gray-600 mt-2">التقييمات النشطة والمنجزة</div>
              </Card>
-
-             <Card className="p-6">
-               <div className="flex justify-between items-center">
-                 <div className="text-3xl font-bold">68%</div> {/* Placeholder */}
-                 <BarChart className="h-6 w-6 text-nca-teal" />
-               </div>
-               <div className="text-sm text-gray-600 mt-2">متوسط نسبة الامتثال</div>
+ 
+              <Card className="p-6">
+                <div className="flex justify-between items-center">
+                  {/* Display calculated average compliance */}
+                  <div className="text-3xl font-bold">
+                    {isLoadingTasks ? '...' : `${averageCompliance}%`}
+                  </div>
+                  <BarChart className="h-6 w-6 text-nca-teal" />
+                </div>
+                <div className="text-sm text-gray-600 mt-2">متوسط نسبة الامتثال</div>
              </Card>
 
             <Card className="p-6">
