@@ -673,15 +673,11 @@ export default function DepartmentManagerDashboardPage() {
                   {/* Modal Content is defined later, only trigger is here */}
                 </Dialog>
               </CardHeader>
-              <CardContent className="pt-4 space-y-4 max-h-[400px] overflow-y-auto">
-                 {/* Render Team Members */}
-                 {renderUserList(teamMembers, (_user) => ( // Prefixed unused 'user' with '_'
-                   <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900">
-                     عرض التفاصيل {/* Placeholder for future action */}
-                   </Button>
-                 ))}
-                 {/* Handle loading and empty states */}
-                 {isLoadingUsers && <p>جاري تحميل أعضاء الفريق...</p>}
+               <CardContent className="pt-4 space-y-4 max-h-[400px] overflow-y-auto">
+                  {/* Render Team Members - Removed action button */}
+                  {renderUserList(teamMembers)}
+                  {/* Handle loading and empty states */}
+                  {isLoadingUsers && <p>جاري تحميل أعضاء الفريق...</p>}
                  {!isLoadingUsers && teamMembers.length === 0 && (
                    <p className="text-center text-gray-500 py-4">لا يوجد أعضاء في هذا الفريق بعد.</p>
                  )}
