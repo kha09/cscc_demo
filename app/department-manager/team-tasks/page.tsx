@@ -211,7 +211,7 @@ export default function TeamTasksPage() {
                             <p className="text-sm mb-1"><strong>المكون الرئيسي:</strong> {assignment.control.mainComponent}</p>
                             <p className="text-sm mb-1"><strong>المكون الفرعي:</strong> {assignment.control.subComponent}</p>
                             <p className="text-sm mb-3"><strong>نوع الضابط:</strong> {assignment.control.controlType}</p>
-                            <Label htmlFor={`notes-${assignment.id}`}>الملاحظات:</Label>
+                            <Label htmlFor={`notes-${assignment.id}`}>ملاحظات المقيّم:</Label>
                             <Textarea
                               id={`notes-${assignment.id}`}
                               value={assignment.notes ?? ''}
