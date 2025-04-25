@@ -591,12 +591,8 @@ export default function DepartmentManagerDashboardPage() {
                         {/* Actions Column */}
                         <td className="py-4 pl-4">
                            {/* Button to show/hide details */}
-                           <Button variant="ghost" size="sm" onClick={() => toggleTaskExpansion(task.id)}>
-                             {expandedTasks.has(task.id) ? (
-                               <ChevronUp className="h-4 w-4" />
-                             ) : (
-                               <ChevronDown className="h-4 w-4" />
-                             )}
+                           <Button variant="link" size="sm" onClick={() => toggleTaskExpansion(task.id)} className="text-nca-teal hover:underline">
+                             {expandedTasks.has(task.id) ? "إخفاء التفاصيل" : "عرض التفاصيل"}
                            </Button>
                            {/* Add other actions like 'View Details' if needed */}
                         </td>
@@ -605,7 +601,7 @@ export default function DepartmentManagerDashboardPage() {
                       {expandedTasks.has(task.id) && (
                         <tr className="bg-gray-100">
                           <td colSpan={7} className="p-4"> {/* Updated colSpan */}
-                            <h4 className="font-semibold mb-2 text-sm">الضوابط المعينة لهذه المهمة:</h4>
+                            <h4 className="font-semibold mb-2 text-sm">الضوابط :</h4>
                             {task.controlAssignments && task.controlAssignments.length > 0 ? (
                               <table className="w-full text-sm">
                                 <thead>
@@ -719,8 +715,8 @@ export default function DepartmentManagerDashboardPage() {
                             </Badge>
                           </td>
                           <td className="py-4 pl-4">
-                            <Button variant="ghost" size="sm" onClick={() => toggleTeamAssignmentExpansion(assignment.id)}>
-                              {expandedTeamAssignments.has(assignment.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            <Button variant="link" size="sm" onClick={() => toggleTeamAssignmentExpansion(assignment.id)} className="text-nca-teal hover:underline">
+                              {expandedTeamAssignments.has(assignment.id) ? "إخفاء التفاصيل" : "عرض التفاصيل"}
                             </Button>
                             {/* Maybe add reassign button here too? Or keep it in manager's view? */}
                           </td>
@@ -734,7 +730,7 @@ export default function DepartmentManagerDashboardPage() {
                               <p className="text-sm mb-1"><strong>المكون الرئيسي:</strong> {assignment.control.mainComponent}</p>
                               <p className="text-sm mb-1"><strong>المكون الفرعي:</strong> {assignment.control.subComponent}</p>
                               <p className="text-sm mb-3"><strong>نوع الضابط:</strong> {assignment.control.controlType}</p>
-                              <Label htmlFor={`notes-${assignment.id}`}>الملاحظات:</Label>
+                              <Label htmlFor={`notes-${assignment.id}`}>ملاحظات المقيّيم:</Label>
                               <Textarea
                                 id={`notes-${assignment.id}`}
                                 value={assignment.notes ?? ''}
