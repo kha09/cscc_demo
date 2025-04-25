@@ -593,8 +593,7 @@ export default function SecurityManagerDashboardPage() {
                   <tr className="text-right border-b border-gray-200">
                   <th className="pb-3 font-medium text-gray-700">اسم التقييم</th> {/* Added Assessment Name Header */}
 
-                    <th className="pb-3 font-medium text-gray-700 pr-4">اسم الشركة (عربي)</th>
-                    <th className="pb-3 font-medium text-gray-700">اسم الشركة (انجليزي)</th>
+                    <th className="pb-3 font-medium text-gray-700">حالة التقييم</th>
                     <th className="pb-3 font-medium text-gray-700">تاريخ الإنشاء</th>
                     {/* <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th> */}
                     {/* <th className="pb-3 font-medium text-gray-700">التقدم</th> */}
@@ -604,23 +603,22 @@ export default function SecurityManagerDashboardPage() {
                 <tbody>
                   {isLoadingAssessments ? ( // Corrected variable name
                     <tr>
-                      <td colSpan={5} className="text-center py-4">جاري تحميل التقييمات...</td>
+                      <td colSpan={4} className="text-center py-4">جاري تحميل التقييمات...</td> {/* Adjusted colspan */}
                     </tr>
                   ) : assessmentsError ? ( // Corrected variable name
                      <tr>
-                      <td colSpan={5} className="text-center py-4 text-red-600">{assessmentsError}</td> {/* Corrected variable name */}
+                      <td colSpan={4} className="text-center py-4 text-red-600">{assessmentsError}</td> {/* Corrected variable name, Adjusted colspan */}
                     </tr>
                   ) : filteredAssessments.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-4">لا توجد تقييمات معينة لك.</td>
+                      <td colSpan={4} className="text-center py-4">لا توجد تقييمات معينة لك.</td> {/* Adjusted colspan */}
                     </tr>
                   ) : (
                     filteredAssessments.map((assessment) => (
                       <tr key={assessment.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-4">{(assessment as AssessmentWithName).assessmentName || '-'}</td> {/* Added Assessment Name Data */}
 
-                        <td className="py-4 pr-4">{assessment.companyNameAr}</td>
-                        <td className="py-4">{assessment.companyNameEn}</td>
+                        <td className="py-4">-</td> {/* Placeholder for Assessment Status */}
                         <td className="py-4">{formatDate(assessment.createdAt)}</td>
                         {/* Add other columns like deadline or progress if available in Assessment model */}
                         {/* <td className="py-4">N/A</td> */}
@@ -663,7 +661,7 @@ export default function SecurityManagerDashboardPage() {
               {selectedAssessmentId ? (
                 <div className="space-y-4 py-4">
                   {/* Assessment Name Input */}
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-right">
                     <Label htmlFor="assessmentName">اسم التقييم <span className="text-red-500">*</span></Label>
                     <Input
                       id="assessmentName"
