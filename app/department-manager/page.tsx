@@ -664,7 +664,7 @@ export default function DepartmentManagerDashboardPage() {
                                      {/* Top section: Info and User Assignment */}
                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2">
                                        <div className="flex-1 mb-2 sm:mb-0 sm:mr-4">
-                                         <p className="font-medium text-sm" title={assignment.control.controlText}>
+                                         <p className="font-medium text-sm mb-2" title={assignment.control.controlText}>
                                            {assignment.control.controlNumber} - {assignment.control.controlText}
                                          </p>
                           <span className={`px-2 py-1 rounded ${getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}`}>
@@ -697,7 +697,7 @@ export default function DepartmentManagerDashboardPage() {
                                     </div>
                                     {/* Bottom section: Notes and Status Update */}
                                     <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-                                      <Label htmlFor={`notes-${assignment.id}`} className="text-xs font-medium text-gray-600">الملاحظات:</Label>
+                                      <Label htmlFor={`notes-${assignment.id}`} className="text-xs font-medium text-gray-600">ملاحظات المقيّم</Label>
                                       <Textarea
                                         id={`notes-${assignment.id}`}
                                         value={editState[assignment.id]?.notes ?? assignment.notes ?? ''}
