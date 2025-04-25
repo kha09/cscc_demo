@@ -11,7 +11,8 @@ import {
   Control as PrismaControl,
   SensitiveSystemInfo as PrismaSensitiveSystemInfo,
   ControlAssignment as PrismaControlAssignment,
-  TaskStatus // Ensure this is a value import
+  TaskStatus, // Ensure this is a value import
+  ComplianceLevel // Import ComplianceLevel enum
 } from "@prisma/client";
 // Keep other type imports if needed using 'import type'
  // Example: import type { SomeOtherType } from "@prisma/client";
@@ -55,6 +56,7 @@ interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'creat
   assignedUser: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null; // Make assignedUser required but nullable
   notes: string | null; // Ensure notes is included
   status: TaskStatus; // Ensure status is included
+  complianceLevel: ComplianceLevel | null; // Add complianceLevel
 }
 
 // Define Task type for frontend use, including controlAssignments and assessmentName
@@ -85,7 +87,7 @@ export default function DepartmentManagerDashboardPage() {
   const [assignmentStatus, setAssignmentStatus] = useState<{ [key: string]: 'loading' | 'error' | 'success' | 'saving' | 'saving-success' | 'saving-error' }>({});
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set()); // Track expanded tasks
   // State for managing notes and status edits within expanded rows
-  const [editState, setEditState] = useState<{ [assignmentId: string]: { notes: string | null; status: TaskStatus } }>({}); // Allow null notes
+  const [editState, setEditState] = useState<{ [assignmentId: string]: { notes: string | null; complianceLevel: ComplianceLevel | null; status: TaskStatus } }>({}); // Allow null notes and complianceLevel
 
   // State for modals
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -112,17 +114,17 @@ export default function DepartmentManagerDashboardPage() {
   };
 
   // --- Handle Edits in Expanded Row ---
-  const handleEditChange = (assignmentId: string, field: 'notes' | 'status', value: string | TaskStatus) => {
+  const handleEditChange = (assignmentId: string, field: 'notes' | 'complianceLevel' | 'status', value: string | ComplianceLevel | TaskStatus | null) => {
     setEditState(prev => ({
       ...prev,
       [assignmentId]: {
-        ...(prev[assignmentId] ?? { notes: null, status: TaskStatus.PENDING }), // Initialize if not present
-        [field]: value,
+        ...(prev[assignmentId] ?? { notes: null, complianceLevel: null, status: TaskStatus.PENDING }), // Initialize if not present, default status
+        [field]: value as any, // Use 'any' temporarily for union type assignment
       }
     }));
   };
 
-  // --- Save Notes and Status ---
+  // --- Save Notes and Compliance Level ---
   const handleSaveNotesAndStatus = async (assignmentId: string) => {
     const stateToSave = editState[assignmentId];
     // Find the original assignment to compare against
@@ -131,18 +133,18 @@ export default function DepartmentManagerDashboardPage() {
       .find(a => a.id === assignmentId);
 
     // Only proceed if there's actually a change
-    if (!stateToSave && (!originalAssignment || originalAssignment.notes === null && originalAssignment.status === TaskStatus.PENDING)) {
+    if (!stateToSave && (!originalAssignment || originalAssignment.notes === null && originalAssignment.complianceLevel === null)) {
         // If nothing in edit state and original is default/null, do nothing
         return;
     }
-    if (stateToSave && originalAssignment && stateToSave.notes === (originalAssignment.notes ?? '') && stateToSave.status === originalAssignment.status) {
+    if (stateToSave && originalAssignment && stateToSave.notes === (originalAssignment.notes ?? '') && stateToSave.complianceLevel === originalAssignment.complianceLevel) {
         // If edit state matches original state, do nothing
         return;
     }
 
     // Use edit state if available, otherwise use original state (if only one field was changed)
     const notesToSave = stateToSave?.notes ?? originalAssignment?.notes ?? null;
-    const statusToSave = stateToSave?.status ?? originalAssignment?.status ?? TaskStatus.PENDING;
+    const complianceLevelToSave = stateToSave?.complianceLevel ?? originalAssignment?.complianceLevel ?? null;
 
 
     setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'saving' }));
@@ -154,13 +156,13 @@ export default function DepartmentManagerDashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           notes: notesToSave, // Use potentially updated notes
-          status: statusToSave, // Use potentially updated status
+          complianceLevel: complianceLevelToSave, // Use potentially updated complianceLevel
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to save notes/status: ${response.statusText}`);
+        throw new Error(errorData.message || `Failed to save notes/compliance level: ${response.statusText}`);
       }
 
       const updatedAssignment: FrontendControlAssignment = await response.json();
@@ -170,7 +172,7 @@ export default function DepartmentManagerDashboardPage() {
         return currentTasks.map(task => ({
           ...task,
           controlAssignments: task.controlAssignments.map(a =>
-            a.id === assignmentId ? { ...a, notes: updatedAssignment.notes, status: updatedAssignment.status } : a
+            a.id === assignmentId ? { ...a, notes: updatedAssignment.notes, complianceLevel: updatedAssignment.complianceLevel } : a
           ),
         }));
       });
@@ -190,9 +192,9 @@ export default function DepartmentManagerDashboardPage() {
       }), 3000);
 
     } catch (err: unknown) { // Changed any to unknown
-      console.error("Error saving notes/status:", err);
+      console.error("Error saving notes/compliance level:", err);
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-      setError(errorMessage || "حدث خطأ أثناء حفظ الملاحظات والحالة.");
+      setError(errorMessage || "حدث خطأ أثناء حفظ الملاحظات ومستوى الالتزام.");
       setAssignmentStatus(prev => ({ ...prev, [assignmentId]: 'saving-error' })); // Use specific error status
        setTimeout(() => setAssignmentStatus(prev => {
           const newStatus = { ...prev };
@@ -404,6 +406,29 @@ export default function DepartmentManagerDashboardPage() {
         year: 'numeric', month: 'long', day: 'numeric',
       });
     } catch { return 'تاريخ غير صالح'; } // Removed unused _e variable
+  };
+
+
+  // Helper to translate ComplianceLevel enum to Arabic text
+  const getComplianceLevelText = (level: ComplianceLevel | null | undefined): string => {
+    switch (level) {
+      case ComplianceLevel.NOT_IMPLEMENTED: return "غير مطبق";
+      case ComplianceLevel.PARTIALLY_IMPLEMENTED: return "مطبق جزئيًا";
+      case ComplianceLevel.IMPLEMENTED: return "مطبق كليًا";
+      case ComplianceLevel.NOT_APPLICABLE: return "لا ينطبق";
+      default: return "غير محدد";
+    }
+  };
+
+  // Helper to get background color class for ComplianceLevel
+  const getComplianceLevelBackgroundColorClass = (level: ComplianceLevel | null | undefined): string => {
+    switch (level) {
+      case ComplianceLevel.IMPLEMENTED: return "bg-green-200 text-green-800";
+      case ComplianceLevel.PARTIALLY_IMPLEMENTED: return "bg-yellow-200 text-yellow-800";
+      case ComplianceLevel.NOT_IMPLEMENTED: return "bg-red-200 text-red-800";
+      case ComplianceLevel.NOT_APPLICABLE: return "bg-gray-200 text-gray-800";
+      default: return "bg-gray-100 text-gray-700";
+    }
   };
 
   // Function to open the details modal (now shows Task details with assignments)
@@ -642,15 +667,9 @@ export default function DepartmentManagerDashboardPage() {
                                          <p className="font-medium text-sm" title={assignment.control.controlText}>
                                            {assignment.control.controlNumber} - {assignment.control.controlText}
                                          </p>
-                                         <Badge variant={assignment.status === 'COMPLETED' ? 'default' : assignment.status === 'PENDING' ? 'default' : 'secondary'} className={`mt-1 ${
-                                             assignment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                             assignment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                                             assignment.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                             assignment.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                                             'bg-gray-100 text-gray-700'
-                                         }`}>
-                                           {assignment.status} {/* TODO: Translate status */}
-                                         </Badge>
+                          <span className={`px-2 py-1 rounded ${getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}`}>
+                            {getComplianceLevelText(assignment.complianceLevel)}
+                          </span>
                                        </div>
                                        <div className="w-full sm:w-auto flex items-center space-x-2 space-x-reverse">
                                          <Select
