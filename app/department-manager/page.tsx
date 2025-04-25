@@ -312,6 +312,17 @@ export default function DepartmentManagerDashboardPage() {
     }
   };
 
+  // --- Helper function to calculate task progress ---
+  const calculateProgress = (task: FrontendTask): number => {
+    if (!task.controlAssignments || task.controlAssignments.length === 0) {
+      return 0; // No controls, no progress
+    }
+    const evaluated = task.controlAssignments.filter(a => a.complianceLevel !== null).length;
+    const total = 105; // Fixed total number of controls as per requirement
+    // Removed unnecessary check: if (total === 0) return 0;
+    return Math.round((evaluated / total) * 100);
+  };
+
   // --- Helper function to determine Department Manager Task Status ---
   const getDMTaskStatus = (task: FrontendTask): { text: string; className: string } => {
     // Check if controlAssignments exist and are not empty
@@ -549,14 +560,21 @@ export default function DepartmentManagerDashboardPage() {
                           })()}
                         </td>
                         <td className="py-4">
-                          {/* Progress calculation might need adjustment based on controlAssignments */}
-                          <div className="flex items-center">
-                            <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">
-                              {/* Placeholder progress */}
-                              <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `0%` }}></div>
-                            </div>
-                            <span className="text-sm">0%</span> {/* Placeholder */}
-                          </div>
+                          {/* Use calculateProgress function */}
+                          {(() => {
+                            const progress = calculateProgress(task);
+                            return (
+                              <div className="flex items-center">
+                                <div className="w-full bg-gray-200 rounded-full h-2.5 ml-2">
+                                  <div
+                                    className="bg-blue-600 h-2.5 rounded-full"
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-sm">{progress}%</span>
+                              </div>
+                            );
+                          })()}
                         </td>
                         {/* Actions Column */}
                         <td className="py-4 pl-4">
