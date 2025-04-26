@@ -29,8 +29,8 @@ interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'creat
   notes: string | null; // User notes
   status: TaskStatus;
   complianceLevel: ComplianceLevel | null;
-  managerStatus?: string | null; // Added manager status
-  managerNote?: string | null;   // Added manager note
+  managerStatus: string | null; // Corrected: Removed optional '?'
+  managerNote: string | null;   // Corrected: Removed optional '?'
 }
 
 interface FrontendTask extends Omit<PrismaTask, 'deadline' | 'createdAt' | 'updatedAt' | 'sensitiveSystem' | 'assignedTo' | 'controlAssignments'> {
@@ -85,6 +85,26 @@ export default function TeamTasksPage() {
       case ComplianceLevel.NOT_IMPLEMENTED: return "bg-red-200 text-red-800";
       case ComplianceLevel.NOT_APPLICABLE: return "bg-gray-200 text-gray-800";
       default: return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  // Custom assignment state logic
+  const getAssignmentState = (level: ComplianceLevel | null | undefined, deadline: string | undefined): string => {
+    if (level === ComplianceLevel.IMPLEMENTED) return 'مكتمل'; // مطبق كليا -> Completed
+    const now = new Date();
+    const dl = deadline ? new Date(deadline) : null;
+    // If no compliance level AND deadline passed -> Overdue
+    if ((level == null || level === ComplianceLevel.NOT_IMPLEMENTED || level === ComplianceLevel.PARTIALLY_IMPLEMENTED || level === ComplianceLevel.NOT_APPLICABLE) && dl && now > dl) return 'متأخر';
+    // Otherwise (level is not IMPLEMENTED, or no deadline, or deadline not passed) -> In Progress
+    return 'قيد التنفيذ';
+  };
+
+  const getAssignmentStateBadgeClass = (state: string): string => {
+    switch (state) {
+      case 'مكتمل': return 'bg-green-100 text-green-700';
+      case 'متأخر': return 'bg-red-100 text-red-700';
+      case 'قيد التنفيذ': return 'bg-blue-100 text-blue-700'; // Changed from yellow to blue for consistency
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
@@ -275,9 +295,15 @@ export default function TeamTasksPage() {
                         <td className="py-4">{assignment.assignedUser?.nameAr || assignment.assignedUser?.name || 'غير محدد'}</td>
                         <td className="py-4">{formatDate(assignment.taskDeadline)}</td>
                         <td className="py-4">
-                          <Badge variant="secondary" className={getStatusBadgeClass(assignment.status)}>
-                            {assignment.status} {/* TODO: Map status */}
-                          </Badge>
+                          {/* Use the new state logic */}
+                          {(() => {
+                             const state = getAssignmentState(assignment.complianceLevel, assignment.taskDeadline);
+                             return (
+                               <Badge variant="secondary" className={getAssignmentStateBadgeClass(state)}>
+                                 {state}
+                               </Badge>
+                             );
+                          })()}
                         </td>
                         <td className="py-4">
                           <Badge variant="secondary" className={getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}>
