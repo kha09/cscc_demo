@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import dynamic from 'next/dynamic';
-import Image from "next/image";
+// import Image from "next/image"; // Removed, AppHeader handles logo
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context"; // Import useAuth
+import { AppHeader } from "@/components/ui/AppHeader"; // Import shared header
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Loader2, Bell, User as UserIcon, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as UserIcon } from "lucide-react"; // Re-added UserIcon
 import { TaskStatus } from "@prisma/client";
 import type { User } from "@prisma/client";
 import SystemAnalyticsCharts from "@/components/ui/SystemAnalyticsCharts"; // Import the new chart component
@@ -127,8 +129,11 @@ export default function SecurityManagerResultsPage() {
   // State for layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // State for user ID
-  const [userId, setUserId] = useState<string | null>(null);
+  // State for user ID - Removed
+  // const [userId, setUserId] = useState<string | null>(null);
+
+  // Auth state
+  const { user, loading: authLoading } = useAuth();
 
   // State for overall analytics
   // State for overall analytics (General Results Tab)
@@ -174,53 +179,55 @@ export default function SecurityManagerResultsPage() {
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [expandedMainComponents, setExpandedMainComponents] = useState<Record<string, boolean>>({});
 
-  // --- User ID Fetch ---
-  useEffect(() => {
-    const fetchUserId = async () => {
-      // Reset states on new fetch attempt
-      setIsAnalyticsLoading(true);
-      setAnalyticsError(null);
-      setAnalyticsData(null);
-      setIsSystemsLoading(false); // Don't start system loading yet
-      setSystemsError(null);
-      setSystems([]);
-      try {
-        const response = await fetch('/api/users/security-managers');
-        if (!response.ok) throw new Error('Failed to fetch security managers');
-        const managers: User[] = await response.json();
-        if (managers.length > 0) {
-          setUserId(managers[0].id);
-          // Analytics and Systems fetching will be triggered by userId change in their respective useEffects
-        } else {
-          const errorMsg = "No Security Manager user found.";
-          setAnalyticsError(errorMsg);
-          setSystemsError(errorMsg); // Also set systems error
-          setIsAnalyticsLoading(false);
-          setIsSystemsLoading(false);
-        }
-      } catch (err: unknown) {
-        console.error("Error fetching user ID:", err);
-        const errorMsg = err instanceof Error ? err.message : "Failed to get user ID";
-        setAnalyticsError(errorMsg);
-        setSystemsError(errorMsg); // Also set systems error
-        setIsAnalyticsLoading(false);
-        setIsSystemsLoading(false);
-      }
-    };
-    fetchUserId();
-  }, []);
-  // --- End User ID Fetch ---
+  // --- User ID Fetch --- Removed
+  // useEffect(() => {
+  //   const fetchUserId = async () => {
+  //     // Reset states on new fetch attempt
+  //     setIsAnalyticsLoading(true);
+  //     setAnalyticsError(null);
+  //     setAnalyticsData(null);
+  //     setIsSystemsLoading(false); // Don't start system loading yet
+  //     setSystemsError(null);
+  //     setSystems([]);
+  //     try {
+  //       const response = await fetch('/api/users/security-managers');
+  //       if (!response.ok) throw new Error('Failed to fetch security managers');
+  //       const managers: User[] = await response.json();
+  //       if (managers.length > 0) {
+  //         setUserId(managers[0].id);
+  //         // Analytics and Systems fetching will be triggered by userId change in their respective useEffects
+  //       } else {
+  //         const errorMsg = "No Security Manager user found.";
+  //         setAnalyticsError(errorMsg);
+  //         setSystemsError(errorMsg); // Also set systems error
+  //         setIsAnalyticsLoading(false);
+  //         setIsSystemsLoading(false);
+  //       }
+  //     } catch (err: unknown) {
+  //       console.error("Error fetching user ID:", err);
+  //       const errorMsg = err instanceof Error ? err.message : "Failed to get user ID";
+  //       setAnalyticsError(errorMsg);
+  //       setSystemsError(errorMsg); // Also set systems error
+  //       setIsAnalyticsLoading(false);
+  //       setIsSystemsLoading(false);
+  //     }
+  //   };
+  //   fetchUserId();
+  // }, []);
+  // --- End User ID Fetch --- Removed
 
 
-  // --- General Analytics Data Fetch (Triggered by userId) ---
+  // --- General Analytics Data Fetch (Triggered by user) ---
   useEffect(() => {
-    if (!userId) {
-      // Don't fetch if userId is not available
-      // Ensure loading is false if userId becomes null after being set
-      if (analyticsData) setAnalyticsData(null); // Clear old data if userId resets
+    if (!user?.id) {
+      // Don't fetch if user ID is not available
+      // Ensure loading is false if user becomes null after being set
+      if (analyticsData) setAnalyticsData(null); // Clear old data if user resets
       if (isAnalyticsLoading) setIsAnalyticsLoading(false);
       return;
     }
+
+    const userId = user.id; // Use authenticated user's ID
 
     const fetchAnalyticsData = async () => {
       setIsAnalyticsLoading(true); // Start loading for analytics
@@ -235,6 +242,7 @@ export default function SecurityManagerResultsPage() {
           const errorData = await response.json();
           throw new Error(errorData.message || `Failed to fetch analytics data: ${response.statusText}`);
         }
+        // --- Start of correct logic ---
         const rawAssignments: AnalyticsAssignment[] = await response.json();
 
         // Process the data
@@ -267,11 +275,12 @@ export default function SecurityManagerResultsPage() {
         });
 
         setAnalyticsData(processedData);
+        // --- End of correct logic ---
 
       } catch (err: unknown) { // Changed any to unknown
         console.error("Error fetching or processing analytics data:", err);
         const errorMsg = err instanceof Error ? err.message : "An unknown error occurred."; // Added type check
-        setAnalyticsError(errorMsg); // Fix: Use new state setter
+        setAnalyticsError(errorMsg);
       } finally {
         setIsAnalyticsLoading(false);
       }
@@ -279,18 +288,20 @@ export default function SecurityManagerResultsPage() {
 
     fetchAnalyticsData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]); // Dependency: only userId
+  }, [user]); // Dependency: user object
   // --- End General Analytics Data Fetch ---
 
 
-  // --- Systems List Fetch (Triggered by userId) ---
+  // --- Systems List Fetch (Triggered by user) ---
   useEffect(() => {
-    if (!userId) {
-      // Don't fetch if userId is not available
-      if (systems.length > 0) setSystems([]); // Clear old data if userId resets
+    if (!user?.id) {
+      // Don't fetch if user ID is not available
+      if (systems.length > 0) setSystems([]); // Clear old data if user resets
       if (isSystemsLoading) setIsSystemsLoading(false);
       return;
     }
+
+    const userId = user.id; // Use authenticated user's ID
 
     const fetchSystems = async () => {
       setIsSystemsLoading(true);
@@ -299,7 +310,7 @@ export default function SecurityManagerResultsPage() {
 
       try {
         console.log(`Fetching systems for user ID: ${userId}`);
-        const response = await fetch(`/api/users/${userId}/sensitive-systems`); // Use the correct endpoint
+        const response = await fetch(`/api/users/${userId}/sensitive-systems`); // Use authenticated user ID
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || `Failed to fetch systems: ${response.statusText}`);
@@ -317,17 +328,19 @@ export default function SecurityManagerResultsPage() {
 
     fetchSystems();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]); // Dependency: only userId
+  }, [user]); // Dependency: user object
   // --- End Systems List Fetch ---
 
 
-  // --- System Summary Analytics Fetch (Triggered by userId) ---
+  // --- System Summary Analytics Fetch (Triggered by user) ---
   useEffect(() => {
-    if (!userId) {
+    if (!user?.id) {
       if (Object.keys(systemAnalytics).length > 0) setSystemAnalytics({}); // Clear old data
       if (isSystemAnalyticsLoading) setIsSystemAnalyticsLoading(false);
       return;
     }
+
+    const userId = user.id; // Use authenticated user's ID
 
     const fetchSystemAnalytics = async () => {
       setIsSystemAnalyticsLoading(true);
@@ -337,7 +350,7 @@ export default function SecurityManagerResultsPage() {
       try {
         console.log(`Fetching system summary analytics for user ID: ${userId}`);
         // Use the new dedicated endpoint for summary counts
-        const response = await fetch(`/api/control-assignments/analytics/summary-by-system?securityManagerId=${userId}`); // Correct endpoint
+        const response = await fetch(`/api/control-assignments/analytics/summary-by-system?securityManagerId=${userId}`); // Use authenticated user ID
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || `Failed to fetch system summary analytics: ${response.statusText}`);
@@ -355,13 +368,13 @@ export default function SecurityManagerResultsPage() {
 
     fetchSystemAnalytics();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]); // Dependency: only userId
+  }, [user]); // Dependency: user object
   // --- End System Summary Analytics Fetch ---
 
 
-  // --- Detailed System Analytics Fetch (Triggered by selectedSystemId and userId) ---
+  // --- Detailed System Analytics Fetch (Triggered by selectedSystemId and user) ---
   useEffect(() => {
-    if (!selectedSystemId || !userId) {
+    if (!selectedSystemId || !user?.id) { // Check user.id as well
       setSelectedSystemDetails(null);
       setSelectedSystemChartData(null); // Clear chart data too
       setDetailsError(null);
@@ -369,6 +382,8 @@ export default function SecurityManagerResultsPage() {
       setExpandedMainComponents({});
       return;
     }
+
+    const userId = user.id; // Use authenticated user's ID
 
     const fetchDetailedAnalytics = async () => {
       setIsDetailsLoading(true);
@@ -379,7 +394,7 @@ export default function SecurityManagerResultsPage() {
 
       try {
         console.log(`Fetching detailed analytics for system ID: ${selectedSystemId}, user ID: ${userId}`);
-        const response = await fetch(`/api/control-assignments/analytics/by-system/${selectedSystemId}?securityManagerId=${userId}`);
+        const response = await fetch(`/api/control-assignments/analytics/by-system/${selectedSystemId}?securityManagerId=${userId}`); // Use authenticated user ID
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || `Failed to fetch detailed analytics: ${response.statusText}`);
@@ -427,9 +442,8 @@ export default function SecurityManagerResultsPage() {
 
     fetchDetailedAnalytics();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSystemId, userId]); // Dependencies: selectedSystemId and userId
+  }, [selectedSystemId, user]); // Dependencies: selectedSystemId and user object
   // --- End Detailed System Analytics Fetch ---
-
 
   // --- Chart Options (For General Analytics Tab) ---
   const mainComponents = analyticsData ? Object.keys(analyticsData).sort() : [];
@@ -741,41 +755,27 @@ export default function SecurityManagerResultsPage() {
   };
   // --- End Render Logic for Detailed Results Tab ---
 
+  // Handle loading and unauthenticated states
+  if (authLoading) {
+    return <div className="flex justify-center items-center min-h-screen">جاري التحميل...</div>;
+  }
+
+  if (!user) {
+    return <div className="flex justify-center items-center min-h-screen">الرجاء تسجيل الدخول للوصول لهذه الصفحة.</div>;
+  }
+
+  // Ensure user is a Security Manager
+  if (user.role !== 'SECURITY_MANAGER') {
+    return <div className="flex justify-center items-center min-h-screen">غير مصرح لك بالوصول لهذه الصفحة.</div>;
+  }
+
+  // Define estimated header height (should match AppHeader)
+  const HEADER_HEIGHT = 88; // Adjust if AppHeader styling changes
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
-      {/* Header */}
-      <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10 shadow-md">
-        <div className="flex items-center justify-between max-w-screen-xl mx-auto">
-          {/* Logo and Title */}
-          <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
-            <div className="relative h-12 w-12 md:h-16 md:w-16"> {/* Adjusted size */}
-              <Image src="/static/image/logo.png" layout="fill" objectFit="contain" alt="Logo" />
-            </div>
-             <span className="hidden sm:inline">بوابة الامتثال لضوابط الأمن السيبراني</span>
-          </div>
-          {/* User Icons & Toggle */}
-          <div className="flex items-center space-x-2 md:space-x-4 space-x-reverse">
-            {/* Bell Icon Button */}
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700 rounded-full">
-              <Bell className="h-5 w-5" />
-            </Button>
-            {/* User Icon Button */}
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700 rounded-full">
-              <UserIcon className="h-5 w-5" />
-            </Button>
-            {/* Mobile Menu Toggle Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-slate-700 md:hidden"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Use shared AppHeader */}
+      <AppHeader />
 
       {/* Main Layout with Sidebar */}
       <div className="flex flex-row">
@@ -784,7 +784,8 @@ export default function SecurityManagerResultsPage() {
          {isSidebarOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>
         )}
-        <aside className={`fixed md:sticky top-0 md:top-[76px] right-0 h-full md:h-[calc(100vh-76px)] bg-slate-800 text-white p-4 overflow-y-auto transition-transform duration-300 ease-in-out z-50 md:z-30 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'md:w-20'}`}>
+        {/* Adjusted sticky top and height */}
+        <aside className={`fixed md:sticky top-0 md:top-[${HEADER_HEIGHT}px] right-0 h-full md:h-[calc(100vh-${HEADER_HEIGHT}px)] bg-slate-800 text-white p-4 overflow-y-auto transition-transform duration-300 ease-in-out z-50 md:z-30 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'md:w-20'}`}>
            {/* Close button for mobile */}
            <div className="flex justify-end mb-4 md:hidden">
              <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700" onClick={() => setIsSidebarOpen(false)}>
@@ -835,8 +836,8 @@ export default function SecurityManagerResultsPage() {
         </aside>
 
         {/* Main Content Area */}
-        {/* Adjust margin based on sidebar state for desktop */}
-        <main className={`flex-1 p-4 md:p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-64' : 'md:mr-20'}`}>
+        {/* Adjust margin based on sidebar state for desktop and height */}
+        <main className={`flex-1 p-4 md:p-6 overflow-y-auto h-[calc(100vh-${HEADER_HEIGHT}px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-64' : 'md:mr-20'}`}>
            {/* Tabs Navigation */}
            <Tabs defaultValue="general" className="w-full" dir="rtl"> {/* Ensure Tabs has dir */}
              {/* Use flexbox for RTL tab order */}

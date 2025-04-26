@@ -1,24 +1,20 @@
 "use client"
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
+// import Image from "next/image"; // Removed, AppHeader handles logo
+import { useAuth } from "@/lib/auth-context"; // Import useAuth
 import { User, SensitiveSystemInfo } from "@prisma/client"; // Import necessary types
+import { AppHeader } from "@/components/ui/AppHeader"; // Import shared header
 import {
-  Bell,
-  User as UserIcon,
-  // Search, // Removed unused import
+  // Bell, // Removed, handled by AppHeader
+  // User as UserIcon, // Removed, handled by AppHeader
   Menu,
   Server, // Sidebar icon
-  // FileText, // Removed unused import
-  // FileWarning, // Removed unused import
   LayoutDashboard, // Sidebar icon
-  // ListChecks, // Removed unused import
-  // ShieldCheck, // Removed unused import
   BarChart // Added for Results link
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardContent } from "@/components/ui/card"; // Removed unused CardTitle
-// Removed unused Input import
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 
 // Define the type for the fetched data including the nested assessment
@@ -32,48 +28,27 @@ type SensitiveSystemInfoWithAssessment = SensitiveSystemInfo & {
 
 export default function SystemInfoPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // State for sidebar
-  const [userId, setUserId] = useState<string | null>(null); // SM User ID (temporary fetch)
-  const [userError, setUserError] = useState<string | null>(null); // Error for user fetch
+  // const [userId, setUserId] = useState<string | null>(null); // Removed temporary userId state
+  // const [userError, setUserError] = useState<string | null>(null); // Removed userError state, handled by auth context
 
   // State for System Info list
   const [systemInfoList, setSystemInfoList] = useState<SensitiveSystemInfoWithAssessment[]>([]);
   const [systemInfoLoading, setSystemInfoLoading] = useState(true);
   const [systemInfoError, setSystemInfoError] = useState<string | null>(null);
 
-  // --- Temporary User ID Fetch ---
-  // In a real app, get this from auth context/session
-  useEffect(() => {
-    const fetchUserId = async () => {
-      try {
-        const response = await fetch('/api/users/security-managers'); 
-        if (!response.ok) throw new Error('Failed to fetch security managers');
-        const managers: User[] = await response.json();
-        if (managers.length > 0) {
-          setUserId(managers[0].id);
-        } else {
-          setUserError("No Security Manager user found.");
-          setSystemInfoLoading(false); // Stop loading if no user
-        }
-      } catch (err: unknown) { // Changed any to unknown
-        console.error("Error fetching user ID:", err);
-        // Added instanceof Error check
-        setUserError(err instanceof Error ? err.message : "Failed to get user ID");
-        setSystemInfoLoading(false); // Stop loading on error
-      }
-    };
-    fetchUserId();
-  }, []);
-  // --- End Temporary User ID Fetch ---
+  const { user, loading: authLoading } = useAuth(); // Get user and loading state
 
-  // Fetch sensitive system info when userId is available
+  // Fetch sensitive system info when user is available
   useEffect(() => {
-    if (!userId) return; 
+    if (!user?.id) return; // Exit if no user ID
+
+    const userId = user.id; // Use authenticated user's ID
 
     const fetchSystemInfo = async () => {
       setSystemInfoLoading(true);
       setSystemInfoError(null);
       try {
-        const response = await fetch(`/api/users/${userId}/sensitive-systems`);
+        const response = await fetch(`/api/users/${userId}/sensitive-systems`); // Use authenticated userId
         if (!response.ok) {
           throw new Error(`Failed to fetch system info: ${response.statusText}`);
         }
@@ -89,7 +64,7 @@ export default function SystemInfoPage() {
     };
 
     fetchSystemInfo();
-  }, [userId]); 
+  }, [user]); // Depend on user object
 
   // Format date helper
   const formatDate = (dateString: string | Date) => {
@@ -105,44 +80,32 @@ export default function SystemInfoPage() {
     }
   };
 
+  // Handle loading and unauthenticated states
+  if (authLoading) {
+    return <div className="flex justify-center items-center min-h-screen">جاري التحميل...</div>;
+  }
+
+  if (!user) {
+    return <div className="flex justify-center items-center min-h-screen">الرجاء تسجيل الدخول للوصول لهذه الصفحة.</div>;
+  }
+
+  // Ensure user is a Security Manager
+  if (user.role !== 'SECURITY_MANAGER') {
+    return <div className="flex justify-center items-center min-h-screen">غير مصرح لك بالوصول لهذه الصفحة.</div>;
+  }
+
+  // Define estimated header height (should match AppHeader)
+  const HEADER_HEIGHT = 88; // Adjust if AppHeader styling changes
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
-      {/* Header */}
-      <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
-            <div className="relative h-16 w-16">
-              <Image
-                src="/static/image/logo.png" width={160} height={160}
-                alt="Logo"
-                className="object-contain"
-              />
-            </div>
-          </div>
-          <div className="flex-grow"></div>
-          <div className="flex items-center space-x-4 space-x-reverse">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
-              <UserIcon className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-slate-700 md:hidden"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            >
-              <Menu className="h-6 w-6" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Use shared AppHeader */}
+      <AppHeader />
 
       {/* Main Layout with Sidebar */}
       <div className="flex flex-row">
-        {/* Sidebar */}
-        <aside className={`bg-slate-800 text-white p-4 sticky top-[76px] h-[calc(100vh-76px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+        {/* Sidebar - Adjusted sticky top and height */}
+        <aside className={`bg-slate-800 text-white p-4 sticky top-[${HEADER_HEIGHT}px] h-[calc(100vh-${HEADER_HEIGHT}px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
            <div className={`flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
              <Button
                variant="ghost"
@@ -193,11 +156,10 @@ export default function SystemInfoPage() {
           </nav>
         </aside>
 
-        {/* Main Content Area */}
-        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
+        {/* Main Content Area - Adjusted height */}
+        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-${HEADER_HEIGHT}px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-slate-800">معلومات الأنظمة المقدمة</h1>
-            {/* Add search or filter if needed */}
           </div>
 
           {/* System Information Section */}
@@ -219,9 +181,8 @@ export default function SystemInfoPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {userError ? ( // Display error if user ID couldn't be fetched
-                       <tr><td colSpan={5} className="text-center py-4 text-red-600">{userError}</td></tr>
-                    ) : systemInfoLoading ? (
+                    {/* Removed userError check here, handled by initial auth checks */}
+                    {systemInfoLoading ? (
                       <tr><td colSpan={5} className="text-center py-4">جاري تحميل معلومات الأنظمة...</td></tr>
                     ) : systemInfoError ? (
                       <tr><td colSpan={5} className="text-center py-4 text-red-600">{systemInfoError}</td></tr>

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { TaskStatus } from '@prisma/client';
 
+export const dynamic = 'force-dynamic'; // Force dynamic rendering, disable caching
+
 // Define the structure for the summary analytics for a single system
 interface SystemSummaryAnalytics {
   assigned: number; // Count of assignments with an assigned user but not completed

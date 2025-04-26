@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 
+export const dynamic = 'force-dynamic'; // Force dynamic rendering, disable caching
+
 // GET handler to fetch control assignments for analytics, filtered by the assigning security manager
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ComplianceLevel, TaskStatus } from '@prisma/client';
+
+export const dynamic = 'force-dynamic'; // Force dynamic rendering, disable caching
+
 // Define the structure for the chart data points
 interface ChartDataPoint {
   name: string; // Main control name

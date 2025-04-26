@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic'; // Force dynamic rendering, disable caching
+
 export async function GET(
   request: Request,
   { params }: { params: { userId: string } }
