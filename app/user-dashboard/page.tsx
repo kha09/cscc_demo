@@ -42,8 +42,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"; // Added Calendar
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select
 import { cn } from "@/lib/utils"; // Added cn utility
-import { format } from "date-fns"; // Added date-fns for formatting
-import { ComplianceLevel } from "@prisma/client"; // Import ComplianceLevel enum
+import { format } from "date-fns";
+import { ComplianceLevel, ControlFile as PrismaControlFile } from "@prisma/client"; // Import ComplianceLevel enum and ControlFile type
 
 // Frontend type definitions (similar to department-manager)
 // Changed interface to type to satisfy @typescript-eslint/no-empty-object-type
@@ -72,6 +72,7 @@ interface FrontendControlAssignment {
   managerNote?: string | null;   // Added manager note
   control: FrontendControl; // Relation
   task: FrontendTask; // Relation
+  // files are fetched separately now, not included here directly
 }
 
 // Type for the modal form data
@@ -81,6 +82,9 @@ interface ModalFormData {
     expectedComplianceDate: Date | undefined;
     complianceLevel: ComplianceLevel | ""; // Use "" for unselected state in Select
 }
+
+// Type for uploaded file data (matching backend) - Use Prisma type directly
+type UploadedFileData = PrismaControlFile;
 
 
 export default function UserDashboardPage() {
@@ -101,6 +105,10 @@ export default function UserDashboardPage() {
   });
   const [isSaving, setIsSaving] = useState(false); // State for save button loading
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false); // State for date picker popover
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null); // State for selected files for upload
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]); // State for already uploaded files
+  const [isUploading, setIsUploading] = useState(false); // State for upload loading indicator
+  const [uploadError, setUploadError] = useState<string | null>(null); // State for upload errors
 
   // Auth and Routing - Need router for redirect
   // const { logout } = useAuth(); // Logout is handled by AppHeader
@@ -198,9 +206,74 @@ export default function UserDashboardPage() {
     }
   };
 
+  // --- File Handling Functions ---
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedFiles(event.target.files);
+    setUploadError(null); // Clear previous upload errors on new selection
+  };
+
+  const fetchUploadedFiles = useCallback(async (assignmentId: string) => {
+    if (!assignmentId) return;
+    try {
+      const response = await fetch(`/api/control-assignments/${assignmentId}/files`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch files');
+      }
+      const filesData: UploadedFileData[] = await response.json();
+       setUploadedFiles(filesData);
+     } catch (err: unknown) { // Add type annotation for err
+       console.error("Error fetching uploaded files:", err);
+       setUploadError(err instanceof Error ? err.message : "Failed to load existing files.");
+    }
+  }, []); // No dependencies needed as it uses the passed assignmentId
+
+  const handleUploadFiles = async () => {
+    if (!selectedFiles || selectedFiles.length === 0 || !selectedAssignment) {
+      setUploadError("Please select files to upload.");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+    const formData = new FormData();
+    for (let i = 0; i < selectedFiles.length; i++) {
+      formData.append('files', selectedFiles[i]);
+    }
+
+    try {
+      const response = await fetch(`/api/control-assignments/${selectedAssignment.id}/files`, {
+        method: 'POST',
+        body: formData,
+        // Don't set Content-Type header, browser does it automatically for FormData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      // Add newly uploaded files to the state
+      setUploadedFiles(prev => [...prev, ...result.files]);
+      setSelectedFiles(null); // Clear selected files after successful upload
+      // Optionally clear the file input visually if needed (requires ref)
+
+    } catch (err) {
+      console.error("Error uploading files:", err);
+      setUploadError(err instanceof Error ? err.message : "An unexpected error occurred during upload.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+
   // --- Modal Handling ---
   const handleOpenDetailsModal = (assignment: FrontendControlAssignment) => {
     setSelectedAssignment(assignment);
+    // Reset states for the modal
+    setUploadedFiles([]); // Clear previous files
+    setSelectedFiles(null); // Clear selected files
+    setUploadError(null); // Clear upload errors
     setModalFormData({
       notes: assignment.notes ?? "",
       correctiveActions: assignment.correctiveActions ?? "",
@@ -208,6 +281,8 @@ export default function UserDashboardPage() {
       complianceLevel: assignment.complianceLevel ?? "",
     });
     setIsDetailsModalOpen(true);
+    // Fetch existing files for this assignment
+    fetchUploadedFiles(assignment.id);
   };
 
   const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -289,12 +364,13 @@ export default function UserDashboardPage() {
       case ComplianceLevel.NOT_APPLICABLE: return "bg-gray-200 text-gray-800";
       default: return "";
     }
-  };
+   };
 
-  // Filter controls based on search query
-  const filteredControls = assignedControls.filter(assignment => {
-    const searchTerm = searchQuery.toLowerCase();
-    return (
+
+   // Filter controls based on search query
+   const filteredControls = assignedControls.filter((assignment: FrontendControlAssignment) => { // Add type annotation
+     const searchTerm = searchQuery.toLowerCase();
+     return (
       assignment.control.controlNumber.toLowerCase().includes(searchTerm) ||
       assignment.control.controlText.toLowerCase().includes(searchTerm) ||
       (assignment.task.sensitiveSystem?.systemName &&
@@ -534,9 +610,65 @@ export default function UserDashboardPage() {
                   <SelectItem value={ComplianceLevel.PARTIALLY_IMPLEMENTED}>مطبق جزئيًا - Partially Implemented</SelectItem>
                   <SelectItem value={ComplianceLevel.IMPLEMENTED}>مطبق كليًا - Implemented</SelectItem>
                   <SelectItem value={ComplianceLevel.NOT_APPLICABLE}>لا ينطبق - Not Applicable</SelectItem>
-                </SelectContent>
-              </Select>
+               </SelectContent>
+             </Select>
+           </div>
+
+            {/* --- File Upload Section --- */}
+            <div className="grid grid-cols-4 items-start gap-4 pt-4 border-t">
+              <Label htmlFor="file-upload" className="text-right col-span-1 pt-2">رفع ملفات الأدلة</Label>
+              <div className="col-span-3">
+                <Input
+                  id="file-upload"
+                  type="file"
+                  multiple // Allow multiple file selection
+                  onChange={handleFileChange}
+                  className="mb-2"
+                  disabled={isUploading} // Disable while uploading
+                />
+                {selectedFiles && selectedFiles.length > 0 && (
+                  <Button
+                    onClick={handleUploadFiles}
+                    disabled={isUploading}
+                    size="sm"
+                    className="mb-2"
+                  >
+                    {isUploading ? (
+                      <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> جاري الرفع...</>
+                    ) : (
+                      <><Upload className="mr-2 h-4 w-4" /> رفع الملفات المختارة</>
+                    )}
+                  </Button>
+                )}
+                {uploadError && (
+                  <p className="text-sm text-red-600 mt-1">{uploadError}</p>
+                )}
+                {/* Display Uploaded Files */}
+                {uploadedFiles.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <h4 className="text-sm font-medium text-gray-700">الملفات المرفقة:</h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                      {uploadedFiles.map((file) => (
+                        <li key={file.id}>
+                          <a
+                            href={file.filePath} // Use the DB path directly
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                            download={file.originalFilename} // Suggest original filename for download
+                          >
+                            {file.originalFilename}
+                          </a>
+                          <span className="text-xs text-gray-500 ml-2">({formatDate(file.createdAt)})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
+            {/* --- End File Upload Section --- */}
+
 
             {/* --- Display Manager Review (Read-Only) --- */}
             {selectedAssignment?.managerStatus && (

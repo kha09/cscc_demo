@@ -195,7 +195,23 @@ model ControlAssignment {
   // @@index([taskId]) // Removed duplicate
   // @@index([controlId]) // Removed duplicate
   @@index([assignedUserId])
+
+  files ControlFile[] // Relation to uploaded files for this assignment
 }
+
+// Model for storing uploaded file paths related to a control assignment
+model ControlFile {
+  id                 String   @id @default(uuid())
+  filePath           String   // Path where the file is stored (e.g., /uploads/control-files/...)
+  originalFilename   String   // Original name of the uploaded file
+  controlAssignmentId String   // Foreign key to link to the specific control assignment
+  createdAt          DateTime @default(now())
+
+  controlAssignment ControlAssignment @relation(fields: [controlAssignmentId], references: [id], onDelete: Cascade) // Ensure files are deleted if assignment is deleted
+
+  @@index([controlAssignmentId])
+}
+
 
 // Enum for Compliance Level
 enum ComplianceLevel {
