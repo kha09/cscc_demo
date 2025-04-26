@@ -566,8 +566,8 @@ export default function SecurityManagerResultsPage() {
 
     // Render system boxes
     return (
-      <div className="space-y-6 pt-4">
-         <h2 className="text-xl font-bold text-slate-800">النتائج المفصلة لكل نظام</h2>
+      <div className="space-y-6 pt-4" dir="rtl"> {/* Ensure container has dir */}
+         <h2 className="text-xl font-bold text-slate-800 text-right">النتائج المفصلة لكل نظام</h2>
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {systems.map((system) => (
               <Card
@@ -619,8 +619,8 @@ export default function SecurityManagerResultsPage() {
          {/* Detailed View Area (Placeholder) */}
           {/* --- Detailed View Area --- */}
           {selectedSystemId && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-slate-800 mb-3">
+            <div className="mt-6" dir="rtl"> {/* Ensure container has dir */}
+              <h3 className="text-lg font-semibold text-slate-800 mb-3 text-right">
                 تفاصيل النظام: {systems.find(s => s.id === selectedSystemId)?.systemName}
               </h3>
               {isDetailsLoading && (
@@ -821,16 +821,17 @@ export default function SecurityManagerResultsPage() {
         {/* Adjust margin based on sidebar state for desktop */}
         <main className={`flex-1 p-4 md:p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-64' : 'md:mr-20'}`}>
            {/* Tabs Navigation */}
-           <Tabs defaultValue="general" className="w-full">
-             <TabsList className="grid w-full grid-cols-2 mb-4">
-               <TabsTrigger value="general">النتائج العامة</TabsTrigger>
-               <TabsTrigger value="detailed">نتائج مفصلة</TabsTrigger>
+           <Tabs defaultValue="general" className="w-full" dir="rtl"> {/* Ensure Tabs has dir */}
+             {/* Use flexbox for RTL tab order */}
+             <TabsList className="flex w-full mb-4 flex-row-reverse justify-start gap-4 border-b">
+               <TabsTrigger value="general" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-1">النتائج العامة</TabsTrigger>
+               <TabsTrigger value="detailed" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-1">نتائج مفصلة</TabsTrigger>
              </TabsList>
-             <TabsContent value="general">
+             <TabsContent value="general" dir="rtl"> {/* Ensure content has dir */}
                {/* Render the general analytics content, loading, or error state */}
                {renderGeneralAnalyticsContent()}
              </TabsContent>
-             <TabsContent value="detailed">
+             <TabsContent value="detailed" dir="rtl"> {/* Ensure content has dir */}
                {/* Render the detailed results content, loading, or error state */}
                {renderDetailedResultsContent()}
              </TabsContent>
