@@ -6,8 +6,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Loader2, Bell, User as UserIcon, Menu, LayoutDashboard, Server, BarChart } from "lucide-react"; // Removed ShieldCheck, Building, ListChecks, FileWarning, FileText
-import type { User } from "@prisma/client"; // Import User type
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertCircle, Loader2, Bell, User as UserIcon, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp } from "lucide-react"; // Added more icons
+import { TaskStatus } from "@prisma/client"; // Import TaskStatus as a value
+import type { User } from "@prisma/client"; // Import User type only
 
 // Dynamically import ApexCharts to avoid SSR issues
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -40,7 +42,7 @@ interface ProcessedAnalyticsData {
   [mainComponent: string]: ComponentAnalytics;
 }
 
-// Define ComplianceLevel Enum based on Prisma schema
+// Define ComplianceLevel Enum based on Prisma schema (Keep existing)
 enum ComplianceLevel {
   NOT_IMPLEMENTED = "NOT_IMPLEMENTED",
   PARTIALLY_IMPLEMENTED = "PARTIALLY_IMPLEMENTED",
@@ -48,7 +50,7 @@ enum ComplianceLevel {
   NOT_APPLICABLE = "NOT_APPLICABLE",
 }
 
-// Mapping for display names (Arabic)
+// Mapping for display names (Arabic) (Keep existing)
 const complianceLevelLabels: Record<ComplianceLevel, string> = {
   [ComplianceLevel.NOT_IMPLEMENTED]: "غير مطبق",
   [ComplianceLevel.PARTIALLY_IMPLEMENTED]: "مطبق جزئيًا",
@@ -65,12 +67,49 @@ const complianceLevelColors: Record<ComplianceLevel, string> = {
 };
 
 // Order for displaying levels in charts/legends
-const complianceLevelOrder: ComplianceLevel[] = [
+const complianceLevelOrder: ComplianceLevel[] = [ // Keep this for the general analytics tab
   ComplianceLevel.IMPLEMENTED,
   ComplianceLevel.PARTIALLY_IMPLEMENTED,
   ComplianceLevel.NOT_IMPLEMENTED,
   ComplianceLevel.NOT_APPLICABLE,
 ];
+
+// --- Detailed Analytics Types (for the new API endpoint) ---
+interface DetailedAssignmentData {
+  id: string;
+  status: TaskStatus; // Use imported TaskStatus
+  complianceLevel: ComplianceLevel | null;
+  assignedUserId: string | null;
+  control: {
+    id: string;
+    mainComponent: string;
+    subComponent: string | null;
+    controlNumber: string;
+    controlText: string;
+  };
+}
+
+interface DetailedSystemAnalyticsResponse {
+  systemName: string;
+  assignments: DetailedAssignmentData[];
+}
+
+// Structure for processed detailed data, grouped by main component
+interface MainComponentDetailedAnalytics {
+  subControls: DetailedAssignmentData[];
+  counts: {
+    total: number;
+    finished: number; // Status = DONE
+    assigned: number; // assignedUserId is not null AND status != DONE
+    notAssigned: number; // assignedUserId is null
+    // Add compliance level counts if needed later
+  };
+}
+
+interface ProcessedDetailedAnalytics {
+  [mainComponent: string]: MainComponentDetailedAnalytics;
+}
+
 
 // --- Component ---
 
@@ -78,58 +117,108 @@ export default function SecurityManagerResultsPage() {
   // State for layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // State for analytics data
+  // State for user ID
   const [userId, setUserId] = useState<string | null>(null);
-  const [analyticsData, setAnalyticsData] = useState<ProcessedAnalyticsData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // --- User ID Fetch (Common logic) ---
+  // State for overall analytics
+  // State for overall analytics (General Results Tab)
+  const [analyticsData, setAnalyticsData] = useState<ProcessedAnalyticsData | null>(null);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(true); // Loading for general analytics
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null); // Error for general analytics
+
+  // State for detailed results (Detailed Results Tab)
+  // Define SensitiveSystemInfo interface based on expected API response structure
+  interface SensitiveSystemInfo {
+    id: string;
+    systemName: string;
+    systemDescription?: string | null;
+    department?: {
+      id: string;
+      name: string;
+      manager?: {
+        id: string;
+        name: string;
+      } | null;
+    } | null;
+    // Add other relevant fields as needed from your API
+  }
+  const [systems, setSystems] = useState<SensitiveSystemInfo[]>([]);
+  const [isSystemsLoading, setIsSystemsLoading] = useState(false); // Start false, trigger on user ID
+  const [systemsError, setSystemsError] = useState<string | null>(null);
+
+  // State for summary analytics per system (for the cards)
+  interface SystemSummaryAnalytics {
+    assigned: number;
+    finished: number;
+    // delayed: number; // Omitted for now
+  }
+  const [systemAnalytics, setSystemAnalytics] = useState<Record<string, SystemSummaryAnalytics>>({});
+  const [isSystemAnalyticsLoading, setIsSystemAnalyticsLoading] = useState(false); // Single loading state for all system summaries
+  const [systemAnalyticsError, setSystemAnalyticsError] = useState<string | null>(null);
+
+  // State for detailed view when a system is selected
+  const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
+  const [selectedSystemDetails, setSelectedSystemDetails] = useState<ProcessedDetailedAnalytics | null>(null);
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [expandedMainComponents, setExpandedMainComponents] = useState<Record<string, boolean>>({}); // State to track expanded main components
+
+  // --- User ID Fetch ---
   useEffect(() => {
     const fetchUserId = async () => {
-      // Reset loading/error states related to analytics when user ID fetch starts
-      setIsLoading(true);
-      setError(null);
+      // Reset states on new fetch attempt
+      setIsAnalyticsLoading(true);
+      setAnalyticsError(null);
       setAnalyticsData(null);
+      setIsSystemsLoading(false); // Don't start system loading yet
+      setSystemsError(null);
+      setSystems([]);
       try {
         const response = await fetch('/api/users/security-managers');
         if (!response.ok) throw new Error('Failed to fetch security managers');
         const managers: User[] = await response.json();
         if (managers.length > 0) {
           setUserId(managers[0].id);
-          // Keep setIsLoading(true) here, data fetching starts in the next effect
+          // Analytics and Systems fetching will be triggered by userId change in their respective useEffects
         } else {
-          setError("No Security Manager user found.");
-          setIsLoading(false); // Stop loading if no user found
+          const errorMsg = "No Security Manager user found.";
+          setAnalyticsError(errorMsg);
+          setSystemsError(errorMsg); // Also set systems error
+          setIsAnalyticsLoading(false);
+          setIsSystemsLoading(false);
         }
-      } catch (err: unknown) { // Changed any to unknown
+      } catch (err: unknown) {
         console.error("Error fetching user ID:", err);
-        const errorMsg = err instanceof Error ? err.message : "Failed to get user ID"; // Added type check
-        setError(errorMsg);
-        setIsLoading(false); // Stop loading on error
+        const errorMsg = err instanceof Error ? err.message : "Failed to get user ID";
+        setAnalyticsError(errorMsg);
+        setSystemsError(errorMsg); // Also set systems error
+        setIsAnalyticsLoading(false);
+        setIsSystemsLoading(false);
       }
     };
     fetchUserId();
   }, []);
   // --- End User ID Fetch ---
 
-  // --- Analytics Data Fetch and Processing ---
+
+  // --- General Analytics Data Fetch (Triggered by userId) ---
   useEffect(() => {
     if (!userId) {
-        // If userId is null (either initially or after failed fetch), don't attempt to fetch data
-        if (!isLoading && !error) { // Only set loading false if it wasn't already set by error/no user
-           // This case might not be strictly necessary if the initial state handles it
-        }
-        return;
+      // Don't fetch if userId is not available
+      // Ensure loading is false if userId becomes null after being set
+      if (analyticsData) setAnalyticsData(null); // Clear old data if userId resets
+      if (isAnalyticsLoading) setIsAnalyticsLoading(false);
+      return;
     }
 
-
     const fetchAnalyticsData = async () => {
-      // setIsLoading(true); // Already set true by userId fetch or initial state
-      setError(null);
+      setIsAnalyticsLoading(true); // Start loading for analytics
+      setAnalyticsError(null);
+      // setAnalyticsData(null); // Keep previous data while loading? Or clear? Let's clear.
       setAnalyticsData(null);
 
       try {
+        console.log(`Fetching general analytics for user ID: ${userId}`);
         const response = await fetch(`/api/control-assignments/analytics?securityManagerId=${userId}`);
         if (!response.ok) {
           const errorData = await response.json();
@@ -171,18 +260,165 @@ export default function SecurityManagerResultsPage() {
       } catch (err: unknown) { // Changed any to unknown
         console.error("Error fetching or processing analytics data:", err);
         const errorMsg = err instanceof Error ? err.message : "An unknown error occurred."; // Added type check
-        setError(errorMsg);
+        setAnalyticsError(errorMsg); // Fix: Use new state setter
       } finally {
-        setIsLoading(false); // Stop loading after fetch attempt (success or fail)
+        setIsAnalyticsLoading(false);
       }
     };
 
     fetchAnalyticsData();
-  }, [userId, error, isLoading]); // Added error and isLoading to dependencies
-  // --- End Analytics Data Fetch ---
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]); // Dependency: only userId
+  // --- End General Analytics Data Fetch ---
 
 
-  // --- Chart Options ---
+  // --- Systems List Fetch (Triggered by userId) ---
+  useEffect(() => {
+    if (!userId) {
+      // Don't fetch if userId is not available
+      if (systems.length > 0) setSystems([]); // Clear old data if userId resets
+      if (isSystemsLoading) setIsSystemsLoading(false);
+      return;
+    }
+
+    const fetchSystems = async () => {
+      setIsSystemsLoading(true);
+      setSystemsError(null);
+      setSystems([]); // Clear previous systems
+
+      try {
+        console.log(`Fetching systems for user ID: ${userId}`);
+        const response = await fetch(`/api/users/${userId}/sensitive-systems`); // Use the correct endpoint
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to fetch systems: ${response.statusText}`);
+        }
+        const fetchedSystems: SensitiveSystemInfo[] = await response.json();
+        setSystems(fetchedSystems);
+      } catch (err: unknown) {
+        console.error("Error fetching systems:", err);
+        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching systems.";
+        setSystemsError(errorMsg);
+      } finally {
+        setIsSystemsLoading(false);
+      }
+    };
+
+    fetchSystems();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]); // Dependency: only userId
+  // --- End Systems List Fetch ---
+
+
+  // --- System Summary Analytics Fetch (Triggered by userId) ---
+  useEffect(() => {
+    if (!userId) {
+      if (Object.keys(systemAnalytics).length > 0) setSystemAnalytics({}); // Clear old data
+      if (isSystemAnalyticsLoading) setIsSystemAnalyticsLoading(false);
+      return;
+    }
+
+    const fetchSystemAnalytics = async () => {
+      setIsSystemAnalyticsLoading(true);
+      setSystemAnalyticsError(null);
+      setSystemAnalytics({}); // Clear previous data
+
+      try {
+        console.log(`Fetching system summary analytics for user ID: ${userId}`);
+        // Use the new dedicated endpoint for summary counts
+        const response = await fetch(`/api/control-assignments/analytics/summary-by-system?securityManagerId=${userId}`); // Correct endpoint
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to fetch system summary analytics: ${response.statusText}`);
+        }
+        const fetchedAnalytics: Record<string, SystemSummaryAnalytics> = await response.json();
+        setSystemAnalytics(fetchedAnalytics);
+      } catch (err: unknown) {
+        console.error("Error fetching system summary analytics:", err);
+        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching system analytics.";
+        setSystemAnalyticsError(errorMsg); // Use the dedicated error state
+      } finally {
+        setIsSystemAnalyticsLoading(false);
+      }
+    };
+
+    fetchSystemAnalytics();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]); // Dependency: only userId
+  // --- End System Summary Analytics Fetch ---
+
+
+  // --- Detailed System Analytics Fetch (Triggered by selectedSystemId and userId) ---
+  useEffect(() => {
+    if (!selectedSystemId || !userId) {
+      setSelectedSystemDetails(null); // Clear details if no system is selected or no user ID
+      setDetailsError(null);
+      if (isDetailsLoading) setIsDetailsLoading(false);
+      setExpandedMainComponents({}); // Reset expanded state
+      return;
+    }
+
+    const fetchDetailedAnalytics = async () => {
+      setIsDetailsLoading(true);
+      setDetailsError(null);
+      setSelectedSystemDetails(null); // Clear previous details
+      setExpandedMainComponents({}); // Reset expanded state
+
+      try {
+        console.log(`Fetching detailed analytics for system ID: ${selectedSystemId}, user ID: ${userId}`);
+        const response = await fetch(`/api/control-assignments/analytics/by-system/${selectedSystemId}?securityManagerId=${userId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to fetch detailed analytics: ${response.statusText}`);
+        }
+        const rawData: DetailedSystemAnalyticsResponse = await response.json();
+
+        // Process the detailed data
+        const processed: ProcessedDetailedAnalytics = {};
+        rawData.assignments.forEach(assignment => {
+          const mainComponent = assignment.control.mainComponent;
+          if (!processed[mainComponent]) {
+            processed[mainComponent] = {
+              subControls: [],
+              counts: { total: 0, finished: 0, assigned: 0, notAssigned: 0 }
+            };
+          }
+          processed[mainComponent].subControls.push(assignment);
+          processed[mainComponent].counts.total++;
+
+          if (assignment.status === TaskStatus.COMPLETED) { // Correct enum member
+            processed[mainComponent].counts.finished++;
+          } else if (assignment.assignedUserId) {
+            processed[mainComponent].counts.assigned++;
+          } else {
+            processed[mainComponent].counts.notAssigned++;
+          }
+        });
+
+        // Sort subControls within each main component (optional)
+        Object.values(processed).forEach(mc => {
+          mc.subControls.sort((a, b) => a.control.controlNumber.localeCompare(b.control.controlNumber));
+        });
+
+
+        setSelectedSystemDetails(processed);
+
+      } catch (err: unknown) {
+        console.error("Error fetching detailed system analytics:", err);
+        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching detailed analytics.";
+        setDetailsError(errorMsg);
+      } finally {
+        setIsDetailsLoading(false);
+      }
+    };
+
+    fetchDetailedAnalytics();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSystemId, userId]); // Dependencies: selectedSystemId and userId
+  // --- End Detailed System Analytics Fetch ---
+
+
+  // --- Chart Options (For General Analytics Tab) ---
   const mainComponents = analyticsData ? Object.keys(analyticsData).sort() : [];
 
   const stackedBarSeries = analyticsData ? complianceLevelOrder.map(level => ({
@@ -204,22 +440,22 @@ export default function SecurityManagerResultsPage() {
   // --- End Chart Options ---
 
 
-  // --- Render Logic ---
-  const renderAnalyticsContent = () => {
-    if (isLoading) {
+  // --- Render Logic for General Analytics Tab ---
+  const renderGeneralAnalyticsContent = () => {
+    if (isAnalyticsLoading) {
       return (
-        <div className="flex justify-center items-center h-[calc(100vh-200px)]"> {/* Adjusted height */}
+        <div className="flex justify-center items-center h-[calc(100vh-250px)]"> {/* Adjusted height for tabs */}
           <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
-          <span className="mr-2">جاري تحميل البيانات...</span> {/* Use mr-2 for RTL */}
+          <span className="mr-2">جاري تحميل بيانات النتائج العامة...</span>
         </div>
       );
     }
 
-    if (error) {
+    if (analyticsError) {
       return (
-        <div className="flex justify-center items-center h-[calc(100vh-200px)] text-red-600"> {/* Adjusted height */}
+        <div className="flex justify-center items-center h-[calc(100vh-250px)] text-red-600"> {/* Adjusted height */}
           <AlertCircle className="h-6 w-6" />
-          <span className="mr-2">خطأ: {error}</span> {/* Use mr-2 for RTL */}
+          <span className="mr-2">خطأ في تحميل النتائج العامة: {analyticsError}</span>
         </div>
       );
     }
@@ -227,28 +463,26 @@ export default function SecurityManagerResultsPage() {
     if (!analyticsData || mainComponents.length === 0) {
       return (
         <div className="text-center py-10 text-gray-600">
-          لا توجد بيانات نتائج لعرضها.
+          لا توجد بيانات نتائج عامة لعرضها.
         </div>
       );
     }
 
-    // Actual chart rendering
+    // Actual chart rendering for general analytics
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-slate-800">نتائج الامتثال</h1>
-
+      <div className="space-y-6 pt-4"> {/* Add padding top */}
         {/* Overall Stacked Bar Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold">نظرة عامة على الامتثال حسب المكون الرئيسي</CardTitle>
+        <Card className="shadow-md">
+          <CardHeader className="bg-gray-50 rounded-t-lg">
+            <CardTitle className="text-lg font-semibold text-slate-700">نظرة عامة على الامتثال حسب المكون الرئيسي</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4">
             <Chart options={stackedBarOptions} series={stackedBarSeries} type="bar" height={350} width="100%" />
           </CardContent>
         </Card>
 
         {/* Individual Doughnut Charts per Component */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {mainComponents.map((component) => {
             const componentData = analyticsData[component];
             if (!componentData) return null;
@@ -269,45 +503,239 @@ export default function SecurityManagerResultsPage() {
             };
 
             return (
-              <Card key={component}>
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold truncate" title={component}>{component}</CardTitle>
+              <Card key={component} className="shadow-md">
+                <CardHeader className="bg-gray-50 rounded-t-lg py-3 px-4">
+                  <CardTitle className="text-base font-semibold truncate text-slate-700" title={component}>{component}</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4">
                   <Chart options={doughnutOptions} series={doughnutSeries} type="donut" height={300} width="100%" />
                 </CardContent>
               </Card>
             );
           })}
+        </div> {/* Closing tag for the grid div */}
+      </div> // Closing tag for the main space-y-6 div
+    );
+  };
+  // --- End Render Logic for General Analytics Tab ---
+
+
+  // --- Render Logic for Detailed Results Tab ---
+  const renderDetailedResultsContent = () => {
+    // Combined loading state check
+    if (isSystemsLoading || isSystemAnalyticsLoading) {
+      return (
+        <div className="flex justify-center items-center h-[calc(100vh-250px)]">
+          <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
+          <span className="mr-2">جاري تحميل بيانات الأنظمة والنتائج...</span>
         </div>
+      );
+    }
+
+    // Combined error state check
+    const combinedError = systemsError || systemAnalyticsError;
+    if (combinedError) {
+      return (
+        <div className="flex justify-center items-center h-[calc(100vh-250px)] text-red-600">
+          <AlertCircle className="h-6 w-6" />
+          <span className="mr-2">خطأ في تحميل البيانات: {combinedError}</span>
+        </div>
+      );
+    }
+
+    if (systems.length === 0) {
+      return (
+        <div className="text-center py-10 text-gray-600">
+          لم يتم العثور على أنظمة حساسة مرتبطة بهذا المستخدم.
+        </div>
+      );
+    }
+
+    // Render system boxes
+    return (
+      <div className="space-y-6 pt-4">
+         <h2 className="text-xl font-bold text-slate-800">النتائج المفصلة لكل نظام</h2>
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {systems.map((system) => (
+              <Card
+                key={system.id}
+                className="shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => {
+                  // Reset expansion state when selecting a new system or deselecting
+                  setExpandedMainComponents({});
+                  setSelectedSystemId(system.id === selectedSystemId ? null : system.id);
+                }}
+              >
+                <CardHeader className="bg-gray-50 rounded-t-lg py-3 px-4">
+                  <CardTitle className="text-base font-semibold text-slate-700 flex items-center gap-2 truncate">
+                      <Server className="h-4 w-4 text-nca-teal" />
+                     {system.systemName}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-2 text-sm">
+                  {/* Display fetched control counts */}
+                  <div className="flex justify-between items-center text-gray-600">
+                    <span>الضوابط المكتملة:</span>
+                    <span className={`font-medium ${systemAnalytics[system.id]?.finished > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                      {systemAnalytics[system.id]?.finished ?? '--'} / 105
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-gray-600">
+                    <span>الضوابط المعينة:</span>
+                     <span className={`font-medium ${systemAnalytics[system.id]?.assigned > 0 ? 'text-blue-600' : 'text-gray-500'}`}>
+                       {systemAnalytics[system.id]?.assigned ?? '--'} / 105
+                     </span>
+                  </div>
+                   <div className="flex justify-between items-center text-gray-600">
+                    <span>الضوابط المتأخرة:</span>
+                    <span className="font-medium text-red-600">-- / 105</span> {/* Still Placeholder */}
+                  </div>
+                  {/* Department Managers */}
+                  {system.department?.manager && (
+                     <div className="flex items-center gap-2 pt-2 border-t mt-2 text-gray-700">
+                       <Building className="h-4 w-4 text-gray-500"/>
+                       <span>مدير القسم: {system.department.manager.name} ({system.department.name})</span>
+                     </div>
+                  )}
+                   {/* TODO: Fetch and display actual counts and potentially more manager info */}
+                </CardContent>
+              </Card>
+            ))}
+         </div> {/* Closing tag for the grid div */}
+
+         {/* Detailed View Area (Placeholder) */}
+          {/* --- Detailed View Area --- */}
+          {selectedSystemId && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                تفاصيل النظام: {systems.find(s => s.id === selectedSystemId)?.systemName}
+              </h3>
+              {isDetailsLoading && (
+                <div className="flex justify-center items-center p-6 bg-white rounded shadow">
+                  <Loader2 className="h-6 w-6 animate-spin text-nca-teal" />
+                  <span className="mr-2">جاري تحميل التفاصيل...</span>
+                </div>
+              )}
+              {detailsError && (
+                <div className="flex justify-center items-center p-6 bg-red-50 text-red-700 rounded shadow">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="mr-2">خطأ في تحميل التفاصيل: {detailsError}</span>
+                </div>
+              )}
+              {selectedSystemDetails && !isDetailsLoading && !detailsError && (
+                <div className="space-y-4">
+                  {Object.entries(selectedSystemDetails)
+                    .sort(([mainA], [mainB]) => mainA.localeCompare(mainB)) // Sort main components alphabetically
+                    .map(([mainComponent, data]) => (
+                    <Card key={mainComponent} className="shadow-sm border border-gray-200">
+                      <CardHeader
+                        className="bg-gray-100 rounded-t-md p-3 flex flex-row justify-between items-center cursor-pointer hover:bg-gray-200"
+                        onClick={() => setExpandedMainComponents(prev => ({ ...prev, [mainComponent]: !prev[mainComponent] }))}
+                      >
+                        <CardTitle className="text-base font-medium text-slate-700">{mainComponent}</CardTitle>
+                        <div className="flex items-center gap-4 text-xs text-gray-600">
+                           <span>الإجمالي: {data.counts.total}</span>
+                           <span className="text-green-600">مكتمل: {data.counts.finished}</span>
+                           <span className="text-blue-600">معين: {data.counts.assigned}</span>
+                           <span className="text-orange-600">غير معين: {data.counts.notAssigned}</span>
+                           {expandedMainComponents[mainComponent] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </div>
+                      </CardHeader>
+                      {expandedMainComponents[mainComponent] && (
+                        <CardContent className="p-0"> {/* Remove padding for table */}
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th scope="col" className="px-4 py-2 text-right font-medium text-gray-500 tracking-wider">رقم الضابط</th>
+                                  <th scope="col" className="px-4 py-2 text-right font-medium text-gray-500 tracking-wider">نص الضابط / المكون الفرعي</th>
+                                  <th scope="col" className="px-4 py-2 text-center font-medium text-gray-500 tracking-wider">الحالة</th>
+                                  <th scope="col" className="px-4 py-2 text-center font-medium text-gray-500 tracking-wider">مستوى الامتثال</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {data.subControls.map(assignment => (
+                                  <tr key={assignment.id}>
+                                    <td className="px-4 py-2 whitespace-nowrap text-gray-700">{assignment.control.controlNumber}</td>
+                                    <td className="px-4 py-2 text-gray-700">{assignment.control.subComponent || assignment.control.controlText}</td>
+                                    <td className="px-4 py-2 text-center whitespace-nowrap">
+                                      {assignment.status === TaskStatus.COMPLETED ? ( // Correct enum member
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                          <CheckCircle className="h-3 w-3 mr-1" /> مكتمل
+                                        </span>
+                                      ) : assignment.assignedUserId ? (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                          <UserIcon className="h-3 w-3 mr-1" /> معين
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                          <MinusCircle className="h-3 w-3 mr-1" /> غير معين
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-2 text-center whitespace-nowrap">
+                                      {assignment.complianceLevel ? (
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium`}
+                                              style={{
+                                                backgroundColor: `${complianceLevelColors[assignment.complianceLevel]}20`, // Add alpha for background
+                                                color: complianceLevelColors[assignment.complianceLevel]
+                                              }}>
+                                          {complianceLevelLabels[assignment.complianceLevel]}
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-400">-</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {/* --- End Detailed View Area --- */}
       </div>
     );
   };
+  // --- End Render Logic for Detailed Results Tab ---
 
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
       {/* Header */}
-      <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
-        <div className="flex items-center justify-between">
+      <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10 shadow-md">
+        <div className="flex items-center justify-between max-w-screen-xl mx-auto">
           {/* Logo and Title */}
           <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
-            <div className="relative h-16 w-16">
-              <Image src="/static/image/logo.png" width={160} height={160} alt="Logo" className="object-contain" />
+            <div className="relative h-12 w-12 md:h-16 md:w-16"> {/* Adjusted size */}
+              <Image src="/static/image/logo.png" layout="fill" objectFit="contain" alt="Logo" />
             </div>
+             <span className="hidden sm:inline">بوابة الامتثال لضوابط الأمن السيبراني</span>
           </div>
-          {/* Spacer */}
-          <div className="flex-grow"></div>
           {/* User Icons & Toggle */}
-          <div className="flex items-center space-x-4 space-x-reverse">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
+          <div className="flex items-center space-x-2 md:space-x-4 space-x-reverse">
+            {/* Bell Icon Button */}
+            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700 rounded-full">
               <Bell className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
+            {/* User Icon Button */}
+            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700 rounded-full">
               <UserIcon className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700 md:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-              <Menu className="h-6 w-6" />
+            {/* Mobile Menu Toggle Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-slate-700 md:hidden"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            >
+              <Menu className="h-5 w-5" />
             </Button>
           </div>
         </div>
@@ -316,55 +744,81 @@ export default function SecurityManagerResultsPage() {
       {/* Main Layout with Sidebar */}
       <div className="flex flex-row">
         {/* Sidebar */}
-        <aside className={`bg-slate-800 text-white p-4 sticky top-[76px] h-[calc(100vh-76px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
-          <div className={`flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
+        {/* Conditional rendering for mobile sidebar overlay */}
+         {isSidebarOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>
+        )}
+        <aside className={`fixed md:sticky top-0 md:top-[76px] right-0 h-full md:h-[calc(100vh-76px)] bg-slate-800 text-white p-4 overflow-y-auto transition-transform duration-300 ease-in-out z-50 md:z-30 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:translate-x-0 ${isSidebarOpen ? 'w-64' : 'md:w-20'}`}>
+           {/* Close button for mobile */}
+           <div className="flex justify-end mb-4 md:hidden">
+             <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700" onClick={() => setIsSidebarOpen(false)}>
+               <Menu className="h-5 w-5" /> {/* Use X icon? */}
+             </Button>
+           </div>
+           {/* Toggle button for desktop */}
+           <div className={`hidden md:flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
             <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-              <Menu className="h-6 w-6" />
-            </Button>
-          </div>
-          <nav className="space-y-2">
-            {/* Sidebar Links - Copied from dashboard */}
-            <Link href="/security-manager" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <LayoutDashboard className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>لوحة المعلومات</span>
+              <Menu className="h-5 w-5" />
+            </Button> {/* Corrected: Closing Button tag */}
+           </div> {/* Corrected: Closing div tag */}
+          <nav className="space-y-1"> {/* Reduced spacing */}
+            {/* Sidebar Links */}
+            <Link href="/security-manager" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 text-sm ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>لوحة المعلومات</span>
             </Link>
-            {/* <Link href="/security-manager#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <ShieldCheck className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقييمات المعينة</span>
+            {/* <Link href="/security-manager#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 text-sm ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <ShieldCheck className="h-4 w-4 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>التقييمات المعينة</span>
             </Link> */}
-             <Link href="/security-manager/system-info" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <Server className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>معلومات الأنظمة</span>
+             <Link href="/security-manager/system-info" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 text-sm ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Server className="h-4 w-4 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>معلومات الأنظمة</span>
             </Link>
-            {/* <Link href="/security-manager/departments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <Building className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة الأقسام</span>
+            {/* <Link href="/security-manager/departments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 text-sm ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Building className="h-4 w-4 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>إدارة الأقسام</span>
             </Link> */}
-            {/* <Link href="/security-manager#tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <ListChecks className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المهام</span>
+            {/* <Link href="/security-manager#tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 text-sm ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <ListChecks className="h-4 w-4 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>المهام</span>
             </Link> */}
-            {/* <Link href="/security-manager#risks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <FileWarning className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المخاطر</span>
+            {/* <Link href="/security-manager#risks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 text-sm ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <FileWarning className="h-4 w-4 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>المخاطر</span>
             </Link> */}
-            {/* <Link href="/security-manager#reports" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <FileText className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقارير</span>
+            {/* <Link href="/security-manager#reports" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 text-sm ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <FileText className="h-4 w-4 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>التقارير</span>
             </Link> */}
-            <Link href="/security-manager/results" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <BarChart className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
-            </Link>
+            <Link href="/security-manager/results" className={`flex items-center gap-3 px-3 py-2 rounded bg-nca-dark-blue text-white font-semibold text-sm ${!isSidebarOpen ? 'justify-center' : ''}`}> {/* Active link style */}
+              <BarChart className="h-4 w-4 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>النتائج</span>
+           </Link>
           </nav>
         </aside>
 
         {/* Main Content Area */}
-        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
-          {/* Render the analytics content, loading, or error state */}
-          {renderAnalyticsContent()}
+        {/* Adjust margin based on sidebar state for desktop */}
+        <main className={`flex-1 p-4 md:p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-64' : 'md:mr-20'}`}>
+           {/* Tabs Navigation */}
+           <Tabs defaultValue="general" className="w-full">
+             <TabsList className="grid w-full grid-cols-2 mb-4">
+               <TabsTrigger value="general">النتائج العامة</TabsTrigger>
+               <TabsTrigger value="detailed">نتائج مفصلة</TabsTrigger>
+             </TabsList>
+             <TabsContent value="general">
+               {/* Render the general analytics content, loading, or error state */}
+               {renderGeneralAnalyticsContent()}
+             </TabsContent>
+             <TabsContent value="detailed">
+               {/* Render the detailed results content, loading, or error state */}
+               {renderDetailedResultsContent()}
+             </TabsContent>
+           </Tabs>
         </main>
-      </div>
-    </div>
+      </div> {/* Closing tag for the flex flex-row div */}
+
+    </div> // Closing tag for the main min-h-screen div
   );
 }
