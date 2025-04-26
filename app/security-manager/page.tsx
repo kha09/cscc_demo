@@ -3,9 +3,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-// import Image from "next/image"; // Removed, handled by AppHeader
-// import { useRouter } from 'next/navigation'; // Removed, handled by AppHeader
-// import { useAuth } from "@/lib/auth-context"; // Removed, handled by AppHeader
+import { useAuth } from "@/lib/auth-context"; // Import useAuth
 import { AppHeader } from "@/components/ui/AppHeader"; // Import the shared header
 // Explicitly import types from the generated client
 import type { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client";
@@ -80,7 +78,7 @@ export default function SecurityManagerDashboardPage() {
   const [sensitiveSystems, setSensitiveSystems] = useState<SimpleSensitiveSystemInfo[]>([]); // State for sensitive systems
   const [isLoadingAssessments, setIsLoadingAssessments] = useState(true);
   const [isLoadingSystems, setIsLoadingSystems] = useState(true); // Loading state for systems
-  const [userId, setUserId] = useState<string | null>(null);
+  // const [userId, setUserId] = useState<string | null>(null); // Removed userId state
   const [assessmentsError, setAssessmentsError] = useState<string | null>(null); // Specific error for assessments
   const [systemsError, setSystemsError] = useState<string | null>(null); // Specific error for systems
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -118,56 +116,20 @@ export default function SecurityManagerDashboardPage() {
   const [taskAssignmentMessage, setTaskAssignmentMessage] = useState<TaskAssignmentMessage>(null);
 
   // Auth and Routing - Removed logout logic, handled by AppHeader
-  // const { logout } = useAuth();
-  // const router = useRouter();
+  const { user, loading: authLoading } = useAuth(); // Get user and loading state from context
 
-  // Handle Logout - Removed, handled by AppHeader
-  // const handleLogout = () => {
-  //   logout();
-  //   router.push('/signin');
-  // };
-
-  // --- Temporary User ID Fetch ---
-  // In a real app, get this from auth context/session
+  // Fetch assessments, systems, controls, managers when user is available
   useEffect(() => {
-    const fetchUserId = async () => {
-      try {
-        // Fetch the first security manager user as a placeholder
-        // Ensure the API endpoint exists and returns security managers
-        const response = await fetch('/api/users/security-managers');
-        if (!response.ok) throw new Error('Failed to fetch security managers');
-        const managers: User[] = await response.json();
-        if (managers.length > 0) {
-          setUserId(managers[0].id);
-        } else {
-          setAssessmentsError("No Security Manager user found."); // Set specific error
-          setSystemsError("No Security Manager user found."); // Set specific error
-          setIsLoadingAssessments(false);
-          setIsLoadingSystems(false);
-        }
-      } catch (err: unknown) {
-        console.error("Error fetching user ID:", err);
-        const errorMsg = err instanceof Error ? err.message : "Failed to get user ID";
-        setAssessmentsError(errorMsg); // Set specific error
-        setSystemsError(errorMsg); // Set specific error
-        setIsLoadingAssessments(false);
-        setIsLoadingSystems(false);
-      }
-    };
-    fetchUserId();
-  }, []);
-  // --- End Temporary User ID Fetch ---
+    if (!user?.id) return; // Exit if no user ID
 
-  // Fetch assessments, systems, controls, managers when userId is available
-  useEffect(() => {
-    if (!userId) return;
+    const userId = user.id; // Use the authenticated user's ID
 
     // Fetch Assessments
     const fetchAssessments = async () => {
       setIsLoadingAssessments(true);
       setAssessmentsError(null);
       try {
-        const response = await fetch(`/api/users/${userId}/assessments`);
+        const response = await fetch(`/api/users/${userId}/assessments`); // Use userId variable
         if (!response.ok) {
           throw new Error(`Failed to fetch assessments: ${response.statusText}`);
         }
@@ -186,7 +148,7 @@ export default function SecurityManagerDashboardPage() {
       setIsLoadingSystems(true);
       setSystemsError(null);
       try {
-        const response = await fetch(`/api/users/${userId}/sensitive-systems`);
+        const response = await fetch(`/api/users/${userId}/sensitive-systems`); // Use userId variable
         if (!response.ok) {
           throw new Error(`Failed to fetch sensitive systems: ${response.statusText}`);
         }
@@ -204,9 +166,9 @@ export default function SecurityManagerDashboardPage() {
 
     fetchAssessments();
     fetchSensitiveSystems();
-  }, [userId]);
+  }, [user]); // Depend on the user object
 
-  // Fetch Controls, Dept Managers on component mount
+  // Fetch Controls, Dept Managers on component mount (no change needed here as they are not user-specific)
   useEffect(() => {
     const fetchControls = async () => {
       setIsLoadingControls(true);
@@ -346,7 +308,7 @@ export default function SecurityManagerDashboardPage() {
       setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار الموعد النهائي.' });
       return;
     }
-    if (!userId) {
+    if (!user?.id) { // Check if user or user.id is null/undefined
       // This should ideally not happen if the page loads correctly, but good to check
       setTaskAssignmentMessage({ type: 'error', text: 'خطأ: لم يتم العثور على معرّف المستخدم.' });
       return;
@@ -361,7 +323,7 @@ export default function SecurityManagerDashboardPage() {
       assignedToId: selectedDepartmentManagerId, // Add new field for the assigned manager
       controlIds: selectedControls.map(c => c.id),
       deadline: deadlineDate.toISOString(), // Send as ISO string
-      assignedById: userId, // The Security Manager assigning the task
+      assignedById: user.id, // Use the authenticated user's ID
     };
 
     try {
@@ -399,8 +361,25 @@ export default function SecurityManagerDashboardPage() {
   };
 
 
+  // Handle loading and unauthenticated states
+  if (authLoading) {
+    return <div className="flex justify-center items-center min-h-screen">جاري التحميل...</div>; // Or a spinner component
+  }
+
+  if (!user) {
+    // Optionally redirect to signin or show a message
+    // For now, just show a message. Consider using useRouter for redirection.
+    return <div className="flex justify-center items-center min-h-screen">الرجاء تسجيل الدخول للوصول لهذه الصفحة.</div>;
+  }
+
+  // Ensure user is a Security Manager (optional but recommended)
+  if (user.role !== 'SECURITY_MANAGER') {
+    return <div className="flex justify-center items-center min-h-screen">غير مصرح لك بالوصول لهذه الصفحة.</div>;
+  }
+
+
   return (
-    // Removed ProtectedRoute for now as auth isn't fully implemented server-side
+    // Removed ProtectedRoute
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
       {/* Use the shared AppHeader */}
       <AppHeader />
