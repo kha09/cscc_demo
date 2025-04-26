@@ -206,6 +206,17 @@ export default function UserDashboardPage() {
     }
   };
 
+  // Helper function to translate TaskStatus enum to Arabic text
+  const translateStatus = (status: TaskStatus | undefined): string => {
+    switch (status) {
+      case 'COMPLETED': return "مكتمل";
+      case 'PENDING': return "غير محدد"; // Changed from PENDING
+      case 'IN_PROGRESS': return "قيد التنفيذ";
+      case 'OVERDUE': return "متأخر";
+      default: return "غير معروف";
+    }
+  };
+
   // --- File Handling Functions ---
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles(event.target.files);
@@ -485,8 +496,7 @@ export default function UserDashboardPage() {
                             </Badge>
                           ) : (
                             <Badge {...getStatusBadgeProps(assignment.status)}>
-                              {/* TODO: Translate status */}
-                              {assignment.status}
+                              {translateStatus(assignment.status)}
                             </Badge>
                           )}
                         </td>
