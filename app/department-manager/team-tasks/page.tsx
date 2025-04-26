@@ -17,13 +17,17 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select imports
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ControlFile as PrismaControlFile } from "@prisma/client"; // Import ControlFile only here
+import { ChevronDown, ChevronUp, FileText, Loader2 } from "lucide-react"; // Added FileText, Loader2
 import React from "react"; // Keep React import if needed elsewhere, though useState/useEffect cover Fragment usage
 
 // --- Type Definitions (Copied from original page.tsx) ---
 type FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'>;
 
-interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'createdAt' | 'updatedAt' | 'control' | 'assignedUser'> {
+// Define FrontendControlFile based on Prisma model
+type FrontendControlFile = Pick<PrismaControlFile, 'id' | 'filePath' | 'originalFilename' | 'createdAt'>;
+
+interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'createdAt' | 'updatedAt' | 'control' | 'assignedUser' | 'files'> { // Removed 'files' from Omit
   control: Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText' | 'mainComponent' | 'subComponent' | 'controlType'>;
   assignedUser: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null;
   notes: string | null; // User notes
@@ -56,6 +60,10 @@ export default function TeamTasksPage() {
   const [assignmentUpdates, setAssignmentUpdates] = useState<{
     [key: string]: { managerStatus?: string; managerNote?: string }
   }>({});
+  // State for storing fetched files per assignment
+  const [assignmentFiles, setAssignmentFiles] = useState<{ [key: string]: FrontendControlFile[] }>({});
+  // State to track which assignments are currently loading files
+  const [filesLoadingAssignments, setFilesLoadingAssignments] = useState<Set<string>>(new Set());
 
 
   // --- Helper Functions (Copied from original page.tsx) ---
@@ -130,6 +138,14 @@ export default function TeamTasksPage() {
       }
       return newSet;
     });
+
+    // Determine if we are expanding (i.e., the ID was *not* previously in the set)
+    const isExpanding = !expandedTeamAssignments.has(assignmentId);
+
+    // Fetch files if expanding and not already loaded/loading
+    if (isExpanding && !assignmentFiles[assignmentId] && !filesLoadingAssignments.has(assignmentId)) {
+      fetchAssignmentFiles(assignmentId);
+    }
   };
 
   // Handler for updating manager status/notes locally
@@ -210,6 +226,31 @@ export default function TeamTasksPage() {
       // Remove loading state if added
     }
   };
+
+  // --- Fetch Files for a Specific Assignment ---
+  const fetchAssignmentFiles = useCallback(async (assignmentId: string) => {
+    setFilesLoadingAssignments(prev => new Set(prev).add(assignmentId));
+    try {
+      const response = await fetch(`/api/control-assignments/${assignmentId}/files`, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch files: ${response.statusText}`);
+      }
+      const filesData: FrontendControlFile[] = await response.json();
+      setAssignmentFiles(prev => ({ ...prev, [assignmentId]: filesData }));
+    } catch (e: unknown) {
+      console.error(`Failed to fetch files for assignment ${assignmentId}:`, e);
+      // Optionally set an error state per assignment if needed
+      setAssignmentFiles(prev => ({ ...prev, [assignmentId]: [] })); // Set empty array on error to prevent re-fetching
+    } finally {
+      setFilesLoadingAssignments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(assignmentId);
+        return newSet;
+      });
+    }
+  }, []);
+  // --- End Fetch Files ---
+
   // --- End Helper Functions ---
 
 
@@ -381,6 +422,36 @@ export default function TeamTasksPage() {
                                   حفظ التغييرات
                                 </Button>
                               </div>
+                            </div>
+
+                            {/* User Uploaded Files Section */}
+                            <div className="mt-4 pt-4 border-t border-gray-300">
+                              <h5 className="font-semibold mb-3 text-sm">ملفات المستخدم</h5>
+                              {filesLoadingAssignments.has(assignment.id) ? (
+                                <div className="flex items-center text-gray-500">
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  <span>جاري تحميل الملفات...</span>
+                                </div>
+                              ) : assignmentFiles[assignment.id] && assignmentFiles[assignment.id].length > 0 ? (
+                                <ul className="list-none space-y-2">
+                                  {assignmentFiles[assignment.id].map((file) => (
+                                    <li key={file.id} className="text-sm">
+                                      <a
+                                        href={file.filePath} // Use the path stored in DB
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-nca-teal hover:underline flex items-center"
+                                      >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        {file.originalFilename}
+                                      </a>
+                                      <span className="text-xs text-gray-500 ml-2">({formatDate(file.createdAt)})</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-sm text-gray-500">لم يتم رفع أي ملفات لهذا الضابط.</p>
+                              )}
                             </div>
                           </td>
                         </tr>
