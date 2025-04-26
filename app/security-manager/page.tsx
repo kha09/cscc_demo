@@ -619,7 +619,7 @@ export default function SecurityManagerDashboardPage() {
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>معلومات اساسية عن الأنظمة الحساسة</DialogTitle>
+                <DialogTitle>إنشاء تقييم جديد</DialogTitle>
               </DialogHeader>
               {selectedAssessmentId ? (
                 <div className="space-y-4 py-4">
