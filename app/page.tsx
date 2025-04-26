@@ -1,42 +1,49 @@
-"use client"
-
 import Image from "next/image"
-import Link from "next/link"
-import { Button } from "@/components/ui/button" // Assuming Button component exists
+import { Button } from "@/components/ui/button"
 
-export default function StartAssessmentPage() {
+export default function Home() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50" dir="rtl">
-      <div className="text-center">
-        {/* Logo */}
-        <div className="mb-8">
+    <main className="min-h-screen flex flex-col md:flex-row bg-gradient-to-b from-gray-300 to-white">
+      {/* Left column - Image One */}
+      {/* Removed bg-gray-300 from here as the gradient is now on the main element */}
+      <div className="w-full md:w-1/2 min-h-[20vh] md:min-h-screen flex items-center justify-center">
+        <Image
+          src="/static/image/logo.png"
+          alt="Featured image"
+          width={600} // Set explicit width
+          height={600} // Set explicit height
+          priority
+        />
+      </div>
+
+      {/* Right column - Image Two with Heading and Button overlay */}
+      {/* Removed bg-gray-300 from here to let the main gradient show */}
+      <div className="w-full md:w-1/2 relative min-h-[50vh] md:min-h-screen">
+        {/* Image Two filling the entire right section */}
+        <div className="absolute inset-0">
           <Image
-            src="/static/image/logo.png"
-            alt="Logo"
-            width={250} // Increased size for clarity
-            height={250} // Increased size for clarity
-            className="mx-auto" // Center the image
-            priority // Prioritize loading the logo
+            src="/static/image/6.png?height=800&width=600"
+            alt="Background image"
+            fill
+            className="object-cover"
+            priority
           />
         </div>
 
-        {/* Heading */}
-        <h1 className="text-3xl md:text-4xl font-bold text-nca-dark-blue mb-12">
-          ابدأ تقييم منشأتك
-        </h1>
-
-        {/* Start Button Container */}
-        <div className="flex justify-center">
-          <Link href="/home" passHref>
-            <Button
-              size="lg" // Use large size for prominence
-              className="bg-nca-teal text-white hover:bg-nca-teal-dark rounded-full w-32 h-32 flex items-center justify-center text-lg font-semibold shadow-lg" // Circular button styles
-            >
-              ابدأ الآن
-            </Button>
-          </Link>
+        {/* Heading and Button overlay */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 p-8">
+          <Image
+            src="/static/image/4.png" // Assuming 4.png exists in public/static/image
+            alt="Overlay image"
+            width={500} // Adjust width as needed
+            height={200} // Adjust height as needed
+            priority // Keep priority if it's important for loading
+          />
+          <Button size="lg" className="text-xl px-8 py-6">
+            Button
+          </Button>
         </div>
       </div>
-    </div>
+    </main>
   )
 }
