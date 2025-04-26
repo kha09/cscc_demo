@@ -111,31 +111,37 @@ export default function UserDashboardPage() {
     router.push('/signin'); // Redirect to signin page after logout
   };
 
-  // --- Fetch Current User ---
+  // --- Get Current User from Auth Context ---
+  const { user: authUser } = useAuth();
+  
   useEffect(() => {
-    const fetchCurrentUser = async () => {
-      setIsLoadingUser(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/users?role=USER'); // Fetch only users with USER role
-        if (!response.ok) throw new Error(`Failed to fetch users: ${response.statusText}`);
-        const users: FrontendUser[] = await response.json();
-        const user = users.length > 0 ? users[0] : null; // Use first USER for demo
-
-        if (user) {
-          setCurrentUser(user);
-        } else {
-          setError("User not found or not logged in.");
-        }
-      } catch (err: unknown) {
-        console.error("Error fetching current user:", err);
-        setError(err instanceof Error ? err.message : "Failed to get current user information.");
-      } finally {
-        setIsLoadingUser(false);
+    setIsLoadingUser(true);
+    setError(null);
+    
+    try {
+      if (authUser) {
+        // Convert Prisma User to FrontendUser
+        const frontendUser: FrontendUser = {
+          id: authUser.id,
+          name: authUser.name,
+          nameAr: authUser.nameAr || null,
+          email: authUser.email,
+          role: authUser.role,
+          department: authUser.department || null
+        };
+        
+        setCurrentUser(frontendUser);
+      } else {
+        setError("المستخدم غير مسجل الدخول. يرجى تسجيل الدخول للوصول إلى لوحة المستخدم.");
+        router.push('/signin');
       }
-    };
-    fetchCurrentUser();
-  }, []);
+    } catch (err: unknown) {
+      console.error("Error setting current user:", err);
+      setError(err instanceof Error ? err.message : "فشل في الحصول على معلومات المستخدم الحالي.");
+    } finally {
+      setIsLoadingUser(false);
+    }
+  }, [authUser, router]);
 
   // --- Fetch Assigned Controls for Current User ---
   const fetchAssignedControls = useCallback(async () => {
@@ -561,7 +567,7 @@ export default function UserDashboardPage() {
             {selectedAssignment?.managerStatus && (
               <div className="grid grid-cols-4 items-center gap-4 mt-4 pt-4 border-t">
                 <Label className="text-right col-span-1 font-semibold">حالة المراجعة</Label>
-                <Badge variant="secondary" className="col-span-3 justify-start">
+                <Badge variant="secondary" className="col-span-3 justify-start p-2">
                   {selectedAssignment.managerStatus}
                 </Badge>
               </div>
