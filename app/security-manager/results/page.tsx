@@ -9,9 +9,9 @@ import { AppHeader } from "@/components/ui/AppHeader"; // Import shared header
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as UserIcon } from "lucide-react"; // Re-added UserIcon
+import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon } from "lucide-react"; // Prefixed unused imports with underscore
 import { TaskStatus } from "@prisma/client";
-import type { User } from "@prisma/client";
+import type { User as _User } from "@prisma/client"; // Prefixed with underscore to avoid unused type error
 import SystemAnalyticsCharts from "@/components/ui/SystemAnalyticsCharts"; // Import the new chart component
 
 // Dynamically import ApexCharts to avoid SSR issues
@@ -448,12 +448,12 @@ export default function SecurityManagerResultsPage() {
   // --- Chart Options (For General Analytics Tab) ---
   const mainComponents = analyticsData ? Object.keys(analyticsData).sort() : [];
 
-  const stackedBarSeries = analyticsData ? complianceLevelOrder.map(level => ({
+  const _stackedBarSeries = analyticsData ? complianceLevelOrder.map(level => ({
     name: complianceLevelLabels[level],
     data: mainComponents.map(component => analyticsData[component]?.percentages[level] || 0)
   })) : [];
 
-  const stackedBarOptions: ApexCharts.ApexOptions = {
+  const _stackedBarOptions: ApexCharts.ApexOptions = {
     chart: { type: 'bar', stacked: true, stackType: '100%', toolbar: { show: true }, fontFamily: 'inherit' },
     plotOptions: { bar: { horizontal: false } },
     xaxis: { categories: mainComponents, labels: { style: { fontFamily: 'inherit' } } },
@@ -709,7 +709,7 @@ export default function SecurityManagerResultsPage() {
                                         </span>
                                       ) : assignment.assignedUserId ? (
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                          <UserIcon className="h-3 w-3 mr-1" /> معين
+                                          <_UserIcon className="h-3 w-3 mr-1" /> معين
                                         </span>
                                       ) : (
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">

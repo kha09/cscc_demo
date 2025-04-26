@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: { assignmentI
     // 2. Ensure the upload directory exists
     try {
       await mkdir(UPLOAD_DIR, { recursive: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating upload directory:', error);
       return NextResponse.json({ error: 'Failed to prepare upload directory' }, { status: 500 });
     }

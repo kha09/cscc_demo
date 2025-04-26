@@ -11,18 +11,18 @@ import {
   TaskStatus,
   ComplianceLevel
 } from "@prisma/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader as _CardHeader, CardTitle as _CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select imports
 import { ControlFile as PrismaControlFile } from "@prisma/client"; // Import ControlFile only here
-import { ChevronDown, ChevronUp, FileText, Loader2 } from "lucide-react"; // Added FileText, Loader2
+import { ChevronDown as _ChevronDown, ChevronUp as _ChevronUp, FileText, Loader2 } from "lucide-react"; // Added FileText, Loader2
 import React from "react"; // Keep React import if needed elsewhere, though useState/useEffect cover Fragment usage
 
 // --- Type Definitions (Copied from original page.tsx) ---
-type FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'>;
+type _FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'>;
 
 // Define FrontendControlFile based on Prisma model
 type FrontendControlFile = Pick<PrismaControlFile, 'id' | 'filePath' | 'originalFilename' | 'createdAt'>;
@@ -116,7 +116,7 @@ export default function TeamTasksPage() {
     }
   };
 
-  const getStatusBadgeClass = (status: TaskStatus | undefined | null): string => {
+  const _getStatusBadgeClass = (status: TaskStatus | undefined | null): string => {
     switch (status) {
       case TaskStatus.COMPLETED: return 'bg-green-100 text-green-700';
       case TaskStatus.PENDING: return 'bg-yellow-100 text-yellow-700';

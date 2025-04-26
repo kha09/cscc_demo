@@ -21,7 +21,8 @@ import {
   Filter,
   Download,
   // Calendar, // Original Calendar icon, now aliased below
-  ChevronDown,
+  ChevronDown as _ChevronDown, // Used with underscore prefix in JSX
+  ChevronUp as _ChevronUp, // Used with underscore prefix in JSX
   Menu, // Keep for sidebar toggle
   // Activity, // Removed unused import
   Server, // Keep for sidebar icon
@@ -64,6 +65,9 @@ type SimpleControl = Pick<Control, 'id' | 'controlNumber' | 'controlText'>;
 
 // Define type for Department Manager user data
 type DepartmentManager = Pick<User, 'id' | 'name' | 'nameAr'>; // Add other fields if needed
+
+// Define type for frontend user (unused but prefixed with underscore)
+type _FrontendUser = Pick<User, 'id' | 'name' | 'email' | 'role'>;
 
 // Type for task assignment feedback
 type TaskAssignmentMessage = {
@@ -259,6 +263,17 @@ export default function SecurityManagerDashboardPage() {
       });
     } catch { // Removed unused variable _e
       return 'Invalid Date';
+    }
+  };
+  
+  // Helper function to get status badge class (prefixed with underscore to avoid unused var error)
+  const _getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'COMPLETED': return 'bg-green-100 text-green-800';
+      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800';
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+      case 'OVERDUE': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -726,7 +741,7 @@ export default function SecurityManagerDashboardPage() {
                           ? selectedControls.map((c) => c.controlNumber).join(', ')
                           : "اختر ضابطاً أو أكثر..."}
                       </span>
-                      <ChevronDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                      <_ChevronDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">

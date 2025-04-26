@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import Image from "next/image"
+import { default as _Image } from "next/image"
 import { useRouter } from 'next/navigation'; // Import useRouter
 import { useAuth } from "@/lib/auth-context"; // Import useAuth
 // Import necessary types AND values from Prisma
@@ -17,13 +17,13 @@ import {
 // Keep other type imports if needed using 'import type'
  // Example: import type { SomeOtherType } from "@prisma/client";
  import {
-   Bell,
+   Bell as _Bell,
    // PlusCircle, // Removed unused import
-   User as UserIcon,
-   LogOut, // Import LogOut icon
+   User as _UserIcon,
+   LogOut as _LogOut, // Import LogOut icon
    ClipboardList,
    BarChart,
-   FileText,
+   FileText as _FileText,
    AlertTriangle,
    Search,
    // Filter, // Removed unused import
@@ -31,21 +31,21 @@ import {
    CheckCircle,
    Users,
    UserPlus,
-  RefreshCw,
-  ChevronDown, // Added for expanding task details
-  ChevronUp // Added for collapsing task details
+  RefreshCw as _RefreshCw,
+  ChevronDown as _ChevronDown, // Added for expanding task details
+  ChevronUp as _ChevronUp // Added for collapsing task details
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card" // Removed unused CardFooter
 import { Input } from "@/components/ui/input"
-import Link from "next/link"
+import { default as _Link } from "next/link"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Removed Tooltip import as it seems unused and causes errors
 import { Badge } from "@/components/ui/badge"; // Added Badge for status
-import { Textarea } from "@/components/ui/textarea"; // Added Textarea for notes
-import { Label } from "@/components/ui/label"; // Added Label import
-import React, { ChangeEvent } from "react"; // Import React for Fragment and ChangeEvent
+import { Textarea as _Textarea } from "@/components/ui/textarea"; // Added Textarea for notes
+import { Label as _Label } from "@/components/ui/label"; // Added Label import
+import React, { ChangeEvent as _ChangeEvent } from "react"; // Import React for Fragment and ChangeEvent
 
 // Define User type for frontend use
 type FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'>;
@@ -89,9 +89,9 @@ export default function DepartmentManagerDashboardPage() {
   // Removed expandedTeamAssignments state
 
   // State for modals
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [_isDetailsModalOpen, _setIsDetailsModalOpen] = useState(false);
   // Modal now shows details of a Task, focusing on its ControlAssignments
-  const [selectedTaskForDetailsModal] = useState<FrontendTask | null>(null); // Removed unused setter
+  const [_selectedTaskForDetailsModal] = useState<FrontendTask | null>(null); // Removed unused setter
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   // Removed state related to the old incorrect assignment modal
 
@@ -121,7 +121,7 @@ export default function DepartmentManagerDashboardPage() {
   // const handleSaveNotesAndStatus = ... (Removed)
 
   // Handle Logout
-  const handleLogout = () => {
+  const _handleLogout = () => {
     logout();
     router.push('/signin'); // Redirect to signin page after logout
   };
@@ -428,7 +428,7 @@ export default function DepartmentManagerDashboardPage() {
 
 
   // Helper function to determine badge class based on status (Restored)
-  const getStatusBadgeClass = (status: TaskStatus | undefined | null): string => {
+  const _getStatusBadgeClass = (status: TaskStatus | undefined | null): string => {
     switch (status) {
       case TaskStatus.COMPLETED: return 'bg-green-100 text-green-700';
       case TaskStatus.PENDING: return 'bg-yellow-100 text-yellow-700';

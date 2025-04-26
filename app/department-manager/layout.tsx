@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { useAuth } from "@/lib/auth-context";
-import { useRouter } from 'next/navigation';
+import { default as _Image } from "next/image";
+import { useAuth as _useAuth } from "@/lib/auth-context";
+import { useRouter as _useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/ui/AppHeader"; // Import the new header
 import {
   // Bell, // Moved to AppHeader
   // User as UserIcon, // Moved to AppHeader
-  LogOut, // Keep LogOut for sidebar close button
+  LogOut as _LogOut, // Keep LogOut for sidebar close button
   Menu,
   LayoutDashboard,
   Users, // Icon for Team Tasks

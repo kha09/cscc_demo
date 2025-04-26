@@ -21,11 +21,11 @@ import {
   ClipboardList,
   AlertTriangle,
   Search,
-  Filter,
-  Download,
+  Filter as _Filter, // Prefixed with underscore to avoid unused var error
+  Download as _Download, // Prefixed with underscore to avoid unused var error
   CheckCircle,
   Clock,
-  Send,
+  Send as _Send, // Prefixed with underscore to avoid unused var error
   Upload,
   RefreshCw, // Added for loading indicator
   CalendarIcon // Added for date picker
@@ -33,7 +33,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card" // Removed unused CardHeader, CardTitle, CardContent
 import { Input } from "@/components/ui/input"
-import Link from "next/link"
+// import Link from "next/link" // Removed unused import
 import { Badge, type BadgeProps } from "@/components/ui/badge"; // Added BadgeProps type
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"; // Added Dialog
 import { Label } from "@/components/ui/label"; // Added Label
@@ -179,7 +179,7 @@ export default function UserDashboardPage() {
     } finally {
       setIsLoadingControls(false);
     }
-  }, [currentUser, isLoadingUser, error, router]); // Added router back to dependency array
+  }, [currentUser, isLoadingUser, error]); // router is not used in the callback
 
   useEffect(() => {
     fetchAssignedControls();

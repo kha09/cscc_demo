@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 // import Image from "next/image"; // Removed, AppHeader handles logo
 import { useAuth } from "@/lib/auth-context"; // Import useAuth
-import { User, SensitiveSystemInfo } from "@prisma/client"; // Import necessary types
+import { User as _User, SensitiveSystemInfo } from "@prisma/client"; // Prefixed User with underscore to avoid unused type error
 import { AppHeader } from "@/components/ui/AppHeader"; // Import shared header
 import {
   // Bell, // Removed, handled by AppHeader

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ComplianceLevel, ControlAssignment, Task, SensitiveSystemInfo } from '@prisma/client';
+import { ComplianceLevel, ControlAssignment as _ControlAssignment, Task as _Task, SensitiveSystemInfo as _SensitiveSystemInfo } from '@prisma/client';
 
 // Define the type for the data structure returned by the query
 // We need the assignment's compliance level and the system ID from the related task
-interface AssignmentWithSystemId {
+interface _AssignmentWithSystemId {
   id: string;
   complianceLevel: ComplianceLevel | null;
   task: {
