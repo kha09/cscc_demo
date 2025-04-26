@@ -421,7 +421,7 @@ export default function UserDashboardPage() {
                     <tr><td colSpan={6} className="text-center py-4">{searchQuery ? 'لا توجد نتائج مطابقة للبحث.' : 'لا توجد ضوابط معينة لك حاليًا.'}</td></tr>
                   ) : (
                     filteredControls.map((assignment) => (
-                      <tr key={assignment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <tr key={assignment.id} className="group border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-4 pr-4" title={assignment.control.controlText}>
                           {assignment.control.controlNumber}
                         </td>
@@ -439,10 +439,10 @@ export default function UserDashboardPage() {
                             </Badge>
                           )}
                         </td>
-                        <td className="py-4">
-                          <span className={`px-2 py-1 rounded ${getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}`}>
+                        <td className="py-4 bg-white group-hover:bg-white">
+                          <Badge variant="outline" className={`px-2 py-1 border border-gray-400 ${getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}`}>
                             {getComplianceLevelText(assignment.complianceLevel)}
-                          </span>
+                          </Badge>
                         </td>
                         <td className="py-4">
                           <Button
