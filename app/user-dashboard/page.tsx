@@ -390,6 +390,7 @@ export default function UserDashboardPage() {
       getComplianceLevelText(assignment.complianceLevel).toLowerCase().includes(searchTerm)
     );
   });
+  const now = new Date();
 
 
   return (
@@ -437,21 +438,21 @@ export default function UserDashboardPage() {
             </Card>
             <Card className="p-6">
               <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">{isLoadingControls ? '...' : assignedControls.filter(c => c.status === 'COMPLETED').length}</div>
+                <div className="text-3xl font-bold">{isLoadingControls ? '...' : assignedControls.filter(c => c.complianceLevel === ComplianceLevel.IMPLEMENTED).length}</div>
                 <CheckCircle className="h-6 w-6 text-green-500" />
               </div>
               <div className="text-sm text-gray-600 mt-2">الضوابط المكتملة</div>
             </Card>
             <Card className="p-6">
               <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">{isLoadingControls ? '...' : assignedControls.filter(c => c.status === 'PENDING' || c.status === 'IN_PROGRESS').length}</div>
+                <div className="text-3xl font-bold">{isLoadingControls ? '...' : assignedControls.filter(c => c.complianceLevel == null).length}</div>
                 <Clock className="h-6 w-6 text-yellow-500" />
               </div>
               <div className="text-sm text-gray-600 mt-2">الضوابط المعلقة</div>
             </Card>
             <Card className="p-6">
               <div className="flex justify-between items-center">
-                <div className="text-3xl font-bold">{isLoadingControls ? '...' : assignedControls.filter(c => c.status === 'OVERDUE').length}</div>
+                <div className="text-3xl font-bold">{isLoadingControls ? '...' : assignedControls.filter(c => new Date(c.task.deadline) < now).length}</div>
                 <AlertTriangle className="h-6 w-6 text-red-500" />
               </div>
               <div className="text-sm text-gray-600 mt-2">ضوابط متأخرة</div>
