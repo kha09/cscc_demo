@@ -450,7 +450,24 @@ export default function SecurityManagerResultsPage() {
     dataLabels: { enabled: false },
     grid: { borderColor: '#e7e7e7', row: { colors: ['#f3f3f3', 'transparent'], opacity: 0.5 } },
   };
-  // --- End Chart Options ---
+ // --- End Chart Options ---
+
+ // --- Polar Area Chart Options (For General Analytics Tab) ---
+ const polarSeries = analyticsData
+   ? mainComponents.map(
+       (component) =>
+         analyticsData[component]?.percentages[ComplianceLevel.IMPLEMENTED] || 0
+     )
+   : [];
+ const polarOptions: ApexCharts.ApexOptions = {
+   chart: { type: 'polarArea', fontFamily: 'inherit' },
+   labels: mainComponents,
+   fill: { opacity: 0.8 },
+   stroke: { width: 1 },
+   legend: { position: 'bottom', fontFamily: 'inherit' },
+   tooltip: { y: { formatter: (val) => `${val.toFixed(1)}%` }, style: { fontFamily: 'inherit' } }
+ };
+ // --- End Polar Area Chart Options ---
 
 
   // --- Render Logic for General Analytics Tab ---
@@ -490,7 +507,7 @@ export default function SecurityManagerResultsPage() {
             <CardTitle className="text-lg font-semibold text-slate-700">نظرة عامة على الامتثال حسب المكون الرئيسي</CardTitle>
           </CardHeader>
           <CardContent className="p-4">
-            <Chart options={stackedBarOptions} series={stackedBarSeries} type="bar" height={350} width="100%" />
+            <Chart options={polarOptions} series={polarSeries} type="polarArea" height={350} width="100%" />
           </CardContent>
         </Card>
 
