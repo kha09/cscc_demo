@@ -37,24 +37,24 @@ const SystemAnalyticsCharts: React.FC<SystemAnalyticsChartsProps> = ({ data }) =
 
   return (
     <div className="mt-6 p-4 border rounded-lg shadow-sm bg-white" dir="rtl">
-      <h3 className="text-lg font-semibold mb-4 text-center">تحليل الضوابط حسب المحور الرئيسي</h3>
+      <h3 className="text-lg font-semibold mb-4 text-center">تحليل الضوابط حسب المكون الأساسي</h3>
       <ResponsiveContainer width="100%" height={400}>
-        <BarChart
+          <BarChart
           data={chartData}
           margin={{
             top: 20,
             right: 30,
-            left: 20,
+            left: 200,     // Further increased left margin
             bottom: 5,
           }}
           layout="vertical" // Use vertical layout for better readability with long names
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis type="number" />
-          <YAxis dataKey="name" type="category" width={150} interval={0} /> {/* Adjust width as needed */}
+          <YAxis dataKey="name" type="category" width={350} interval={0} /> {/* Further increased width */}
           <Tooltip
             formatter={(value: number, name: string) => [`${value} ضابط`, name]}
-            labelFormatter={(label: string) => `المحور: ${label}`}
+            labelFormatter={(label: string) => `المكون الأساسي: ${label}`}
           />
           <Legend
              formatter={(value: string) => {
