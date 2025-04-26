@@ -30,8 +30,8 @@ export default function DepartmentManagerLayout({
   //   router.push('/signin');
   // };
 
-  // Calculate header height dynamically if possible, or use a fixed value
-  const headerHeight = 76; // Assuming the header height is approx 76px based on previous code
+  // Define header height (based on AppHeader: py-3 + h-16 logo = 12+12+64 = 88px)
+  const headerHeight = 88;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
@@ -39,25 +39,14 @@ export default function DepartmentManagerLayout({
       <AppHeader />
 
       {/* Main Layout with Sidebar */}
-      {/* Adjust top padding/margin if needed based on sticky header */}
-      <div className="flex flex-row">
-        {/* Sidebar */}
-        {/* Adjust sidebar positioning based on the actual header height */}
-        <aside className={`bg-slate-800 text-white p-4 fixed md:sticky top-0 md:top-[${headerHeight}px] right-0 h-full md:h-[calc(100vh-${headerHeight}px)] z-20 md:z-0 overflow-y-auto transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:translate-x-0 md:relative ${isSidebarOpen ? 'w-64' : 'md:w-20'}`}>
-           {/* Close button for mobile */}
-           <div className="flex md:hidden justify-start mb-4">
-             <Button
-               variant="ghost"
-               size="icon"
-               className="text-white hover:bg-slate-700"
-               onClick={() => setIsSidebarOpen(false)}
-             >
-               {/* Using a more appropriate icon for close if available, otherwise keep LogOut */}
-               <LogOut className="h-6 w-6" /> {/* Placeholder: Consider changing icon */}
-             </Button>
-           </div>
+      {/* Flex container now has min-height to fill viewport below header, allowing it (and children) to grow taller if content requires */}
+      <div className="flex flex-row min-h-[calc(100vh-${headerHeight}px)]"> {/* Added min-height calculation */}
+        {/* Sidebar (Copied from Security Manager structure, adapted for Department Manager) */}
+        {/* No explicit height - will stretch via flexbox */}
+        {/* Sticky positioning remains to keep it below the header */}
+        <aside className={`bg-slate-800 text-white p-4 sticky top-[${headerHeight}px] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
            {/* Toggle Button inside sidebar for larger screens */}
-           <div className={`hidden md:flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
+           <div className={`flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
              <Button
                variant="ghost"
                size="icon"
@@ -74,16 +63,16 @@ export default function DepartmentManagerLayout({
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>لوحة المعلومات</span>
             </Link>
             <Link href="/department-manager/team-tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <Users className="h-5 w-5 flex-shrink-0" />
+              <Users className="h-5 w-5 flex-shrink-0" /> {/* Using Users icon */}
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>مهام الفريق</span>
             </Link>
-            {/* Add more links as needed */}
+            {/* Add more relevant links for Department Manager if needed */}
           </nav>
         </aside>
 
         {/* Main Content Area */}
-        {/* Adjust main content height based on header height */}
-        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-${headerHeight}px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
+        {/* Re-added explicit height calculation to ensure it fills the viewport height below the header */}
+        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-${headerHeight}px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}> {/* Adjust margin based on sidebar width */}
           {/* Overlay for mobile when sidebar is open */}
           {isSidebarOpen && (
             <div
