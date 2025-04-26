@@ -422,10 +422,16 @@ export default function UserDashboardPage() {
                         <td className="py-4">{assignment.task.sensitiveSystem?.systemName || 'غير محدد'}</td>
                         <td className="py-4">{formatDate(assignment.task.deadline)}</td>
                         <td className="py-4">
-                          <Badge {...getStatusBadgeProps(assignment.status)}>
-                            {/* TODO: Translate status */}
-                            {assignment.status}
-                          </Badge>
+                          {assignment.managerStatus ? (
+                            <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                              {assignment.managerStatus}
+                            </Badge>
+                          ) : (
+                            <Badge {...getStatusBadgeProps(assignment.status)}>
+                              {/* TODO: Translate status */}
+                              {assignment.status}
+                            </Badge>
+                          )}
                         </td>
                         <td className="py-4">
                           <span className={`px-2 py-1 rounded ${getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}`}>
