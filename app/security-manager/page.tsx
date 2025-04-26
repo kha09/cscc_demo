@@ -1,18 +1,19 @@
 "use client"
 
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import Image from "next/image"
-import { useRouter } from 'next/navigation'; // Import useRouter
-import { useAuth } from "@/lib/auth-context"; // Import useAuth
+import { useState, useEffect, useRef } from "react";
+// import Image from "next/image"; // Removed, handled by AppHeader
+// import { useRouter } from 'next/navigation'; // Removed, handled by AppHeader
+// import { useAuth } from "@/lib/auth-context"; // Removed, handled by AppHeader
+import { AppHeader } from "@/components/ui/AppHeader"; // Import the shared header
 // Explicitly import types from the generated client
 import type { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Bell,
-  User as UserIcon, // Aliased the User icon
-  LogOut, // Import LogOut icon
+  // Bell, // Removed, handled by AppHeader
+  // User as UserIcon, // Removed, handled by AppHeader
+  // LogOut, // Removed, handled by AppHeader
   // ClipboardList, // Removed unused import
   BarChart,
   FileText,
@@ -23,33 +24,36 @@ import {
   Download,
   // Calendar, // Original Calendar icon, now aliased below
   ChevronDown,
-  Menu, // Added for sidebar toggle
+  Menu, // Keep for sidebar toggle
   // Activity, // Removed unused import
-  Server, // Added for sidebar icon
+  Server, // Keep for sidebar icon
   // ListChecks, // Removed unused import
-  ShieldCheck, // Added for sidebar icon
+  ShieldCheck, // Keep for sidebar icon
   // FileWarning, // Removed unused import
   LayoutDashboard,
   // Building, // Removed unused import
   // Check, // Removed unused import
-  X // Added for badge removal
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import Link from "next/link"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select" // Added Select components
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover" // Added Popover
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command" // Added Command components
-import { Checkbox } from "@/components/ui/checkbox" // Added Checkbox
-import { Badge } from "@/components/ui/badge" // Added Badge
-import { Calendar as CalendarIcon } from "lucide-react" // Renamed original Calendar icon import
-import { Calendar } from "@/components/ui/calendar" // Added Calendar component
-import { cn } from "@/lib/utils" // Added cn utility
-import { format } from "date-fns" // Added date-fns format
+  X // Keep for badge removal
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select components
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Added Popover
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"; // Added Command components
+import { Checkbox } from "@/components/ui/checkbox"; // Added Checkbox
+import { Badge } from "@/components/ui/badge"; // Added Badge
+import { Calendar as CalendarIcon } from "lucide-react"; // Renamed original Calendar icon import
+import { Calendar } from "@/components/ui/calendar"; // Added Calendar component
+import { cn } from "@/lib/utils"; // Added cn utility
+import { format } from "date-fns"; // Added date-fns format
 // Import the form component
 import { Label } from "@/components/ui/label"; // Added Label
 import SensitiveSystemForm from "@/components/sensitive-system-form";
+
+// Define estimated header height
+const HEADER_HEIGHT = 88; // Adjust if AppHeader styling changes
 
 // Define the type for the fetched sensitive system data (id and name)
 type SimpleSensitiveSystemInfo = Pick<SensitiveSystemInfo, 'id' | 'systemName'>;
@@ -113,15 +117,15 @@ export default function SecurityManagerDashboardPage() {
   const [isAssigningTask, setIsAssigningTask] = useState(false);
   const [taskAssignmentMessage, setTaskAssignmentMessage] = useState<TaskAssignmentMessage>(null);
 
-  // Auth and Routing
-  const { logout } = useAuth();
-  const router = useRouter();
+  // Auth and Routing - Removed logout logic, handled by AppHeader
+  // const { logout } = useAuth();
+  // const router = useRouter();
 
-  // Handle Logout
-  const handleLogout = () => {
-    logout();
-    router.push('/signin'); // Redirect to signin page after logout
-  };
+  // Handle Logout - Removed, handled by AppHeader
+  // const handleLogout = () => {
+  //   logout();
+  //   router.push('/signin');
+  // };
 
   // --- Temporary User ID Fetch ---
   // In a real app, get this from auth context/session
@@ -398,55 +402,14 @@ export default function SecurityManagerDashboardPage() {
   return (
     // Removed ProtectedRoute for now as auth isn't fully implemented server-side
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
-      {/* Header */}
-      <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
-        {/* Using max-w-full for header content to span width */}
-        <div className="flex items-center justify-between">
-          {/* Logo and Title - Right Side */}
-          <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
-            <div className="relative h-16 w-16"> {/* Adjusted size */}
-              <Image
-                src="/static/image/logo.png" width={160} height={160}
-                alt="Logo"
-                className="object-contain"
-              />
-            </div>
-            {/* Optional: Add Title next to logo if needed */}
-            {/* <span className="text-lg">منصة تقييم الأمن السيبراني</span> */}
-          </div>
-
-          {/* Center Spacer */}
-          <div className="flex-grow"></div>
-
-          {/* User Profile, Bell, Sidebar Toggle - Left Side */}
-          <div className="flex items-center space-x-4 space-x-reverse">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
-              <UserIcon className="h-5 w-5" />
-            </Button>
-            {/* Logout Button */}
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-            {/* Sidebar Toggle Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-slate-700 md:hidden" // Show only on smaller screens
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            >
-              <Menu className="h-6 w-6" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Use the shared AppHeader */}
+      <AppHeader />
 
       {/* Main Layout with Sidebar */}
       <div className="flex flex-row"> {/* Flex container for sidebar and main */}
         {/* Sidebar */}
-        <aside className={`bg-slate-800 text-white p-4 sticky top-[76px] h-[calc(100vh-76px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+        {/* Adjusted sticky top and height based on HEADER_HEIGHT */}
+        <aside className={`bg-slate-800 text-white p-4 sticky top-[${HEADER_HEIGHT}px] h-[calc(100vh-${HEADER_HEIGHT}px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
            {/* Toggle Button inside sidebar for larger screens */}
            <div className={`flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
              <Button
@@ -499,8 +462,8 @@ export default function SecurityManagerDashboardPage() {
         </aside>
 
         {/* Main Content Area */}
-        {/* Adjusted margin-right based on sidebar state */}
-        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-76px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
+        {/* Adjusted height based on HEADER_HEIGHT */}
+        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-${HEADER_HEIGHT}px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
           {/* Removed max-w-7xl and mx-auto from here */}
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-slate-800">لوحة مدير الأمن</h1> {/* Title */}

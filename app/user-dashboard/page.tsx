@@ -1,9 +1,10 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react" // Added useEffect, useCallback
-import Image from "next/image"
-import { useRouter } from 'next/navigation'; // Import useRouter
-import { useAuth } from "@/lib/auth-context"; // Import useAuth
+import { useState, useEffect, useCallback } from "react"; // Added useEffect, useCallback
+// import Image from "next/image"; // Removed, handled by AppHeader
+import { useRouter } from 'next/navigation'; // Uncommented
+import { useAuth } from "@/lib/auth-context"; // Uncommented
+import { AppHeader } from "@/components/ui/AppHeader"; // Import the shared header
 // Import necessary types
 import type {
   User as PrismaUser,
@@ -14,10 +15,10 @@ import type {
   TaskStatus
 } from "@prisma/client";
 import {
-   Bell,
-   User,
-   LogOut, // Import LogOut icon
-   ClipboardList,
+  // Bell, // Removed, handled by AppHeader
+  // User, // Removed, handled by AppHeader
+  // LogOut, // Removed, handled by AppHeader
+  ClipboardList,
   AlertTriangle,
   Search,
   Filter,
@@ -101,15 +102,15 @@ export default function UserDashboardPage() {
   const [isSaving, setIsSaving] = useState(false); // State for save button loading
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false); // State for date picker popover
 
-  // Auth and Routing
-  const { logout } = useAuth();
-  const router = useRouter();
+  // Auth and Routing - Need router for redirect
+  // const { logout } = useAuth(); // Logout is handled by AppHeader
+  const router = useRouter(); // Uncommented router initialization
 
-  // Handle Logout
-  const handleLogout = () => {
-    logout();
-    router.push('/signin'); // Redirect to signin page after logout
-  };
+  // Handle Logout - Removed, handled by AppHeader
+  // const handleLogout = () => {
+  //   logout();
+  //   router.push('/signin');
+  // };
 
   // --- Get Current User from Auth Context ---
   const { user: authUser } = useAuth();
@@ -170,7 +171,7 @@ export default function UserDashboardPage() {
     } finally {
       setIsLoadingControls(false);
     }
-  }, [currentUser, isLoadingUser, error]); // Depend on user, loading status, and error
+  }, [currentUser, isLoadingUser, error, router]); // Added router back to dependency array
 
   useEffect(() => {
     fetchAssignedControls();
@@ -306,37 +307,11 @@ export default function UserDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
-      {/* Header */}
-      <header className="w-full bg-slate-900 text-white py-3 px-6 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Logo and Title */}
-          <div className="flex items-center gap-2 font-bold text-sm md:text-base lg:text-lg">
-            <div className="relative h-16 w-16">
-              <Image
-                src="/static/image/logo.png" width={160} height={160}
-                alt="Logo"
-                className="object-contain"
-              />
-            </div>
-          </div>
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-8 space-x-reverse">
-            <Link href="/dashboard" className="text-white hover:text-gray-300 px-3 py-2">الرئيسية</Link>
-            <Link href="#" className="text-white hover:text-gray-300 px-3 py-2">التقارير</Link>
-            <Link href="/assessment" className="text-white hover:text-gray-300 px-3 py-2">التقييم</Link>
-            <Link href="#" className="text-white hover:text-gray-300 px-3 py-2">الدعم</Link>
-            <Link href="/user-dashboard" className="text-white bg-nca-teal px-3 py-2 rounded">لوحة المستخدم</Link>
-          </nav>
-          {/* User Profile & Actions */}
-          <div className="flex items-center space-x-4 space-x-reverse">
-            <Button variant="ghost" size="icon" className="text-white"><Bell className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" className="text-white"><User className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" className="text-white" onClick={handleLogout}><LogOut className="h-5 w-5" /></Button>
-          </div>
-        </div>
-      </header>
+      {/* Use the shared AppHeader */}
+      <AppHeader />
 
       {/* Main Content */}
+      {/* No height adjustment needed here as it's not a sidebar layout */}
       <main className="p-6">
         <div className="max-w-7xl mx-auto">
           {/* General Error Display */}
