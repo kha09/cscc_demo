@@ -7,9 +7,10 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Loader2, Bell, User as UserIcon, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp } from "lucide-react"; // Added more icons
-import { TaskStatus } from "@prisma/client"; // Import TaskStatus as a value
-import type { User } from "@prisma/client"; // Import User type only
+import { AlertCircle, Loader2, Bell, User as UserIcon, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { TaskStatus } from "@prisma/client";
+import type { User } from "@prisma/client";
+import SystemAnalyticsCharts from "@/components/ui/SystemAnalyticsCharts"; // Import the new chart component
 
 // Dynamically import ApexCharts to avoid SSR issues
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -89,9 +90,18 @@ interface DetailedAssignmentData {
   };
 }
 
+// Structure for chart data points (as defined in the API)
+interface ChartDataPoint {
+  name: string; // Main control name
+  totalControls: number;
+  withCompliance: number;
+  withoutCompliance: number;
+} // <-- Add missing closing brace
+
 interface DetailedSystemAnalyticsResponse {
   systemName: string;
   assignments: DetailedAssignmentData[];
+  chartData: ChartDataPoint[]; // Expect chart data from the API
 }
 
 // Structure for processed detailed data, grouped by main component
@@ -159,9 +169,10 @@ export default function SecurityManagerResultsPage() {
   // State for detailed view when a system is selected
   const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
   const [selectedSystemDetails, setSelectedSystemDetails] = useState<ProcessedDetailedAnalytics | null>(null);
+  const [selectedSystemChartData, setSelectedSystemChartData] = useState<ChartDataPoint[] | null>(null); // State for chart data
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
-  const [expandedMainComponents, setExpandedMainComponents] = useState<Record<string, boolean>>({}); // State to track expanded main components
+  const [expandedMainComponents, setExpandedMainComponents] = useState<Record<string, boolean>>({});
 
   // --- User ID Fetch ---
   useEffect(() => {
@@ -351,18 +362,20 @@ export default function SecurityManagerResultsPage() {
   // --- Detailed System Analytics Fetch (Triggered by selectedSystemId and userId) ---
   useEffect(() => {
     if (!selectedSystemId || !userId) {
-      setSelectedSystemDetails(null); // Clear details if no system is selected or no user ID
+      setSelectedSystemDetails(null);
+      setSelectedSystemChartData(null); // Clear chart data too
       setDetailsError(null);
       if (isDetailsLoading) setIsDetailsLoading(false);
-      setExpandedMainComponents({}); // Reset expanded state
+      setExpandedMainComponents({});
       return;
     }
 
     const fetchDetailedAnalytics = async () => {
       setIsDetailsLoading(true);
       setDetailsError(null);
-      setSelectedSystemDetails(null); // Clear previous details
-      setExpandedMainComponents({}); // Reset expanded state
+      setSelectedSystemDetails(null);
+      setSelectedSystemChartData(null); // Clear previous chart data
+      setExpandedMainComponents({});
 
       try {
         console.log(`Fetching detailed analytics for system ID: ${selectedSystemId}, user ID: ${userId}`);
@@ -400,8 +413,8 @@ export default function SecurityManagerResultsPage() {
           mc.subControls.sort((a, b) => a.control.controlNumber.localeCompare(b.control.controlNumber));
         });
 
-
         setSelectedSystemDetails(processed);
+        setSelectedSystemChartData(rawData.chartData); // Store the chart data
 
       } catch (err: unknown) {
         console.error("Error fetching detailed system analytics:", err);
@@ -695,6 +708,12 @@ export default function SecurityManagerResultsPage() {
                       )}
                     </Card>
                   ))}
+
+                  {/* Render the chart component if data is available */}
+                  {selectedSystemChartData && selectedSystemChartData.length > 0 && (
+                    <SystemAnalyticsCharts data={selectedSystemChartData} />
+                  )}
+
                 </div>
               )}
             </div>

@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ComplianceLevel, TaskStatus } from '@prisma/client'; // Import enums
+import { ComplianceLevel, TaskStatus } from '@prisma/client';
+// Define the structure for the chart data points
+interface ChartDataPoint {
+  name: string; // Main control name
+  totalControls: number;
+  withCompliance: number; // Count of assignments with a non-null complianceLevel
+  withoutCompliance: number; // Count of assignments with a null complianceLevel
+}
 
 // Define the structure for the detailed assignment data we want to return
 interface DetailedAssignmentData {
@@ -20,8 +27,9 @@ interface DetailedAssignmentData {
 
 // Define the structure for the API response
 interface ApiResponse {
-  systemName: string; // Include system name for context
+  systemName: string;
   assignments: DetailedAssignmentData[];
+  chartData: ChartDataPoint[]; // Add chart data to the response
 }
 
 // GET function to handle requests for detailed analytics of a specific system
@@ -94,13 +102,39 @@ export async function GET(
       ]
     });
 
-    // 3. Format the response
+    // 3. Process assignments to generate chart data
+    const chartDataMap: Record<string, ChartDataPoint> = {};
+
+    assignments.forEach(assignment => {
+      const mainComponent = assignment.control.mainComponent;
+      if (!chartDataMap[mainComponent]) {
+        chartDataMap[mainComponent] = {
+          name: mainComponent,
+          totalControls: 0,
+          withCompliance: 0,
+          withoutCompliance: 0,
+        };
+      }
+
+      chartDataMap[mainComponent].totalControls++;
+      if (assignment.complianceLevel) {
+        chartDataMap[mainComponent].withCompliance++;
+      } else {
+        // Count as 'withoutCompliance' if complianceLevel is null or undefined
+        chartDataMap[mainComponent].withoutCompliance++;
+      }
+    });
+
+    const chartDataResult: ChartDataPoint[] = Object.values(chartDataMap);
+
+    // 4. Format the response including chart data
     const responseData: ApiResponse = {
       systemName: sensitiveSystem.systemName,
-      assignments: assignments as DetailedAssignmentData[], // Cast to the defined type
+      assignments: assignments as DetailedAssignmentData[],
+      chartData: chartDataResult,
     };
 
-    return NextResponse.json(responseData); // Default status 200
+    return NextResponse.json(responseData);
 
   } catch (error) {
     console.error(`Error fetching detailed analytics for system ${systemId}:`, error);
