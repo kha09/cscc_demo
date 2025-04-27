@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/ui/AppHeader"; // Import shared header
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon } from "lucide-react"; // Prefixed unused imports with underscore
 import { TaskStatus } from "@prisma/client";
 import type { User as _User } from "@prisma/client"; // Prefixed with underscore to avoid unused type error
@@ -146,6 +147,10 @@ interface ProcessedDetailedAnalytics {
 export default function SecurityManagerResultsPage() {
   // State for layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tabParam = searchParams.get("tab");
+  const activeTab = tabParam === "detailed" ? "detailed" : "general";
 
   // State for user ID - Removed
   // const [userId, setUserId] = useState<string | null>(null);
@@ -849,7 +854,10 @@ export default function SecurityManagerResultsPage() {
             <Link href="/security-manager/results" className={`flex items-center gap-3 px-3 py-2 rounded bg-nca-dark-blue text-white font-semibold text-sm ${!isSidebarOpen ? 'justify-center' : ''}`}> {/* Active link style */}
               <BarChart className="h-4 w-4 flex-shrink-0" />
               <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>النتائج</span>
-           </Link>
+            </Link>
+            <Link href="/security-manager/results?tab=detailed" className={`flex items-center gap-3 px-3 py-2 rounded text-white text-sm ${activeTab === "detailed" ? 'bg-nca-dark-blue font-semibold' : 'hover:bg-slate-700'} ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              سير العمل
+            </Link>
           </nav>
         </aside>
 
@@ -857,11 +865,21 @@ export default function SecurityManagerResultsPage() {
         {/* Adjust margin based on sidebar state for desktop and height */}
         <main className={`flex-1 p-4 md:p-6 overflow-y-auto h-[calc(100vh-${HEADER_HEIGHT}px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-64' : 'md:mr-20'}`}>
            {/* Tabs Navigation */}
-           <Tabs defaultValue="general" className="w-full" dir="rtl"> {/* Ensure Tabs has dir */}
+           <Tabs
+             value={activeTab}
+             onValueChange={(val) => {
+               if (val === "detailed") {
+                 router.push("/security-manager/results?tab=detailed");
+               } else {
+                 router.push("/security-manager/results");
+               }
+             }}
+             className="w-full"
+             dir="rtl"
+           > {/* Ensure Tabs has dir */}
              {/* Use flexbox for RTL tab order */}
              <TabsList className="flex w-full mb-4 flex-row-reverse justify-start gap-4 border-b">
                <TabsTrigger value="general" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-1">النتائج العامة</TabsTrigger>
-               <TabsTrigger value="detailed" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-1">نتائج مفصلة</TabsTrigger>
              </TabsList>
              <TabsContent value="general" dir="rtl"> {/* Ensure content has dir */}
                {/* Render the general analytics content, loading, or error state */}
