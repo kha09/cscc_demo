@@ -458,6 +458,9 @@ export default function SecurityManagerDashboardPage() {
               <BarChart className="h-5 w-5 flex-shrink-0" /> {/* Using BarChart icon for analytics */}
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
             </Link>
+            <Link href="/security-manager/results?tab=detailed" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>سير العمل</span>
+            </Link>
             {/* Add more relevant links */}
           </nav>
         </aside>
