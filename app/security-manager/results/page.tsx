@@ -14,8 +14,26 @@ import { TaskStatus } from "@prisma/client";
 import type { User as _User } from "@prisma/client"; // Prefixed with underscore to avoid unused type error
 import SystemAnalyticsCharts from "@/components/ui/SystemAnalyticsCharts"; // Import the new chart component
 
+// Add TypeScript declaration for window.resolve
+declare global {
+  interface Window {
+    resolve?: (url: string) => string;
+  }
+}
+
 // Dynamically import ApexCharts to avoid SSR issues
-const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
+const Chart = dynamic(() => 
+  import('react-apexcharts').then(mod => {
+    // Add a global polyfill for resolve if it doesn't exist
+    if (typeof window !== 'undefined' && !window.resolve) {
+      window.resolve = function(url: string): string {
+        return url;
+      };
+    }
+    return mod;
+  }),
+  { ssr: false }
+);
 
 // --- Analytics Specific Types and Constants ---
 
