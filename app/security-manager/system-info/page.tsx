@@ -11,7 +11,8 @@ import {
   Menu,
   Server, // Sidebar icon
   LayoutDashboard, // Sidebar icon
-  BarChart // Added for Results link
+  BarChart, // Added for Results link
+  Activity // Added for workflow icon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -149,6 +150,7 @@ export default function SystemInfoPage() {
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
             </Link>
             <Link href="/security-manager/results?tab=detailed" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Activity className="h-5 w-5 flex-shrink-0" />
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>سير العمل</span>
             </Link>
             {/* Add missing Departments link (commented out) for consistency, though it wasn't here before */}

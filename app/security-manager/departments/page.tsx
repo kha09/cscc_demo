@@ -18,7 +18,8 @@ import {
   ListChecks, // Sidebar icon
   ShieldCheck, // Sidebar icon
   Building, // Sidebar icon (current page)
-  BarChart // Added for Results link
+  BarChart, // Added for Results link
+  Activity // Added for workflow icon
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context'; // Assuming you have auth context
 import { useRouter } from 'next/navigation';
@@ -230,6 +231,7 @@ export default function ManageDepartmentsPage() {
                             <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
                         </Link>
                         <Link href="/security-manager/results?tab=detailed" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+                            <Activity className="h-5 w-5 flex-shrink-0" />
                             <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>سير العمل</span>
                         </Link>
                     </nav>

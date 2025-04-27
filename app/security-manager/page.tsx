@@ -24,7 +24,7 @@ import {
   ChevronDown as _ChevronDown, // Used with underscore prefix in JSX
   ChevronUp as _ChevronUp, // Used with underscore prefix in JSX
   Menu, // Keep for sidebar toggle
-  // Activity, // Removed unused import
+  Activity, // Added for workflow icon
   Server, // Keep for sidebar icon
   // ListChecks, // Removed unused import
   ShieldCheck, // Keep for sidebar icon
@@ -459,6 +459,7 @@ export default function SecurityManagerDashboardPage() {
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
             </Link>
             <Link href="/security-manager/results?tab=detailed" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Activity className="h-5 w-5 flex-shrink-0" />
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>سير العمل</span>
             </Link>
             {/* Add more relevant links */}
