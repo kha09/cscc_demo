@@ -291,6 +291,13 @@ export default function SecurityManagerDashboardPage() {
     controlInputRef.current?.focus();
   };
 
+  // Handler for selecting all controls at once
+  const handleSelectAll = () => {
+    setSelectedControls(controls);
+    // Keep focus on input after selection
+    controlInputRef.current?.focus();
+  };
+
   // Handler for removing a selected control via the badge
   const handleControlRemove = (controlId: string) => {
     setSelectedControls((prevSelected) =>
@@ -753,6 +760,14 @@ export default function SecurityManagerDashboardPage() {
                       />
                       <CommandList>
                         <CommandEmpty>لم يتم العثور على ضوابط.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            onSelect={handleSelectAll}
+                            className="flex items-center justify-between cursor-pointer"
+                          >
+                            <span className="flex-1 text-right font-medium">اختر الكل</span>
+                          </CommandItem>
+                        </CommandGroup>
                         <CommandGroup>
                           {isLoadingControls ? (
                             <CommandItem disabled>جاري تحميل الضوابط...</CommandItem>
