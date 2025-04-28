@@ -1012,7 +1012,7 @@ export default function SecurityManagerDashboardPage() {
             {/* Risk Assessment */}
             <Card> {/* Removed p-6 */}
                <CardHeader>
-                 <CardTitle className="text-xl font-semibold">تقييم المخاطر (مراجعات المدراء)</CardTitle> {/* Updated Title */}
+                 <CardTitle className="text-xl font-semibold">ملاحظات مدير القسم</CardTitle> {/* Updated Title */}
                </CardHeader>
                <CardContent> {/* Added CardContent */}
                 {/* Removed static placeholder risk items */}
