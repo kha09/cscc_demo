@@ -122,53 +122,29 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
   const { logout } = useAuth();
   const router = useRouter();
 
+  // Function to fetch security managers - extracted for reuse
+  const fetchSecurityManagers = async () => {
+    setIsLoading(true);
+    setFetchError(null);
+    try {
+      const response = await fetch('/api/users/security-managers');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch security managers: ${response.statusText}`);
+      }
+      const data: SecurityManager[] = await response.json();
+      setSecurityManagers(data);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      setFetchError(errorMessage); // Use dedicated fetch error state
+      console.error("Error fetching security managers:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fetch security managers on component mount
   useEffect(() => {
-    // Renamed error state to avoid conflict
-    const fetchManagers = async () => {
-      setIsLoading(true);
-      setFetchError(null);
-      try {
-        const response = await fetch('/api/users/security-managers');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch security managers: ${response.statusText}`);
-        }
-        const data: SecurityManager[] = await response.json();
-        setSecurityManagers(data);
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-        setFetchError(errorMessage); // Use dedicated fetch error state
-        console.error("Error fetching security managers:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchManagers();
-  }, []); // Empty dependency array ensures this runs only once on mount
-
-  // Fetch all users for the management table
-  useEffect(() => {
-    const fetchAllUsers = async () => {
-      setUsersLoading(true);
-      setUsersError(null);
-      try {
-        const response = await fetch('/api/users'); // Fetch from the new endpoint
-        if (!response.ok) {
-          // Try to parse error message from response body
-          const errorData = await response.json().catch(() => ({ message: `Failed to fetch users: ${response.statusText}` }));
-          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        }
-        const data: UserData[] = await response.json();
-        setAllUsers(data);
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-        setUsersError(errorMessage);
-        console.error("Error fetching all users:", err);
-      } finally {
-        setUsersLoading(false);
-      }
-    };
-    fetchAllUsers();
+    fetchSecurityManagers();
   }, []); // Empty dependency array ensures this runs only once on mount
 
   // Function to fetch all users (can be reused for refresh)
@@ -191,6 +167,11 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
       setUsersLoading(false);
     }
   };
+
+  // Fetch all users for the management table on component mount
+  useEffect(() => {
+    fetchAllUsers();
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   // Handle Logout
   const handleLogout = () => {
@@ -252,14 +233,20 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
 
       setEditSubmitStatus('success');
       await fetchAllUsers(); // Refresh the user list
+      
+      // If the user's role was changed to SECURITY_MANAGER, refresh the security managers list
+      if (editFormData.role === Role.SECURITY_MANAGER) {
+        await fetchSecurityManagers(); // Refresh security managers dropdown
+      }
+      
       setTimeout(() => {
         setIsEditDialogOpen(false);
         setEditSubmitStatus('idle');
       }, 1500); // Close dialog after success message
 
-    } catch (err: unknown) {
-      console.error("Update error:", err);
-      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred.";
+    } catch (error: unknown) {
+      console.error("Update error:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
       setEditSubmitError(errorMessage);
       setEditSubmitStatus('error');
     }
@@ -312,6 +299,12 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
 
         setAddSubmitStatus('success');
         await fetchAllUsers(); // Refresh the user list
+        
+        // If the newly added user is a SECURITY_MANAGER, refresh the security managers list
+        if (addFormData.role === Role.SECURITY_MANAGER) {
+          await fetchSecurityManagers(); // Refresh security managers dropdown
+        }
+        
         // Reset form
         setAddFormData({ name: '', nameAr: '', email: '', role: Role.USER, department: '', password: '' });
 
@@ -320,9 +313,9 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
             setAddSubmitStatus('idle');
         }, 1500); // Close dialog after success message
 
-    } catch (err: unknown) {
-        console.error("Add user error:", err);
-        const errorMessage = err instanceof Error ? err.message : "حدث خطأ غير متوقع أثناء إنشاء المستخدم.";
+    } catch (error: unknown) {
+        console.error("Add user error:", error);
+        const errorMessage = error instanceof Error ? error.message : "حدث خطأ غير متوقع أثناء إنشاء المستخدم.";
         setAddSubmitError(errorMessage);
         setAddSubmitStatus('error');
     }
@@ -366,9 +359,9 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
       }, 1500);
 
 
-    } catch (err: unknown) {
-      console.error("Delete error:", err);
-      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred.";
+    } catch (error: unknown) {
+      console.error("Delete error:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
       setDeleteError(errorMessage);
       setDeleteStatus('error');
       // Keep dialog open on error to show message
@@ -470,9 +463,9 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
         setSubmitStatus('idle');
       }, 2000); // Keep success message visible for 2 seconds
 
-    } catch (err: unknown) {
-      console.error("Submission error:", err);
-      const errorMessage = err instanceof Error ? err.message : "حدث خطأ غير متوقع أثناء إنشاء التقييم.";
+    } catch (error: unknown) {
+      console.error("Submission error:", error);
+      const errorMessage = error instanceof Error ? error.message : "حدث خطأ غير متوقع أثناء إنشاء التقييم.";
       setSubmitError(errorMessage); // Use dedicated submit error state
       setSubmitStatus('error');
     }
