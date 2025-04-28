@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 
 // Example API route demonstrating Vercel Blob usage
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
   try {
     // This is a simple example showing how to upload a text file to Vercel Blob
     // In a real application, you would typically get the content from a form submission

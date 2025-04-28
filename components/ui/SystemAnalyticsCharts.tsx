@@ -67,7 +67,7 @@ const SystemAnalyticsCharts: React.FC<SystemAnalyticsChartsProps> = ({ data }) =
             width={350} 
             interval={0}
             // Use the safe ID for internal references but display the original name
-            tickFormatter={(value, index) => value}
+            tickFormatter={(value, _index) => value}
           /> 
           <Tooltip
             formatter={(value: number, name: string) => {

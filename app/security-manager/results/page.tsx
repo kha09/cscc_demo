@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import dynamic from 'next/dynamic';
 // import Image from "next/image"; // Removed, AppHeader handles logo
 import Link from "next/link";
@@ -144,16 +144,15 @@ interface ProcessedDetailedAnalytics {
 
 // --- Component ---
 
-export default function SecurityManagerResultsPage() {
-  // State for layout
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+// Client component that uses searchParams
+function ResultsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get("tab");
   const activeTab = tabParam === "detailed" ? "detailed" : "general";
-
-  // State for user ID - Removed
-  // const [userId, setUserId] = useState<string | null>(null);
+  
+  // State for layout
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Auth state
   const { user, loading: authLoading } = useAuth();
@@ -894,5 +893,14 @@ export default function SecurityManagerResultsPage() {
       </div> {/* Closing tag for the flex flex-row div */}
 
     </div> // Closing tag for the main min-h-screen div
+  );
+}
+
+// Main page component with Suspense boundary
+export default function SecurityManagerResultsPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center min-h-screen">جاري التحميل...</div>}>
+      <ResultsContent />
+    </Suspense>
   );
 }
