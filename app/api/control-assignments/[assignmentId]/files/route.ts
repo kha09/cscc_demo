@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'; // Corrected import
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 import { v4 as uuidv4 } from 'uuid'; // For unique filenames
-
-// Define the upload directory relative to the project root
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'control-files');
+import { put } from '@vercel/blob';
+import path from 'path';
 
 export async function POST(request: Request, { params }: { params: { assignmentId: string } }) {
   const { assignmentId } = params;
@@ -24,15 +21,7 @@ export async function POST(request: Request, { params }: { params: { assignmentI
       return NextResponse.json({ error: 'Control Assignment not found' }, { status: 404 });
     }
 
-    // 2. Ensure the upload directory exists
-    try {
-      await mkdir(UPLOAD_DIR, { recursive: true });
-    } catch (error: unknown) {
-      console.error('Error creating upload directory:', error);
-      return NextResponse.json({ error: 'Failed to prepare upload directory' }, { status: 500 });
-    }
-
-    // 3. Parse the FormData
+    // 2. Parse the FormData
     const formData = await request.formData();
     const files = formData.getAll('files') as File[]; // Assuming input name is 'files'
 
@@ -42,7 +31,7 @@ export async function POST(request: Request, { params }: { params: { assignmentI
 
     const createdFiles = [];
 
-    // 4. Process each file
+    // 3. Process each file
     for (const file of files) {
       if (!(file instanceof File)) {
         console.warn('Skipping non-file entry in FormData');
@@ -56,33 +45,26 @@ export async function POST(request: Request, { params }: { params: { assignmentI
       const uniqueSuffix = `${Date.now()}-${uuidv4()}`;
       const fileExtension = path.extname(file.name);
       const uniqueFilename = `${path.basename(file.name, fileExtension)}-${uniqueSuffix}${fileExtension}`;
-      const filePathDisk = path.join(UPLOAD_DIR, uniqueFilename);
-      const filePathDb = `/uploads/control-files/${uniqueFilename}`; // Path for web access
-
-      // 5. Save the file to disk
+      
+      // 4. Upload to Vercel Blob Storage
       try {
-        await writeFile(filePathDisk, buffer);
-        console.log(`File saved to: ${filePathDisk}`);
-      } catch (error) {
-        console.error('Error saving file:', error);
-        // Consider cleanup logic here if needed (e.g., delete partially uploaded files)
-        return NextResponse.json({ error: `Failed to save file ${file.name}` }, { status: 500 });
-      }
-
-      // 6. Create a record in the database
-      try {
+        const { url } = await put(`control-files/${uniqueFilename}`, buffer, { 
+          access: 'public' 
+        });
+        console.log(`File uploaded to Vercel Blob: ${url}`);
+        
+        // 5. Create a record in the database
         const createdFile = await prisma.controlFile.create({
           data: {
-            filePath: filePathDb,
+            filePath: url, // Store the full URL returned by Vercel Blob
             originalFilename: file.name,
             controlAssignmentId: assignmentId,
           },
         });
         createdFiles.push(createdFile);
-      } catch (dbError) {
-        console.error('Error saving file record to DB:', dbError);
-        // Consider cleanup logic here (e.g., delete the file that was just saved to disk)
-        return NextResponse.json({ error: 'Failed to save file metadata to database' }, { status: 500 });
+      } catch (error) {
+        console.error('Error uploading file to Vercel Blob:', error);
+        return NextResponse.json({ error: `Failed to upload file ${file.name}` }, { status: 500 });
       }
     }
 
