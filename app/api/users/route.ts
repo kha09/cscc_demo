@@ -103,6 +103,14 @@ export async function POST(request: Request) { // Keep Request type here for bod
       },
     });
 
+    // If creating a new Department Manager, clear department on existing users in that department
+    if (role === Role.DEPARTMENT_MANAGER && department) {
+      await prisma.user.updateMany({
+        where: { role: Role.USER, department: department },
+        data: { department: null },
+      });
+    }
+
     // Don't send the password back in the response
     const { password: _, ...userWithoutPassword } = newUser;
 
