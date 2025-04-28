@@ -50,6 +50,7 @@ import { format } from "date-fns"; // Added date-fns format
 // Import the form component
 import { Label } from "@/components/ui/label"; // Added Label
 import SensitiveSystemForm from "@/components/sensitive-system-form";
+import { ControlAssignment, Task, Control as PrismaControl, SensitiveSystemInfo as PrismaSensitiveSystemInfo, User as PrismaUser } from "@prisma/client"; // Import necessary Prisma types
 
 // Define estimated header height
 const HEADER_HEIGHT = 88; // Adjust if AppHeader styling changes
@@ -60,14 +61,27 @@ type SimpleSensitiveSystemInfo = Pick<SensitiveSystemInfo, 'id' | 'systemName'>;
 // Define type for Assessment including the new name field
 type AssessmentWithName = Assessment & { assessmentName?: string | null }; // Make optional for initial state
 
-// Define type for fetched control data (id, number, text)
-type SimpleControl = Pick<Control, 'id' | 'controlNumber' | 'controlText'>;
+// Define type for fetched control data (id, number, text) - Keep existing SimpleControl
+type SimpleControl = Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText'>;
 
-// Define type for Department Manager user data
-type DepartmentManager = Pick<User, 'id' | 'name' | 'nameAr'>; // Add other fields if needed
+// Define type for Department Manager user data - Keep existing DepartmentManager
+type DepartmentManager = Pick<PrismaUser, 'id' | 'name' | 'nameAr'>; // Add other fields if needed
 
-// Define type for frontend user (unused but prefixed with underscore)
-type _FrontendUser = Pick<User, 'id' | 'name' | 'email' | 'role'>;
+// Define type for frontend user (unused but prefixed with underscore) - Keep existing _FrontendUser
+type _FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'email' | 'role'>;
+
+// Define the detailed type for Control Assignments fetched for the Risk Assessment section
+// This includes nested data returned by the API
+type ControlAssignmentWithDetails = ControlAssignment & {
+  control: Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText' | 'mainComponent' | 'subComponent'>;
+  task: Task & {
+    sensitiveSystem: Pick<PrismaSensitiveSystemInfo, 'systemName'> | null; // System might be null
+    assignedTo: Pick<PrismaUser, 'name' | 'nameAr'> | null; // Manager might be null
+  };
+  assignedUser: Pick<PrismaUser, 'name' | 'nameAr'> | null; // Assigned user (employee) might be null
+  // managerStatus and managerNote are already part of ControlAssignment
+};
+
 
 // Type for task assignment feedback
 type TaskAssignmentMessage = {
@@ -94,6 +108,7 @@ export default function SecurityManagerDashboardPage() {
   const [controls, setControls] = useState<SimpleControl[]>([]);
   const [isLoadingControls, setIsLoadingControls] = useState(true);
   const [controlsError, setControlsError] = useState<string | null>(null);
+  // Define selectedControls and its setter
   const [selectedControls, setSelectedControls] = useState<SimpleControl[]>([]); // State for selected controls
   const [isControlPopoverOpen, setIsControlPopoverOpen] = useState(false); // State for popover visibility
   const controlInputRef = useRef<HTMLInputElement>(null); // Ref for command input
@@ -111,9 +126,14 @@ export default function SecurityManagerDashboardPage() {
 
   // State for the deadline date picker
   const [deadlineDate, setDeadlineDate] = useState<Date | undefined>(undefined);
-  
+
+  // State for Risk Assignments (Control Assignments with Manager Review)
+  const [riskAssignments, setRiskAssignments] = useState<ControlAssignmentWithDetails[]>([]);
+  const [isLoadingRiskAssignments, setIsLoadingRiskAssignments] = useState(true);
+  const [riskAssignmentsError, setRiskAssignmentsError] = useState<string | null>(null);
+
   // State for summary analytics of control assignments per system
-  const [systemSummary, setSystemSummary] = useState<Record<string,{assigned:number; finished:number}>>({});
+  const [systemSummary, setSystemSummary] = useState<Record<string, { assigned: number; finished: number }>>({}); // Corrected type definition slightly
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
@@ -122,10 +142,10 @@ export default function SecurityManagerDashboardPage() {
   // const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | undefined>(undefined); // Remove old state
   const [selectedDepartmentManagerId, setSelectedDepartmentManagerId] = useState<string | undefined>(undefined); // Add new state
   const [isAssigningTask, setIsAssigningTask] = useState(false);
-  const [taskAssignmentMessage, setTaskAssignmentMessage] = useState<TaskAssignmentMessage>(null);
+  const [taskAssignmentMessage, setTaskAssignmentMessage] = useState<TaskAssignmentMessage>(null); // Ensure this is defined
 
   // Auth and Routing - Removed logout logic, handled by AppHeader
-  const { user, loading: authLoading } = useAuth(); // Get user and loading state from context
+  const { user, loading: authLoading } = useAuth(); // Ensure user and authLoading are correctly destructured
 
   // Fetch assessments, systems, controls, managers when user is available
   useEffect(() => {
@@ -192,6 +212,27 @@ export default function SecurityManagerDashboardPage() {
       }
     };
     fetchSummary();
+
+    // Fetch Risk Assignments (Control Assignments reviewed by managers)
+    const fetchRiskAssignments = async () => {
+      setIsLoadingRiskAssignments(true);
+      setRiskAssignmentsError(null);
+      try {
+        const response = await fetch(`/api/control-assignments?securityManagerId=${userId}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch risk assignments: ${response.statusText}`);
+        }
+        const data: ControlAssignmentWithDetails[] = await response.json();
+        setRiskAssignments(data);
+      } catch (err: unknown) {
+        console.error("Error fetching risk assignments:", err);
+        setRiskAssignmentsError(err instanceof Error ? err.message : "An unknown error occurred fetching risk assignments");
+      } finally {
+        setIsLoadingRiskAssignments(false);
+      }
+    };
+    fetchRiskAssignments(); // Call the new fetch function
+
   }, [user]); // Depend on the user object
 
   // Fetch Controls, Dept Managers on component mount (no change needed here as they are not user-specific)
@@ -290,19 +331,49 @@ export default function SecurityManagerDashboardPage() {
   
   // Calculate average compliance percentage across all systems
   const calculateAverageCompliance = () => {
-    const entries = Object.values(systemSummary);
-    if (entries.length === 0) return 0;
-    
-    const ratios = entries.map(({assigned, finished}) => {
-      const total = assigned + finished;
-      return total > 0 ? finished / total : 0;
+    // Ensure systemSummary is used correctly. If it's empty or loading, return 0.
+    if (isLoadingSummary || Object.keys(systemSummary).length === 0) return 0;
+
+    // Explicitly type entries based on the state's type
+    const entries: { assigned: number; finished: number }[] = Object.values(systemSummary);
+    if (entries.length === 0) return 0; // Double check after Object.values
+
+    // Explicitly type parameters in map
+    const ratios = entries.map(({ assigned, finished }: { assigned: number; finished: number }): number => {
+      // Ensure assigned and finished are numbers
+      const numAssigned = Number(assigned) || 0;
+      const numFinished = Number(finished) || 0;
+      const total = numAssigned + numFinished;
+      return total > 0 ? numFinished / total : 0;
     });
-    
-    const avg = ratios.reduce((sum, r) => sum + r, 0) / ratios.length;
+
+    // Explicitly type parameters in reduce
+    const avg = ratios.reduce((sum: number, r: number): number => sum + r, 0) / ratios.length;
     return Math.round(avg * 100);
   };
 
-  // Helper function to get status badge class (prefixed with underscore to avoid unused var error)
+  // Helper function to get status badge class for Manager Review Status
+  const getManagerStatusBadgeClass = (status: string | null) => {
+    switch (status) {
+      case 'APPROVED': return 'bg-green-100 text-green-800';
+      case 'REJECTED': return 'bg-red-100 text-red-800';
+      case 'PENDING': // Fallthrough for PENDING or null/undefined
+      default: return 'bg-yellow-100 text-yellow-800'; // Default to pending/yellow
+    }
+  };
+
+  // Helper function to translate Manager Review Status
+  const translateManagerStatus = (status: string | null): string => {
+    switch (status) {
+      case 'APPROVED': return 'معتمد';
+      case 'REJECTED': return 'مرفوض';
+      case 'PENDING': return 'قيد المراجعة';
+      default: return 'قيد المراجعة'; // Default text
+    }
+  };
+
+
+  // Helper function to get status badge class (prefixed with underscore to avoid unused var error) - Keep original for other statuses if needed
   const _getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'COMPLETED': return 'bg-green-100 text-green-800';
@@ -315,42 +386,52 @@ export default function SecurityManagerDashboardPage() {
 
   // Handler for selecting/deselecting a control
   const handleControlSelect = (control: SimpleControl) => {
-    setSelectedControls((prevSelected) => {
-      const isSelected = prevSelected.some((c) => c.id === control.id);
+    // Re-add explicit types for the callback parameters
+    setSelectedControls((prevSelected: SimpleControl[]): SimpleControl[] => {
+      const isSelected = prevSelected.some((c: SimpleControl) => c.id === control.id);
       if (isSelected) {
-        return prevSelected.filter((c) => c.id !== control.id);
+        return prevSelected.filter((c: SimpleControl) => c.id !== control.id);
       } else {
         return [...prevSelected, control];
       }
     });
-    // Keep focus on input after selection
-    controlInputRef.current?.focus();
+    // Ensure controlInputRef is defined and accessed correctly
+    if (controlInputRef.current) {
+        controlInputRef.current.focus();
+    }
   };
 
   // Handler for selecting all controls at once
   const handleSelectAll = () => {
+    // Ensure controls state is used correctly
     setSelectedControls(controls);
-    // Keep focus on input after selection
-    controlInputRef.current?.focus();
+    // Ensure controlInputRef is defined and accessed correctly
+    if (controlInputRef.current) {
+        controlInputRef.current.focus();
+    }
   };
 
   // Handler for removing a selected control via the badge
   const handleControlRemove = (controlId: string) => {
-    setSelectedControls((prevSelected) =>
-      prevSelected.filter((c) => c.id !== controlId)
+    // Re-add explicit types for the callback parameters
+    setSelectedControls((prevSelected: SimpleControl[]): SimpleControl[] =>
+      prevSelected.filter((c: SimpleControl) => c.id !== controlId)
     );
   };
 
-  // Handler for Assign Task button click
-  const handleAssignTask = async () => {
-    setTaskAssignmentMessage(null); // Clear previous messages
+  // Handler for Assign Task button click - Ensure async keyword is present
+  const handleAssignTask = async (): Promise<void> => { // Ensure async and return type
+    setTaskAssignmentMessage(null); // Ensure setTaskAssignmentMessage is defined
 
     // --- Input Validation ---
+    // Ensure selectedSystemId is defined
+    // Ensure selectedSystemId is defined
     if (!selectedSystemId) {
       setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار النظام.' });
       return;
     }
-    if (selectedControls.length === 0) {
+    // Ensure selectedControls is defined and not empty
+    if (!selectedControls || selectedControls.length === 0) {
       setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار ضابط واحد على الأقل.' });
       return;
     }
@@ -362,12 +443,13 @@ export default function SecurityManagerDashboardPage() {
       setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار مدير القسم.' });
       return;
     }
+    // Ensure deadlineDate is defined
     if (!deadlineDate) {
       setTaskAssignmentMessage({ type: 'error', text: 'الرجاء اختيار الموعد النهائي.' });
       return;
     }
-    if (!user?.id) { // Check if user or user.id is null/undefined
-      // This should ideally not happen if the page loads correctly, but good to check
+    // Ensure user and user.id are defined
+    if (!user?.id) {
       setTaskAssignmentMessage({ type: 'error', text: 'خطأ: لم يتم العثور على معرّف المستخدم.' });
       return;
     }
@@ -375,16 +457,18 @@ export default function SecurityManagerDashboardPage() {
 
     setIsAssigningTask(true);
 
+    // Ensure deadlineDate and user are not undefined/null before using them
+    // The checks above should guarantee this, but adding explicit non-null assertion for TS clarity
     const taskData = {
       sensitiveSystemId: selectedSystemId,
-      // departmentId: selectedDepartmentId, // Remove old field
-      assignedToId: selectedDepartmentManagerId, // Add new field for the assigned manager
-      controlIds: selectedControls.map(c => c.id),
-      deadline: deadlineDate.toISOString(), // Send as ISO string
-      assignedById: user.id, // Use the authenticated user's ID
+      assignedToId: selectedDepartmentManagerId,
+      controlIds: selectedControls.map((c: SimpleControl) => c.id),
+      deadline: deadlineDate!.toISOString(), // Assert non-null
+      assignedById: user.id!, // Assert non-null
     };
 
     try {
+      // await should work now within the async function
       const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: {
@@ -394,19 +478,18 @@ export default function SecurityManagerDashboardPage() {
       });
 
       if (!response.ok) {
+        // await should work now within the async function
         const errorData = await response.json();
         console.error("Task assignment error:", errorData);
-        // Try to provide a more specific error message
         const message = errorData.message || (errorData.errors ? JSON.stringify(errorData.errors) : 'فشل تعيين المهمة.');
         throw new Error(message);
       }
 
       // Success
       setTaskAssignmentMessage({ type: 'success', text: 'تم تعيين المهمة بنجاح!' });
-      // Optionally reset form fields
+      // Reset form fields
       setSelectedSystemId(undefined);
-      // setSelectedDepartmentId(undefined); // Remove old reset
-      setSelectedDepartmentManagerId(undefined); // Reset new field
+      setSelectedDepartmentManagerId(undefined);
       setSelectedControls([]);
       setDeadlineDate(undefined);
 
@@ -420,17 +503,17 @@ export default function SecurityManagerDashboardPage() {
 
 
   // Handle loading and unauthenticated states
+  // Ensure authLoading is defined and used correctly
   if (authLoading) {
-    return <div className="flex justify-center items-center min-h-screen">جاري التحميل...</div>; // Or a spinner component
+    return <div className="flex justify-center items-center min-h-screen">جاري التحميل...</div>;
   }
 
+  // Ensure user is defined and used correctly
   if (!user) {
-    // Optionally redirect to signin or show a message
-    // For now, just show a message. Consider using useRouter for redirection.
     return <div className="flex justify-center items-center min-h-screen">الرجاء تسجيل الدخول للوصول لهذه الصفحة.</div>;
   }
 
-  // Ensure user is a Security Manager (optional but recommended)
+  // Ensure user role check is correct
   if (user.role !== 'SECURITY_MANAGER') {
     return <div className="flex justify-center items-center min-h-screen">غير مصرح لك بالوصول لهذه الصفحة.</div>;
   }
@@ -929,42 +1012,50 @@ export default function SecurityManagerDashboardPage() {
             {/* Risk Assessment */}
             <Card> {/* Removed p-6 */}
                <CardHeader>
-                 <CardTitle className="text-xl font-semibold">تقييم المخاطر</CardTitle>
+                 <CardTitle className="text-xl font-semibold">تقييم المخاطر (مراجعات المدراء)</CardTitle> {/* Updated Title */}
                </CardHeader>
                <CardContent> {/* Added CardContent */}
-              <div className="space-y-4">
-                <div className="border rounded-lg p-4 bg-red-50">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">عدم تطبيق التشفير للبيانات الحساسة</span>
-                    <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-sm">مخاطرة عالية</span>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-2">قد يؤدي إلى تسريب البيانات الحساسة في حالة الاختراق</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">تكنولوجيا المعلومات</span>
-                    <Button variant="outline" size="sm" className="text-red-600 border-red-600 hover:bg-red-50">
-                      معالجة
-                    </Button>
-                  </div>
-                </div>
+                {/* Removed static placeholder risk items */}
 
-                <div className="border rounded-lg p-4 bg-yellow-50">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">ضعف في إدارة كلمات المرور</span>
-                    <span className="bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full text-sm">مخاطرة متوسطة</span>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-2">عدم تطبيق سياسة قوية لكلمات المرور</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">الأمن السيبراني</span>
-                    <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-600 hover:bg-yellow-50">
-                      معالجة
-                    </Button>
-                  </div>
+                {/* Display Fetched Risk Assignments */}
+                <div className="space-y-4"> {/* Removed mt-6 to bring list up */}
+                  {isLoadingRiskAssignments ? (
+                    <p className="text-center text-gray-500">جاري تحميل مراجعات المدراء...</p>
+                  ) : riskAssignmentsError ? (
+                    <p className="text-center text-red-600">خطأ في تحميل المراجعات: {riskAssignmentsError}</p>
+                  ) : riskAssignments.length === 0 ? (
+                    <p className="text-center text-gray-500">لا توجد مراجعات من المدراء لعرضها.</p>
+                  ) : (
+                    riskAssignments.map((assignment) => (
+                      <div key={assignment.id} className={`border rounded-lg p-4 ${assignment.managerStatus === 'REJECTED' ? 'bg-red-50 border-red-200' : assignment.managerStatus === 'APPROVED' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium flex-1 mr-2" title={assignment.control.controlText}>
+                            {assignment.control.controlNumber} - {assignment.control.controlText}
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getManagerStatusBadgeClass(assignment.managerStatus)}`}>
+                            {translateManagerStatus(assignment.managerStatus)}
+                          </span>
+                        </div>
+                        {assignment.managerNote && (
+                           <p className="text-sm text-gray-700 mb-2">
+                             <span className="font-semibold">ملاحظة المدير:</span> {assignment.managerNote}
+                           </p>
+                        )}
+                         <p className="text-xs text-gray-500">
+                           النظام: {assignment.task?.sensitiveSystem?.systemName || 'غير محدد'} |
+                           المدير المسؤول: {assignment.task?.assignedTo?.nameAr || assignment.task?.assignedTo?.name || 'غير محدد'} |
+                           الموظف: {assignment.assignedUser?.nameAr || assignment.assignedUser?.name || 'غير محدد'}
+                         </p>
+                        {/* Optionally add a button or link */}
+                        {/* <div className="flex justify-end mt-2">
+                          <Button variant="link" size="sm" className="text-nca-teal h-auto p-0">
+                            عرض التفاصيل
+                          </Button>
+                        </div> */}
+                      </div>
+                    ))
+                  )}
                 </div>
-              </div>
-
-                <Button variant="outline" className="w-full mt-4 text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white">
-                  عرض جميع المخاطر
-                </Button>
                </CardContent>
             </Card>
           </div>
