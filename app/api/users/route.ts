@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { Role, Prisma } from '@prisma/client'; // Import Role enum and Prisma for types
 
+// Force dynamic rendering to prevent caching of users list
+export const dynamic = "force-dynamic";
+
 // GET handler to fetch users with filtering
 export async function GET(request: NextRequest) { // Use NextRequest to access searchParams
   try {

@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'; // Corrected import
 import { Role } from '@prisma/client'; // Import Role enum
 
+// Force dynamic rendering to prevent caching of security managers list
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const securityManagers = await prisma.user.findMany({
