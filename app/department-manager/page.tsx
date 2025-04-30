@@ -540,7 +540,7 @@ export default function DepartmentManagerDashboardPage() {
             <Card className="p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">المهام المعينة لك ({user?.nameAr || user?.name})</h2> {/* Use user.nameAr or user.name */}
-              {/* ... (filter/export buttons) ... */}
+              {/* Removed the Approve button from here */}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -552,7 +552,7 @@ export default function DepartmentManagerDashboardPage() {
                     <th className="pb-3 font-medium text-gray-700">الموعد النهائي</th>
                     <th className="pb-3 font-medium text-gray-700">الحالة</th>
                     <th className="pb-3 font-medium text-gray-700">التقدم</th>
-                    {/*<th className="pb-3 font-medium text-gray-700 pl-4">الإجراءات</th>*/}
+                    <th className="pb-3 font-medium text-gray-700 pl-4">الإجراءات</th> {/* Added Actions Header */}
                   </tr>
                 </thead>
                 <tbody>
@@ -599,13 +599,16 @@ export default function DepartmentManagerDashboardPage() {
                             );
                           })()}
                         </td>
-                        {/* Actions Column */}
-                        <td className="py-4 pl-4">
+                        {/* Actions Column - Using flex, w-full, and ml-auto to push approve button to the end */}
+                        <td className="py-4 pl-4 flex items-center w-full"> {/* Added w-full back */}
                            {/* Button to show/hide details */}
                            <Button variant="link" size="sm" onClick={() => toggleTaskExpansion(task.id)} className="text-nca-teal hover:underline">
                              {expandedTasks.has(task.id) ? "إخفاء التفاصيل" : "عرض التفاصيل"}
                            </Button>
-                           {/* Add other actions like 'View Details' if needed */}
+                           {/* Add Approve button with ml-auto (Tailwind handles RTL) */}
+                           <Button variant="default" size="sm" className="bg-blue-800 hover:bg-blue-900 text-white px-4 ml-auto"> {/* Kept ml-auto */}
+                             اعتماد
+                           </Button>
                         </td>
                       </tr>
                       {/* Expanded Row for Control Assignments */}
