@@ -47,9 +47,14 @@ export async function GET(request: NextRequest) {
             deadline: true,
             status: true,
             assignedById: true, // Include the assigner ID
-            sensitiveSystem: { // Include the name of the sensitive system
+            sensitiveSystem: {
               select: {
                 systemName: true,
+                assessment: {
+                  select: {
+                    assessmentName: true
+                  }
+                }
               }
             },
             assignedTo: { // Include the assigned department manager's name

@@ -53,7 +53,11 @@ type FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role'
 type FrontendControl = Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText' | 'mainComponent' | 'subComponent' | 'controlType'>;
 
 interface FrontendTask extends Pick<PrismaTask, 'id' | 'deadline' | 'status'> {
-  sensitiveSystem: Pick<PrismaSensitiveSystemInfo, 'systemName'> | null;
+  sensitiveSystem: (Pick<PrismaSensitiveSystemInfo, 'systemName'> & {
+    assessment: {
+      assessmentName: string;
+    } | null; // Allow assessment to be null
+  }) | null;
 }
 
 // Define the interface explicitly to avoid Omit conflicts
@@ -386,16 +390,72 @@ export default function UserDashboardPage() {
       assignment.control.controlText.toLowerCase().includes(searchTerm) ||
       (assignment.task.sensitiveSystem?.systemName &&
         assignment.task.sensitiveSystem.systemName.toLowerCase().includes(searchTerm)) ||
+      (assignment.task.sensitiveSystem?.assessment?.assessmentName && // Added assessment name to search
+        assignment.task.sensitiveSystem.assessment.assessmentName.toLowerCase().includes(searchTerm)) ||
       assignment.status.toLowerCase().includes(searchTerm) ||
       getComplianceLevelText(assignment.complianceLevel).toLowerCase().includes(searchTerm)
-    );
-  });
-  const now = new Date();
+     );
+   });
+   const now = new Date();
+
+   // --- Determine Table Body Content ---
+   let tableBodyContent;
+   if (isLoadingControls) {
+     tableBodyContent = (
+       <tr><td colSpan={7} className="text-center py-4"><RefreshCw className="h-6 w-6 animate-spin inline-block mr-2" /> جاري تحميل الضوابط...</td></tr>
+     );
+   } else if (filteredControls.length === 0) {
+     tableBodyContent = (
+       <tr><td colSpan={7} className="text-center py-4">{searchQuery ? 'لا توجد نتائج مطابقة للبحث.' : 'لا توجد ضوابط معينة لك حاليًا.'}</td></tr>
+     );
+   } else {
+     tableBodyContent = (
+       <>
+         {filteredControls.map((assignment) => (
+           <tr key={assignment.id} className="group border-b border-gray-100 hover:bg-gray-50">
+             <td className="py-4 pr-4" title={assignment.control.controlText}>
+               {assignment.control.controlNumber}
+             </td>
+             <td className="py-4">{assignment.task.sensitiveSystem?.systemName || 'غير محدد'}</td>
+             <td className="py-4">{assignment.task.sensitiveSystem?.assessment?.assessmentName || 'غير محدد'}</td>
+             <td className="py-4">{formatDate(assignment.task.deadline)}</td>
+             <td className="py-4">
+               {assignment.managerStatus ? (
+                 <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                   {assignment.managerStatus}
+                 </Badge>
+               ) : (
+                 <Badge {...getStatusBadgeProps(assignment.status)}>
+                   {translateStatus(assignment.status)}
+                 </Badge>
+               )}
+             </td>
+             <td className="py-4 bg-white group-hover:bg-white">
+               <Badge variant="outline" className={`px-2 py-1 border border-gray-400 ${getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}`}>
+                 {getComplianceLevelText(assignment.complianceLevel)}
+               </Badge>
+             </td>
+             <td className="py-4">
+               <Button
+                 variant="ghost"
+                 size="sm"
+                 className="text-slate-600 hover:text-slate-900"
+                 onClick={() => handleOpenDetailsModal(assignment)}
+               >
+                 عرض التفاصيل
+               </Button>
+             </td>
+           </tr>
+         ))}
+       </>
+     );
+   }
+   // --- End Determine Table Body Content ---
 
 
-  return (
-    <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
-      {/* Use the shared AppHeader */}
+   return (
+     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
+       {/* Use the shared AppHeader */}
       <AppHeader />
 
       {/* Main Content */}
@@ -471,57 +531,18 @@ export default function UserDashboardPage() {
                   <tr className="text-right border-b border-gray-200">
                     <th className="pb-3 font-medium text-gray-700 pr-4">الضابط</th>
                     <th className="pb-3 font-medium text-gray-700">النظام الحساس</th>
+                    <th className="pb-3 font-medium text-gray-700">اسم التقييم</th> {/* Added new column header */}
                     <th className="pb-3 font-medium text-gray-700">الموعد النهائي للمهمة</th>
                     <th className="pb-3 font-medium text-gray-700">حالة الضابط</th>
                     <th className="pb-3 font-medium text-gray-700">مستوى الالتزام</th>
                     <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
                   </tr>
-                </thead>
-                <tbody>
-                  {isLoadingControls ? (
-                    <tr><td colSpan={6} className="text-center py-4"><RefreshCw className="h-6 w-6 animate-spin inline-block mr-2" /> جاري تحميل الضوابط...</td></tr>
-                  ) : filteredControls.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-4">{searchQuery ? 'لا توجد نتائج مطابقة للبحث.' : 'لا توجد ضوابط معينة لك حاليًا.'}</td></tr>
-                  ) : (
-                    filteredControls.map((assignment) => (
-                      <tr key={assignment.id} className="group border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-4 pr-4" title={assignment.control.controlText}>
-                          {assignment.control.controlNumber}
-                        </td>
-                        <td className="py-4">{assignment.task.sensitiveSystem?.systemName || 'غير محدد'}</td>
-                        <td className="py-4">{formatDate(assignment.task.deadline)}</td>
-                        <td className="py-4">
-                          {assignment.managerStatus ? (
-                            <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                              {assignment.managerStatus}
-                            </Badge>
-                          ) : (
-                            <Badge {...getStatusBadgeProps(assignment.status)}>
-                              {translateStatus(assignment.status)}
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="py-4 bg-white group-hover:bg-white">
-                          <Badge variant="outline" className={`px-2 py-1 border border-gray-400 ${getComplianceLevelBackgroundColorClass(assignment.complianceLevel)}`}>
-                            {getComplianceLevelText(assignment.complianceLevel)}
-                          </Badge>
-                        </td>
-                        <td className="py-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-slate-600 hover:text-slate-900"
-                            onClick={() => handleOpenDetailsModal(assignment)}
-                          >
-                            عرض التفاصيل
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                 </thead>
+                 <tbody>
+                   {tableBodyContent}
+                 </tbody>
+               </table>
+             </div>
           </Card>
 
           {/* Placeholder Sections (Current Task, Upcoming, Completed, Assistant) */}
@@ -542,12 +563,12 @@ export default function UserDashboardPage() {
           </DialogHeader>
 
           {/* Display Error within Modal */}
-          {error && isDetailsModalOpen && (
-             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative my-4" role="alert">
-               <strong className="font-bold">خطأ! </strong>
-               <span className="block sm:inline">{error}</span>
-             </div>
-           )}
+          {error && isDetailsModalOpen && ( // Only show general error if modal is closed
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative my-4" role="alert">
+              <strong className="font-bold">خطأ! </strong>
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
 
           <div className="grid gap-4 py-4">
             {/* Notes */}
