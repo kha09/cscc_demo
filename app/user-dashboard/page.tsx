@@ -413,11 +413,11 @@ export default function UserDashboardPage() {
        <>
          {filteredControls.map((assignment) => (
            <tr key={assignment.id} className="group border-b border-gray-100 hover:bg-gray-50">
-             <td className="py-4 pr-4" title={assignment.control.controlText}>
+             <td className="py-4 pr-4">{assignment.task.sensitiveSystem?.assessment?.assessmentName || 'غير محدد'}</td>
+             <td className="py-4" title={assignment.control.controlText}>
                {assignment.control.controlNumber}
              </td>
              <td className="py-4">{assignment.task.sensitiveSystem?.systemName || 'غير محدد'}</td>
-             <td className="py-4">{assignment.task.sensitiveSystem?.assessment?.assessmentName || 'غير محدد'}</td>
              <td className="py-4">{formatDate(assignment.task.deadline)}</td>
              <td className="py-4">
                {assignment.managerStatus ? (
@@ -527,14 +527,14 @@ export default function UserDashboardPage() {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead>
-                  <tr className="text-right border-b border-gray-200">
-                    <th className="pb-3 font-medium text-gray-700 pr-4">الضابط</th>
-                    <th className="pb-3 font-medium text-gray-700">النظام الحساس</th>
-                    <th className="pb-3 font-medium text-gray-700">اسم التقييم</th> {/* Added new column header */}
-                    <th className="pb-3 font-medium text-gray-700">الموعد النهائي للمهمة</th>
-                    <th className="pb-3 font-medium text-gray-700">حالة الضابط</th>
-                    <th className="pb-3 font-medium text-gray-700">مستوى الالتزام</th>
+               <thead>
+                 <tr className="text-right border-b border-gray-200">
+                   <th className="pb-3 font-medium text-gray-700 pr-4">اسم التقييم</th> {/* Moved column header */}
+                   <th className="pb-3 font-medium text-gray-700">الضابط</th>
+                   <th className="pb-3 font-medium text-gray-700">النظام الحساس</th>
+                   <th className="pb-3 font-medium text-gray-700">الموعد النهائي للمهمة</th>
+                   <th className="pb-3 font-medium text-gray-700">حالة الضابط</th>
+                   <th className="pb-3 font-medium text-gray-700">مستوى الالتزام</th>
                     <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
                   </tr>
                  </thead>
