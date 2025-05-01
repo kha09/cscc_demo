@@ -209,15 +209,10 @@ export default function UserDashboardPage() {
     return formatDate(assignment.task.deadline);
   };
 
-  // Helper to map status to Badge props
+  // Helper to map status to Badge props - now all use grey background
   const getStatusBadgeProps = (status: TaskStatus | undefined): { variant: BadgeProps["variant"], className: string } => {
-    switch (status) {
-      case 'COMPLETED': return { variant: 'default', className: 'bg-green-100 text-green-700' };
-      case 'PENDING': return { variant: 'default', className: 'bg-yellow-100 text-yellow-700' };
-      case 'IN_PROGRESS': return { variant: 'default', className: 'bg-blue-100 text-blue-700' };
-      case 'OVERDUE': return { variant: 'default', className: 'bg-red-100 text-red-700' };
-      default: return { variant: 'secondary', className: 'bg-gray-100 text-gray-700' };
-    }
+    // Return grey styling for all statuses
+    return { variant: 'outline', className: 'bg-gray-100 text-gray-700 border-gray-300' };
   };
 
   // Helper function to translate TaskStatus enum to Arabic text
@@ -446,7 +441,7 @@ export default function UserDashboardPage() {
              <td className="py-4">{getDisplayDate(assignment)}</td>
              <td className="py-4">
                {assignment.managerStatus ? (
-                 <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                 <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
                    {assignment.managerStatus}
                  </Badge>
                ) : (
@@ -734,7 +729,7 @@ export default function UserDashboardPage() {
             {selectedAssignment?.managerStatus && (
               <div className="grid grid-cols-4 items-center gap-4 mt-4 pt-4 border-t">
                 <Label className="text-right col-span-1 font-semibold">حالة المراجعة</Label>
-                <Badge variant="secondary" className="col-span-3 justify-start p-2">
+                <Badge variant="outline" className="col-span-3 justify-start p-2 bg-gray-100 text-gray-700 border-gray-300">
                   {selectedAssignment.managerStatus}
                 </Badge>
               </div>
