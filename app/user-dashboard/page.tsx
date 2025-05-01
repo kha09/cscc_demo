@@ -199,6 +199,16 @@ export default function UserDashboardPage() {
     } catch { return 'تاريخ غير صالح'; }
   };
 
+  // Helper function to get the appropriate date to display (expected compliance date or task deadline)
+  const getDisplayDate = (assignment: FrontendControlAssignment) => {
+    // If expected compliance date exists, use it
+    if (assignment.expectedComplianceDate) {
+      return formatDate(assignment.expectedComplianceDate);
+    }
+    // Otherwise use task deadline
+    return formatDate(assignment.task.deadline);
+  };
+
   // Helper to map status to Badge props
   const getStatusBadgeProps = (status: TaskStatus | undefined): { variant: BadgeProps["variant"], className: string } => {
     switch (status) {
@@ -433,7 +443,7 @@ export default function UserDashboardPage() {
                {assignment.control.controlNumber}
              </td>
              <td className="py-4">{assignment.task.sensitiveSystem?.systemName || 'غير محدد'}</td>
-             <td className="py-4">{formatDate(assignment.task.deadline)}</td>
+             <td className="py-4">{getDisplayDate(assignment)}</td>
              <td className="py-4">
                {assignment.managerStatus ? (
                  <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
@@ -547,7 +557,7 @@ export default function UserDashboardPage() {
                    <th className="pb-3 font-medium text-gray-700 pr-4">اسم التقييم</th> {/* Moved column header */}
                    <th className="pb-3 font-medium text-gray-700">الضابط</th>
                    <th className="pb-3 font-medium text-gray-700">النظام الحساس</th>
-                   <th className="pb-3 font-medium text-gray-700">الموعد النهائي للمهمة</th>
+                   <th className="pb-3 font-medium text-gray-700">تاريخ الالتزام المتوقع / الموعد النهائي</th>
                    <th className="pb-3 font-medium text-gray-700">حالة الضابط</th>
                    <th className="pb-3 font-medium text-gray-700">مستوى الالتزام</th>
                     <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
