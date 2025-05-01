@@ -1,14 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'; // Corrected import
-import { writeFile } from 'fs/promises';
-import path from 'path';
-import { mkdirSync, existsSync } from 'fs'; // For creating directory if needed
-
-// Ensure the upload directory exists
-const uploadDir = path.join(process.cwd(), 'public/uploads/logos');
-if (!existsSync(uploadDir)) {
-  mkdirSync(uploadDir, { recursive: true });
-}
+import { put } from '@vercel/blob';
 
 export async function POST(request: Request) {
   try {
@@ -49,7 +41,7 @@ export async function POST(request: Request) {
 
     let logoPath: string | null = null;
 
-    // Handle logo upload
+    // Handle logo upload using Vercel Blob
     if (logoFile) {
       try {
         const bytes = await logoFile.arrayBuffer();
@@ -57,13 +49,16 @@ export async function POST(request: Request) {
 
         // Create a unique filename (e.g., timestamp-originalname)
         const filename = `${Date.now()}-${logoFile.name.replace(/\s+/g, '_')}`;
-        const filePath = path.join(uploadDir, filename);
-
-        await writeFile(filePath, buffer);
-        logoPath = `/uploads/logos/${filename}`; // Store the relative path accessible via web server
-        console.log(`Logo uploaded to: ${filePath}`);
+        
+        // Upload to Vercel Blob
+        const { url } = await put(`logos/${filename}`, buffer, { 
+          access: 'public' 
+        });
+        
+        logoPath = url; // Store the full URL returned by Vercel Blob
+        console.log(`Logo uploaded to Vercel Blob: ${url}`);
       } catch (uploadError) {
-        console.error('Logo upload failed:', uploadError);
+        console.error('Logo upload to Vercel Blob failed:', uploadError);
         // Decide if upload failure should prevent assessment creation
         // return NextResponse.json({ message: 'Logo upload failed' }, { status: 500 });
       }

@@ -696,7 +696,7 @@ export default function AdminDashboardPage() {
                 <DialogTrigger asChild>
                   <Button variant="outline" className="gap-2 border-nca-teal text-nca-teal hover:bg-nca-teal hover:text-white">
                     <Plus className="h-4 w-4"/>
-                    إنشاء تقييم جديد
+                    إضافة معلومات الجهة
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto" dir="rtl">
