@@ -315,6 +315,21 @@ export default function UserDashboardPage() {
       ? value as ComplianceLevel
       : "";
     setModalFormData(prev => ({ ...prev, complianceLevel: level }));
+    
+    // Handle conditional date behavior based on compliance level
+    if (level === ComplianceLevel.PARTIALLY_IMPLEMENTED || level === ComplianceLevel.NOT_IMPLEMENTED) {
+      // For partially implemented or not implemented, keep the date picker available
+      // but don't change the current date value
+    } else if (level === ComplianceLevel.IMPLEMENTED || level === ComplianceLevel.NOT_APPLICABLE) {
+      // For implemented or not applicable, set the date to the task deadline
+      if (selectedAssignment?.task?.deadline) {
+        setModalFormData(prev => ({ 
+          ...prev, 
+          complianceLevel: level,
+          expectedComplianceDate: new Date(selectedAssignment.task.deadline)
+        }));
+      }
+    }
   };
 
   const handleSaveDetails = async () => {
@@ -595,37 +610,40 @@ export default function UserDashboardPage() {
                 placeholder="صف الإجراءات التصحيحية المتخذة أو المخطط لها..."
               />
             </div>
-            {/* Expected Compliance Date */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="expectedComplianceDate" className="text-right col-span-1">تاريخ الالتزام المتوقع</Label>
-              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "col-span-3 justify-start text-right font-normal",
-                      !modalFormData.expectedComplianceDate && "text-muted-foreground"
-                    )}
-                    onClick={() => setIsDatePickerOpen(true)} // Explicitly open on click
-                  >
-                    <CalendarIcon className="ml-2 h-4 w-4" />
-                    {modalFormData.expectedComplianceDate ? (
-                      format(modalFormData.expectedComplianceDate, "PPP") // Removed locale option
-                    ) : (
-                      <span>اختر تاريخًا</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={modalFormData.expectedComplianceDate}
-                    onSelect={handleModalDateChange} // This now closes the picker too
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            {/* Expected Compliance Date - Only show when compliance level is partially implemented or not implemented */}
+            {(modalFormData.complianceLevel === ComplianceLevel.PARTIALLY_IMPLEMENTED || 
+              modalFormData.complianceLevel === ComplianceLevel.NOT_IMPLEMENTED) && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="expectedComplianceDate" className="text-right col-span-1">تاريخ الالتزام المتوقع</Label>
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "col-span-3 justify-start text-right font-normal",
+                        !modalFormData.expectedComplianceDate && "text-muted-foreground"
+                      )}
+                      onClick={() => setIsDatePickerOpen(true)} // Explicitly open on click
+                    >
+                      <CalendarIcon className="ml-2 h-4 w-4" />
+                      {modalFormData.expectedComplianceDate ? (
+                        format(modalFormData.expectedComplianceDate, "PPP") // Removed locale option
+                      ) : (
+                        <span>اختر تاريخًا</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={modalFormData.expectedComplianceDate}
+                      onSelect={handleModalDateChange} // This now closes the picker too
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
             {/* Compliance Level */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="complianceLevel" className="text-right col-span-1">مستوى الالتزام</Label>
