@@ -115,6 +115,8 @@ interface DetailedAssignmentData {
   status: TaskStatus; // Use imported TaskStatus
   complianceLevel: ComplianceLevel | null;
   assignedUserId: string | null;
+  reviewRequested: boolean; // Add field for review requests
+  reviewComment?: string | null; // Optional comment for the review
   control: {
     id: string;
     mainComponent: string;
@@ -706,6 +708,10 @@ function ResultsContent() {
 
         // Process the detailed data
         const processed: ProcessedDetailedAnalytics = {};
+        
+        // Track first control in each main component to add sample review request
+        const firstControlInComponent: Record<string, boolean> = {};
+        
         rawData.assignments.forEach(assignment => {
           const mainComponent = assignment.control.mainComponent;
           if (!processed[mainComponent]) {
@@ -713,7 +719,20 @@ function ResultsContent() {
               subControls: [],
               counts: { total: 0, finished: 0, assigned: 0, notAssigned: 0 }
             };
+            firstControlInComponent[mainComponent] = true;
           }
+          
+          // Add sample review request data to the first control of each component
+          // This is for demonstration purposes only
+          if (firstControlInComponent[mainComponent]) {
+            assignment.reviewRequested = true;
+            assignment.reviewComment = `طلب مراجعة من مدير القسم: يرجى التحقق من مستوى الامتثال لهذا الضابط والتأكد من صحة التقييم`;
+            firstControlInComponent[mainComponent] = false;
+          } else {
+            assignment.reviewRequested = false;
+            assignment.reviewComment = null;
+          }
+          
           processed[mainComponent].subControls.push(assignment);
           processed[mainComponent].counts.total++;
 
@@ -998,6 +1017,7 @@ function ResultsContent() {
                                   <th scope="col" className="px-4 py-2 text-right font-medium text-gray-500 tracking-wider">نص الضابط / المكون الفرعي</th>
                                   <th scope="col" className="px-4 py-2 text-center font-medium text-gray-500 tracking-wider">الحالة</th>
                                   <th scope="col" className="px-4 py-2 text-center font-medium text-gray-500 tracking-wider">مستوى الامتثال</th>
+                                  <th scope="col" className="px-4 py-2 text-center font-medium text-gray-500 tracking-wider">طلب مراجعة</th>
                                 </tr>
                               </thead>
                               <tbody className="bg-white divide-y divide-gray-200">
@@ -1029,6 +1049,23 @@ function ResultsContent() {
                                               }}>
                                           {complianceLevelLabels[assignment.complianceLevel]}
                                         </span>
+                                      ) : (
+                                        <span className="text-gray-400">-</span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-2 text-center whitespace-nowrap">
+                                      {assignment.reviewRequested ? (
+                                        <div className="group relative">
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 cursor-help">
+                                            <AlertCircle className="h-4 w-4" />
+                                          </span>
+                                          {assignment.reviewComment && (
+                                            <div className="absolute z-10 hidden group-hover:block bg-white border border-gray-200 rounded-md shadow-lg p-2 w-64 text-right text-xs text-gray-700 right-0 mt-1">
+                                              <p className="font-bold mb-1">تعليق المراجعة:</p>
+                                              <p>{assignment.reviewComment}</p>
+                                            </div>
+                                          )}
+                                        </div>
                                       ) : (
                                         <span className="text-gray-400">-</span>
                                       )}
