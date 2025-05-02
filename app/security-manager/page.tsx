@@ -9,6 +9,17 @@ import { AppHeader } from "@/components/ui/AppHeader"; // Import the shared head
 import type { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel
+} from "@/components/ui/alert-dialog";
+import {
   // Bell, // Removed, handled by AppHeader
   // User as UserIcon, // Removed, handled by AppHeader
   // LogOut, // Removed, handled by AppHeader
@@ -109,6 +120,11 @@ export default function SecurityManagerDashboardPage() {
   const [renameInput, setRenameInput] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
   const [isRenaming, setIsRenaming] = useState(false);
+  
+  // State for assessment approval
+  const [isApproving, setIsApproving] = useState(false);
+  const [approvalSuccess, setApprovalSuccess] = useState<string | null>(null);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
 
   // State variables for controls
   const [controls, setControls] = useState<SimpleControl[]>([]);
@@ -718,8 +734,76 @@ export default function SecurityManagerDashboardPage() {
                           </div>
                         </td> */}
                         <td className="py-4">
-                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="outline">اعتماد</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>تأكيد الاعتماد</AlertDialogTitle>
+                                <AlertDialogDescription>هل أنت متأكد أنك تريد اعتماد هذا التقييم؟</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>لا</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={async () => {
+                                if (!user?.id) return;
+                                
+                                setIsApproving(true);
+                                setApprovalSuccess(null);
+                                setApprovalError(null);
+                                
+                                try {
+                                  // For now, we're using placeholder values for sensitiveSystemId and departmentManagerId
+                                  // In a real implementation, you would need to fetch or pass these values
+                                  const response = await fetch('/api/assessment-status/approve', {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                      assessmentId: assessment.id,
+                                      securityManagerId: user.id,
+                                      // These would need to be fetched or passed from the assessment data
+                                      sensitiveSystemId: "placeholder-system-id", // This needs to be a real ID
+                                      departmentManagerId: "placeholder-manager-id", // This needs to be a real ID
+                                    }),
+                                  });
+                                  
+                                  if (!response.ok) {
+                                    const errorData = await response.json();
+                                    throw new Error(errorData.error || 'Failed to approve assessment');
+                                  }
+                                  
+                                  setApprovalSuccess(`تم اعتماد التقييم "${(assessment as AssessmentWithName).assessmentName}" بنجاح`);
+                                  
+                                  // Optionally refresh the assessments list
+                                  // fetchAssessments();
+                                } catch (error) {
+                                  console.error("Error approving assessment:", error);
+                                  setApprovalError(error instanceof Error ? error.message : 'حدث خطأ أثناء اعتماد التقييم');
+                                } finally {
+                                  setIsApproving(false);
+                                }
+                              }}
+                            >
+                              {isApproving ? 'جاري الاعتماد...' : 'نعم'}
+                            </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </td>
+                        {/* Display approval success/error messages */}
+                        {approvalSuccess && (
+                          <div className="fixed bottom-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50">
+                            <span className="block sm:inline">{approvalSuccess}</span>
+                          </div>
+                        )}
+                        {approvalError && (
+                          <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
+                            <span className="block sm:inline">{approvalError}</span>
+                          </div>
+                        )}
                       </tr>
                     ))
                   )}

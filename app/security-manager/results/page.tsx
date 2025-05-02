@@ -9,6 +9,17 @@ import { AppHeader } from "@/components/ui/AppHeader"; // Import shared header
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel
+} from "@/components/ui/alert-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon, FileDown, Printer } from "lucide-react"; // Prefixed unused imports with underscore
 import html2canvas from "html2canvas";
@@ -201,6 +212,11 @@ function ResultsContent() {
   const [systemsComplianceError, setSystemsComplianceError] = useState<string | null>(null);
 
   // State for detailed results (Detailed Results Tab)
+  
+  // State for approval
+  const [isApproving, setIsApproving] = useState(false);
+  const [approvalSuccess, setApprovalSuccess] = useState<string | null>(null);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
   // Define SensitiveSystemInfo interface based on expected API response structure
   interface SensitiveSystemInfo {
     id: string;
@@ -982,25 +998,98 @@ function ResultsContent() {
                      </div>
                    )}
                    
-                   {/* Signature Section */}
-                   <div className="mt-16 mb-10">
-                     <div className="border-t border-gray-300 pt-8">
-                       <h2 className="text-xl font-bold text-slate-800 text-center mb-6">اعتماد صاحب الصلاحية</h2>
-                       
-                       <div className="flex flex-col items-center">
-                         {/* Signature Box */}
-                         <div className="border-2 border-dashed border-gray-400 rounded-md w-64 h-32 mb-6 flex items-center justify-center bg-gray-50">
-                           <span className="text-gray-400 text-sm">مكان التوقيع</span>
-                         </div>
-                         
-                         {/* Name and Date */}
-                         <div className="grid grid-cols-2 gap-8 w-full max-w-lg">
+                       {/* Signature Section */}
+                       <div className="mt-16 mb-10">
+                         <div className="border-t border-gray-300 pt-8">
+                           <h2 className="text-xl font-bold text-slate-800 text-center mb-6">اعتماد صاحب الصلاحية</h2>
+                           
                            <div className="flex flex-col items-center">
-                             <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
-                               &nbsp;
+                             {/* Signature Box */}
+                             <div className="border-2 border-dashed border-gray-400 rounded-md w-64 h-32 mb-6 flex items-center justify-center bg-gray-50">
+                               <span className="text-gray-400 text-sm">مكان التوقيع</span>
                              </div>
-                             <span className="text-sm text-gray-600">الاسم</span>
-                           </div>
+                             
+                             {/* Approval Button */}
+                             <div className="mb-6">
+                               <AlertDialog>
+                                 <AlertDialogTrigger asChild>
+                                   <Button size="sm" variant="outline" className="bg-nca-dark-blue text-white hover:bg-nca-teal">اعتماد</Button>
+                                 </AlertDialogTrigger>
+                                 <AlertDialogContent>
+                                   <AlertDialogHeader>
+                                     <AlertDialogTitle>تأكيد الاعتماد</AlertDialogTitle>
+                                     <AlertDialogDescription>هل أنت متأكد أنك تريد اعتماد هذا التقييم؟</AlertDialogDescription>
+                                   </AlertDialogHeader>
+                                   <AlertDialogFooter>
+                                     <AlertDialogCancel>لا</AlertDialogCancel>
+                                     <AlertDialogAction 
+                                       onClick={async () => {
+                                         if (!user?.id) return;
+                                         
+                                         setIsApproving(true);
+                                         setApprovalSuccess(null);
+                                         setApprovalError(null);
+                                         
+                                         try {
+                                           // For now, we're using placeholder values for sensitiveSystemId and departmentManagerId
+                                           // In a real implementation, you would need to fetch or pass these values
+                                           const response = await fetch('/api/assessment-status/approve', {
+                                             method: 'POST',
+                                             headers: {
+                                               'Content-Type': 'application/json',
+                                             },
+                                             body: JSON.stringify({
+                                               assessmentId: selectedSystemId || "placeholder-assessment-id", // Use selectedSystemId if available
+                                               securityManagerId: user.id,
+                                               // These would need to be fetched or passed from the assessment data
+                                               sensitiveSystemId: selectedSystemId || "placeholder-system-id", // Use selectedSystemId if available
+                                               departmentManagerId: "placeholder-manager-id", // This needs to be a real ID
+                                             }),
+                                           });
+                                           
+                                           if (!response.ok) {
+                                             const errorData = await response.json();
+                                             throw new Error(errorData.error || 'Failed to approve assessment');
+                                           }
+                                           
+                                           setApprovalSuccess(`تم اعتماد التقييم بنجاح`);
+                                           
+                                         } catch (error) {
+                                           console.error("Error approving assessment:", error);
+                                           setApprovalError(error instanceof Error ? error.message : 'حدث خطأ أثناء اعتماد التقييم');
+                                         } finally {
+                                           setIsApproving(false);
+                                         }
+                                       }}
+                                     >
+                                       {isApproving ? 'جاري الاعتماد...' : 'نعم'}
+                                     </AlertDialogAction>
+                                   </AlertDialogFooter>
+                                 </AlertDialogContent>
+                               </AlertDialog>
+                             </div>
+                             
+                             {/* Display approval success/error messages */}
+                             {approvalSuccess && (
+                               <div className="fixed bottom-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50">
+                                 <span className="block sm:inline">{approvalSuccess}</span>
+                               </div>
+                             )}
+                             {approvalError && (
+                               <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
+                                 <span className="block sm:inline">{approvalError}</span>
+                               </div>
+                             )}
+                         
+                             
+                             {/* Name and Date */}
+                             <div className="grid grid-cols-2 gap-8 w-full max-w-lg">
+                               <div className="flex flex-col items-center">
+                                 <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
+                                   &nbsp;
+                                 </div>
+                                 <span className="text-sm text-gray-600">الاسم</span>
+                               </div>
                            
                            <div className="flex flex-col items-center">
                              <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
@@ -1526,6 +1615,76 @@ function ResultsContent() {
                              <div className="border-2 border-dashed border-gray-400 rounded-md w-64 h-32 mb-6 flex items-center justify-center bg-gray-50">
                                <span className="text-gray-400 text-sm"></span>
                              </div>
+                             
+                             {/* Approval Button */}
+                             <div className="mb-6">
+                               <AlertDialog>
+                                 <AlertDialogTrigger asChild>
+                                   <Button size="sm" variant="outline" className="bg-nca-dark-blue text-white hover:bg-nca-teal">اعتماد</Button>
+                                 </AlertDialogTrigger>
+                                 <AlertDialogContent>
+                                   <AlertDialogHeader>
+                                     <AlertDialogTitle>تأكيد الاعتماد</AlertDialogTitle>
+                                     <AlertDialogDescription>هل أنت متأكد أنك تريد اعتماد هذا التقييم؟</AlertDialogDescription>
+                                   </AlertDialogHeader>
+                                   <AlertDialogFooter>
+                                     <AlertDialogCancel>لا</AlertDialogCancel>
+                                     <AlertDialogAction 
+                                       onClick={async () => {
+                                         if (!user?.id || !assessment?.id) return;
+                                         
+                                         setIsApproving(true);
+                                         setApprovalSuccess(null);
+                                         setApprovalError(null);
+                                         
+                                         try {
+                                           const response = await fetch('/api/assessment-status/approve', {
+                                             method: 'POST',
+                                             headers: {
+                                               'Content-Type': 'application/json',
+                                             },
+                                             body: JSON.stringify({
+                                               assessmentId: assessment.id,
+                                               securityManagerId: user.id,
+                                               // These would need to be fetched or passed from the assessment data
+                                               sensitiveSystemId: assessment.sensitiveSystemId || "placeholder-system-id",
+                                               departmentManagerId: assessment.departmentManagerId || "placeholder-manager-id",
+                                             }),
+                                           });
+                                           
+                                           if (!response.ok) {
+                                             const errorData = await response.json();
+                                             throw new Error(errorData.error || 'Failed to approve assessment');
+                                           }
+                                           
+                                           setApprovalSuccess(`تم اعتماد التقييم بنجاح`);
+                                           
+                                         } catch (error) {
+                                           console.error("Error approving assessment:", error);
+                                           setApprovalError(error instanceof Error ? error.message : 'حدث خطأ أثناء اعتماد التقييم');
+                                         } finally {
+                                           setIsApproving(false);
+                                         }
+                                       }}
+                                     >
+                                       {isApproving ? 'جاري الاعتماد...' : 'نعم'}
+                                     </AlertDialogAction>
+                                   </AlertDialogFooter>
+                                 </AlertDialogContent>
+                               </AlertDialog>
+                             </div>
+                             
+                             {/* Display approval success/error messages */}
+                             {approvalSuccess && (
+                               <div className="fixed bottom-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50">
+                                 <span className="block sm:inline">{approvalSuccess}</span>
+                               </div>
+                             )}
+                             {approvalError && (
+                               <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
+                                 <span className="block sm:inline">{approvalError}</span>
+                               </div>
+                             )}
                              
                              {/* Name and Date */}
                              <div className="grid grid-cols-2 gap-8 w-full max-w-lg">
