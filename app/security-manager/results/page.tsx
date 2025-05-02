@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import dynamic from 'next/dynamic';
 // import Image from "next/image"; // Removed, AppHeader handles logo
 import Link from "next/link";
@@ -10,7 +10,9 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon } from "lucide-react"; // Prefixed unused imports with underscore
+import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon, FileDown, Printer } from "lucide-react"; // Prefixed unused imports with underscore
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { TaskStatus } from "@prisma/client";
 import type { User as _User } from "@prisma/client"; // Prefixed with underscore to avoid unused type error
 import SystemAnalyticsCharts from "@/components/ui/SystemAnalyticsCharts"; // Import the new chart component
@@ -163,6 +165,10 @@ function ResultsContent() {
   const [analyticsData, setAnalyticsData] = useState<ProcessedAnalyticsData | null>(null);
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(true); // Loading for general analytics
   const [analyticsError, setAnalyticsError] = useState<string | null>(null); // Error for general analytics
+  
+  // Reference for PDF generation
+  const overallComplianceRef = useRef<HTMLDivElement>(null);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
 
   // State for assessment data (Overall Compliance Tab)
   const [assessment, setAssessment] = useState<any>(null);
@@ -1148,9 +1154,108 @@ function ResultsContent() {
                    لا توجد تقييمات متاحة لعرض المستوى العام للالتزام.
                  </div>
                ) : (
-                 <div className="space-y-6 pt-4">
+                 <div ref={overallComplianceRef} className="space-y-6 pt-4">
                    {/* Assessment Logo and Name */}
                    <div className="text-center mb-8">
+                     {/* Print Button */}
+                     <div className="flex justify-end mb-4">
+                       <Button 
+                         onClick={() => {
+                           if (!overallComplianceRef.current) return;
+                           
+                           setIsPdfGenerating(true);
+                           
+                           // Use setTimeout to allow the loading state to render
+                           setTimeout(() => {
+                             const content = overallComplianceRef.current;
+                             
+                             if (!content) {
+                               setIsPdfGenerating(false);
+                               return;
+                             }
+                             
+                             html2canvas(content, {
+                               scale: 2, // Higher scale for better quality
+                               useCORS: true, // Allow images from other domains
+                               logging: false,
+                               onclone: (document) => {
+                                 // Any modifications to the cloned document before rendering
+                                 const buttons = document.querySelectorAll('button');
+                                 buttons.forEach(button => {
+                                   if (button.textContent?.includes('تصدير') || 
+                                       button.textContent?.includes('طباعة')) {
+                                     button.style.display = 'none';
+                                   }
+                                 });
+                               }
+                             }).then(canvas => {
+                               const imgData = canvas.toDataURL('image/png');
+                               const pdf = new jsPDF({
+                                 orientation: 'portrait',
+                                 unit: 'mm',
+                                 format: 'a4'
+                               });
+                               
+                               const imgWidth = 210; // A4 width in mm
+                               const imgHeight = canvas.height * imgWidth / canvas.width;
+                               
+                               let position = 0;
+                               
+                               // Add image to PDF
+                               pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                               
+                               // If content is longer than one page, add more pages
+                               const pageHeight = 295; // A4 height in mm
+                               
+                               if (imgHeight > pageHeight) {
+                                 let remainingHeight = imgHeight;
+                                 let currentPosition = 0;
+                                 
+                                 while (remainingHeight > 0) {
+                                   position -= pageHeight;
+                                   remainingHeight -= pageHeight;
+                                   currentPosition += pageHeight;
+                                   
+                                   if (remainingHeight > 0) {
+                                     pdf.addPage();
+                                     pdf.addImage(
+                                       imgData, 
+                                       'PNG', 
+                                       0, 
+                                       position, 
+                                       imgWidth, 
+                                       imgHeight
+                                     );
+                                   }
+                                 }
+                               }
+                               
+                               // Save the PDF
+                               pdf.save(`تقرير_المستوى_العام_للالتزام_${new Date().toLocaleDateString('ar-SA')}.pdf`);
+                               setIsPdfGenerating(false);
+                             }).catch(err => {
+                               console.error("Error generating PDF:", err);
+                               setIsPdfGenerating(false);
+                             });
+                           }, 100);
+                         }}
+                         disabled={isPdfGenerating}
+                         className="bg-nca-teal hover:bg-nca-dark-blue text-white"
+                       >
+                         {isPdfGenerating ? (
+                           <>
+                             <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                             جاري التصدير...
+                           </>
+                         ) : (
+                           <>
+                             <FileDown className="h-4 w-4 ml-2" />
+                             تصدير PDF
+                           </>
+                         )}
+                       </Button>
+                     </div>
+                     
                      {assessment.logoPath && (
                        <img 
                          src={assessment.logoPath} 
