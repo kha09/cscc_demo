@@ -96,14 +96,15 @@ export function ChatBox({ assistantId }: ChatBoxProps) {
   };
 
   return (
-    <Card className="w-full p-4 shadow-md" dir="rtl">
+    <Card className="w-full p-6 shadow-lg rounded-xl bg-gradient-to-br from-white to-gray-50 border-0" dir="rtl">
       <div className="flex flex-col h-full">
-        <div className="text-xl font-bold mb-4 text-slate-800 border-b pb-2">
-          المساعد الذكي
+        <div className="text-xl font-bold mb-6 text-slate-800 border-b pb-3 flex items-center">
+          
+          مساعد أتم الذكي
         </div>
 
         {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto mb-4 max-h-[400px] min-h-[300px] border rounded-md p-3 bg-gray-50">
+        <div className="flex-1 overflow-y-auto mb-6 max-h-[400px] min-h-[300px] rounded-xl p-4 bg-gray-50 border border-gray-100 shadow-inner">
           {messages.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               مرحباً! كيف يمكنني مساعدتك اليوم؟
@@ -114,20 +115,30 @@ export function ChatBox({ assistantId }: ChatBoxProps) {
                 <div
                   key={index}
                   className={`flex ${
-                    msg.role === "user" ? "justify-end" : "justify-start"
+                    msg.role === "assistant" ? "justify-end" : "justify-start"
                   }`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                      msg.role === "user"
-                        ? "bg-blue-500 text-white"
-                        : "bg-gray-200 text-gray-800"
+                    className={`max-w-[80%] rounded-xl px-4 py-3 shadow-sm ${
+                      msg.role === "assistant"
+                        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white mr-2"
+                        : "bg-white border border-gray-200 text-gray-800 ml-2"
                     }`}
                   >
+                    {msg.role === "assistant" && (
+                      <div className="flex items-center mb-1">
+                        <span className="text-xs font-semibold text-blue-100">المساعد</span>
+                      </div>
+                    )}
+                    {msg.role === "user" && (
+                      <div className="flex items-center justify-end mb-1">
+                        <span className="text-xs font-semibold text-gray-600">أنت</span>
+                      </div>
+                    )}
                     <div className="whitespace-pre-wrap">{msg.content}</div>
                     <div
                       className={`text-xs mt-1 ${
-                        msg.role === "user"
+                        msg.role === "assistant"
                           ? "text-blue-100"
                           : "text-gray-500"
                       }`}
@@ -150,20 +161,22 @@ export function ChatBox({ assistantId }: ChatBoxProps) {
         )}
 
         {/* Input Area */}
-        <div className="flex items-end gap-2">
-          <Textarea
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="اكتب رسالتك هنا..."
-            className="flex-1 resize-none"
-            rows={2}
-            disabled={isLoading}
-          />
+        <div className="flex items-end gap-3">
+          <div className="flex-1 relative">
+            <Textarea
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="اكتب رسالتك هنا..."
+              className="flex-1 resize-none rounded-xl border-gray-200 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 shadow-sm"
+              rows={2}
+              disabled={isLoading}
+            />
+          </div>
           <Button
             onClick={handleSendMessage}
             disabled={isLoading || !inputMessage.trim()}
-            className="h-10"
+            className="h-10 rounded-full w-10 flex items-center justify-center bg-blue-500 hover:bg-blue-600 transition-colors"
           >
             {isLoading ? (
               <RefreshCw className="h-5 w-5 animate-spin" />

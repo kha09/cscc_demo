@@ -568,7 +568,10 @@ export default function UserDashboardPage() {
 
           {/* OpenAI Chat Assistant */}
           <div className="w-full mt-8">
-            <h2 className="text-xl font-semibold mb-4">المساعدة الذكية</h2>
+            <div className="flex items-center mb-4">
+              
+              <h2 className="text-xl font-semibold"> </h2>
+            </div>
             <ChatBox assistantId="asst_XTKU0lEZIXIxr1LlWqGMhdnt" />
           </div>
 
