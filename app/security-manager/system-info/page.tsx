@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 // import Image from "next/image"; // Removed, AppHeader handles logo
 import { useAuth } from "@/lib/auth-context"; // Import useAuth
-import { User as _User, SensitiveSystemInfo } from "@prisma/client"; // Prefixed User with underscore to avoid unused type error
+import { User as _User, SensitiveSystemInfo, Assessment } from "@prisma/client"; // Added Assessment import
 import { AppHeader } from "@/components/ui/AppHeader"; // Import shared header
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Import Dialog components
+import SensitiveSystemForm from "@/components/sensitive-system-form"; // Import the form component
 import {
   // Bell, // Removed, handled by AppHeader
   // User as UserIcon, // Removed, handled by AppHeader
@@ -36,8 +38,50 @@ export default function SystemInfoPage() {
   const [systemInfoList, setSystemInfoList] = useState<SensitiveSystemInfoWithAssessment[]>([]);
   const [systemInfoLoading, setSystemInfoLoading] = useState(true);
   const [systemInfoError, setSystemInfoError] = useState<string | null>(null);
+  
+  // State for modal and assessment
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [latestAssessmentId, setLatestAssessmentId] = useState<string | null>(null);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [isLoadingAssessments, setIsLoadingAssessments] = useState(true);
+  const [assessmentsError, setAssessmentsError] = useState<string | null>(null);
 
   const { user, loading: authLoading } = useAuth(); // Get user and loading state
+
+  // Fetch assessments to get the latest one
+  useEffect(() => {
+    if (!user?.id) return; // Exit if no user ID
+
+    const userId = user.id; // Use authenticated user's ID
+
+    const fetchAssessments = async () => {
+      setIsLoadingAssessments(true);
+      setAssessmentsError(null);
+      try {
+        const response = await fetch(`/api/users/${userId}/assessments`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch assessments: ${response.statusText}`);
+        }
+        const data: Assessment[] = await response.json();
+        setAssessments(data);
+        
+        // Sort assessments by createdAt in descending order and get the latest one
+        if (data.length > 0) {
+          const sortedAssessments = [...data].sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          setLatestAssessmentId(sortedAssessments[0].id);
+        }
+      } catch (err: unknown) {
+        console.error("Error fetching assessments:", err);
+        setAssessmentsError(err instanceof Error ? err.message : "An unknown error occurred fetching assessments");
+      } finally {
+        setIsLoadingAssessments(false);
+      }
+    };
+
+    fetchAssessments();
+  }, [user]); // Depend on user object
 
   // Fetch sensitive system info when user is available
   useEffect(() => {
@@ -165,6 +209,15 @@ export default function SystemInfoPage() {
         <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-${HEADER_HEIGHT}px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-slate-800">معلومات الأنظمة المقدمة</h1>
+            <Button 
+              variant="default" 
+              size="sm" 
+              className="bg-nca-teal text-white hover:bg-nca-teal-dark"
+              onClick={() => setIsModalOpen(true)}
+              disabled={isLoadingAssessments || !latestAssessmentId}
+            >
+              إضافة معلومات النظام
+            </Button>
           </div>
 
           {/* System Information Section */}
@@ -215,6 +268,53 @@ export default function SystemInfoPage() {
           </Card>
         </main>
       </div>
+
+      {/* Modal for Sensitive System Form */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>إضافة نظام جديد</DialogTitle>
+          </DialogHeader>
+          {latestAssessmentId ? (
+            <div className="space-y-4 py-4">
+              <SensitiveSystemForm
+                assessmentId={latestAssessmentId}
+                onFormSubmit={() => {
+                  setIsModalOpen(false);
+                  // Refresh the systems list after adding a new system
+                  if (user?.id) {
+                    const fetchSystemInfo = async () => {
+                      setSystemInfoLoading(true);
+                      try {
+                        const response = await fetch(`/api/users/${user.id}/sensitive-systems`);
+                        if (response.ok) {
+                          const data = await response.json();
+                          setSystemInfoList(data);
+                        }
+                      } catch (err) {
+                        console.error("Error refreshing system info:", err);
+                      } finally {
+                        setSystemInfoLoading(false);
+                      }
+                    };
+                    fetchSystemInfo();
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <div className="p-4 text-center">
+              {isLoadingAssessments ? (
+                <p>جاري تحميل التقييمات...</p>
+              ) : assessmentsError ? (
+                <p className="text-red-600">خطأ: {assessmentsError}</p>
+              ) : (
+                <p>لم يتم العثور على تقييمات. يرجى إنشاء تقييم أولاً.</p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

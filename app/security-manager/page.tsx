@@ -718,16 +718,7 @@ export default function SecurityManagerDashboardPage() {
                           </div>
                         </td> */}
                         <td className="py-4">
-                          {/* Button to open the form modal */}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-nca-teal border-nca-teal hover:bg-nca-teal hover:text-white"
-                            onClick={() => handleOpenForm(assessment.id)}
-                          >
-                            إضافة معلومات النظام
-                          </Button>
-                          {/* Add other actions like 'View Details' if needed */}
+                          
                         </td>
                       </tr>
                     ))
