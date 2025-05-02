@@ -294,6 +294,10 @@ function ResultsContent() {
   // --- End User ID Fetch --- Removed
 
 
+  // State to track if assessment is approved
+  const [isAssessmentApproved, setIsAssessmentApproved] = useState<boolean>(false);
+  const [isCheckingApproval, setIsCheckingApproval] = useState<boolean>(false);
+
   // --- Assessment Data Fetch (Triggered by user) ---
   useEffect(() => {
     if (!user?.id) {
@@ -322,9 +326,8 @@ function ResultsContent() {
           // Get the first assessment
           setAssessment(assessments[0]);
           
-          // Fetch sensitive systems and compliance counts for this assessment
-          fetchSensitiveSystemsCount(assessments[0].id);
-          fetchComplianceCounts(assessments[0].id);
+          // Check if assessment is approved before fetching data
+          checkAssessmentApproval(assessments[0].id, userId);
         } else {
           setAssessmentError("لا توجد تقييمات متاحة");
         }
@@ -339,6 +342,36 @@ function ResultsContent() {
 
     fetchAssessment();
   }, [user]);
+
+  // Check if assessment is approved by security manager
+  const checkAssessmentApproval = async (assessmentId: string, securityManagerId: string) => {
+    setIsCheckingApproval(true);
+    
+    try {
+      console.log(`Checking approval status for assessment ID: ${assessmentId}`);
+      const response = await fetch(`/api/assessment-status/security-check?assessmentId=${assessmentId}&sensitiveSystemId=${assessmentId}&securityManagerId=${securityManagerId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to check approval status: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      const isApproved = data.securityManagerStatus === 'FINISHED';
+      setIsAssessmentApproved(isApproved);
+      
+      console.log(`Assessment approval status: ${isApproved ? 'Approved' : 'Not Approved'}`);
+      
+      // Only fetch data if assessment is approved
+      if (isApproved) {
+        fetchSensitiveSystemsCount(assessmentId);
+        fetchComplianceCounts(assessmentId);
+      }
+    } catch (err) {
+      console.error("Error checking assessment approval:", err);
+    } finally {
+      setIsCheckingApproval(false);
+    }
+  };
   // --- End Assessment Data Fetch ---
 
   // --- Sensitive Systems Count Fetch ---
@@ -580,6 +613,7 @@ function ResultsContent() {
             if (statusResponse.ok) {
               const statusData = await statusResponse.json();
               statusMap[system.id] = statusData.securityManagerStatus;
+              console.log(`Status for system ${system.id}:`, statusData.securityManagerStatus);
             }
           } catch (statusErr) {
             console.error(`Error fetching security status for system ${system.id}:`, statusErr);
@@ -1265,11 +1299,47 @@ function ResultsContent() {
                <TabsTrigger value="overall" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-4 cursor-pointer">المستوى العام للالتزام</TabsTrigger>
              </TabsList>
              <TabsContent value="general" dir="rtl"> {/* Ensure content has dir */}
-               {/* Render the general analytics content, loading, or error state */}
-               {renderGeneralAnalyticsContent()}
+               {isCheckingApproval ? (
+                 <div className="flex justify-center items-center h-[calc(100vh-250px)]">
+                   <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
+                   <span className="mr-2">جاري التحقق من حالة الاعتماد...</span>
+                 </div>
+               ) : !isAssessmentApproved ? (
+                 <div className="flex flex-col justify-center items-center h-[calc(100vh-250px)] text-center">
+                   <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
+                   <h3 className="text-xl font-bold text-slate-800 mb-2">لم يتم اعتماد التقييم بعد</h3>
+                   <p className="text-gray-600 mb-6">يجب اعتماد التقييم من قبل مدير الأمن قبل عرض النتائج</p>
+                   <Button 
+                     onClick={() => router.push('/security-manager')}
+                     className="bg-nca-dark-blue hover:bg-nca-teal text-white"
+                   >
+                     العودة إلى لوحة المعلومات
+                   </Button>
+                 </div>
+               ) : (
+                 /* Render the general analytics content, loading, or error state */
+                 renderGeneralAnalyticsContent()
+               )}
              </TabsContent>
              <TabsContent value="overall" dir="rtl"> {/* Overall Compliance Tab */}
-               {isAssessmentLoading || isSystemsCountLoading || isComplianceCountsLoading ? (
+               {isCheckingApproval ? (
+                 <div className="flex justify-center items-center h-[calc(100vh-250px)]">
+                   <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
+                   <span className="mr-2">جاري التحقق من حالة الاعتماد...</span>
+                 </div>
+               ) : !isAssessmentApproved ? (
+                 <div className="flex flex-col justify-center items-center h-[calc(100vh-250px)] text-center">
+                   <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
+                   <h3 className="text-xl font-bold text-slate-800 mb-2">لم يتم اعتماد التقييم بعد</h3>
+                   <p className="text-gray-600 mb-6">يجب اعتماد التقييم من قبل مدير الأمن قبل عرض النتائج</p>
+                   <Button 
+                     onClick={() => router.push('/security-manager')}
+                     className="bg-nca-dark-blue hover:bg-nca-teal text-white"
+                   >
+                     العودة إلى لوحة المعلومات
+                   </Button>
+                 </div>
+               ) : isAssessmentLoading || isSystemsCountLoading || isComplianceCountsLoading ? (
                  <div className="flex justify-center items-center h-[calc(100vh-250px)]">
                    <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
                    <span className="mr-2">جاري تحميل بيانات المستوى العام للالتزام...</span>
