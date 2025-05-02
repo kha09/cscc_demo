@@ -38,6 +38,7 @@
     "lucide-react": "^0.476.0",
     "next": "14.2.16",
     "next-auth": "^4.24.11",
+    "openai": "^4.96.2",
     "prisma": "^6.5.0",
     "react": "^18",
     "react-apexcharts": "^1.7.0",

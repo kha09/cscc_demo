@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react"; // Added useEffect, us
 import { useRouter } from 'next/navigation'; // Uncommented
 import { useAuth } from "@/lib/auth-context"; // Uncommented
 import { AppHeader } from "@/components/ui/AppHeader"; // Import the shared header
+import { ChatBox } from "@/components/ChatBox"; // Import the ChatBox component
 // Import necessary types
 import type {
   User as PrismaUser,
@@ -565,9 +566,11 @@ export default function UserDashboardPage() {
              </div>
           </Card>
 
-          {/* Placeholder Sections (Current Task, Upcoming, Completed, Assistant) */}
-          {/* These can be implemented later or removed if not needed */}
-          {/* ... */}
+          {/* OpenAI Chat Assistant */}
+          <div className="w-full mt-8">
+            <h2 className="text-xl font-semibold mb-4">المساعدة الذكية</h2>
+            <ChatBox assistantId="asst_XTKU0lEZIXIxr1LlWqGMhdnt" />
+          </div>
 
         </div>
       </main>
