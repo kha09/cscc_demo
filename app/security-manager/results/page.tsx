@@ -183,6 +183,16 @@ function ResultsContent() {
   });
   const [isComplianceCountsLoading, setIsComplianceCountsLoading] = useState(false);
   const [complianceCountsError, setComplianceCountsError] = useState<string | null>(null);
+  
+  // State for system-specific compliance data (Overall Compliance Tab)
+  interface SystemComplianceData {
+    systemName: string;
+    complianceCounts: Record<ComplianceLevel, number>;
+    totalControls: number;
+  }
+  const [systemsComplianceData, setSystemsComplianceData] = useState<SystemComplianceData[]>([]);
+  const [isSystemsComplianceLoading, setIsSystemsComplianceLoading] = useState(false);
+  const [systemsComplianceError, setSystemsComplianceError] = useState<string | null>(null);
 
   // State for detailed results (Detailed Results Tab)
   // Define SensitiveSystemInfo interface based on expected API response structure
@@ -324,6 +334,9 @@ function ResultsContent() {
       
       const systems = await response.json();
       setSystemsCount(systems.length);
+      
+      // Fetch compliance data for each system
+      fetchSystemsComplianceData(systems, assessmentId);
     } catch (err) {
       console.error("Error fetching sensitive systems count:", err);
       const errorMsg = err instanceof Error ? err.message : "An unknown error occurred.";
@@ -333,6 +346,61 @@ function ResultsContent() {
     }
   };
   // --- End Sensitive Systems Count Fetch ---
+  
+  // --- Systems Compliance Data Fetch ---
+  const fetchSystemsComplianceData = async (systems: any[], assessmentId: string) => {
+    if (!systems.length || !assessmentId || !user?.id) return;
+    
+    setIsSystemsComplianceLoading(true);
+    setSystemsComplianceError(null);
+    
+    try {
+      const systemsData: SystemComplianceData[] = [];
+      
+      // Process each system sequentially to avoid overwhelming the server
+      for (const system of systems) {
+        console.log(`Fetching compliance data for system ID: ${system.id}`);
+        const response = await fetch(`/api/control-assignments/analytics/by-system/${system.id}?securityManagerId=${user.id}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to fetch compliance data for system: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Initialize counts
+        const counts = {
+          [ComplianceLevel.IMPLEMENTED]: 0,
+          [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0,
+          [ComplianceLevel.NOT_IMPLEMENTED]: 0,
+          [ComplianceLevel.NOT_APPLICABLE]: 0
+        };
+        
+        // Count assignments by compliance level
+        data.assignments.forEach((assignment: DetailedAssignmentData) => {
+          if (assignment.complianceLevel) {
+            counts[assignment.complianceLevel]++;
+          }
+        });
+        
+        systemsData.push({
+          systemName: system.systemName,
+          complianceCounts: counts,
+          totalControls: data.assignments.length
+        });
+      }
+      
+      setSystemsComplianceData(systemsData);
+    } catch (err) {
+      console.error("Error fetching systems compliance data:", err);
+      const errorMsg = err instanceof Error ? err.message : "An unknown error occurred.";
+      setSystemsComplianceError(errorMsg);
+    } finally {
+      setIsSystemsComplianceLoading(false);
+    }
+  };
+  // --- End Systems Compliance Data Fetch ---
 
   // --- Compliance Counts Fetch ---
   const fetchComplianceCounts = async (assessmentId: string) => {
@@ -1166,6 +1234,145 @@ function ResultsContent() {
                        </div>
                      </CardContent>
                    </Card>
+                   
+                   {/* System-specific compliance sections */}
+                   {isSystemsComplianceLoading ? (
+                     <div className="flex justify-center items-center py-8">
+                       <Loader2 className="h-6 w-6 animate-spin text-nca-teal" />
+                       <span className="mr-2">جاري تحميل بيانات الأنظمة...</span>
+                     </div>
+                   ) : systemsComplianceError ? (
+                     <div className="flex justify-center items-center py-8 text-red-600">
+                       <AlertCircle className="h-5 w-5" />
+                       <span className="mr-2">خطأ في تحميل بيانات الأنظمة: {systemsComplianceError}</span>
+                     </div>
+                   ) : systemsComplianceData.length === 0 ? (
+                     <div className="text-center py-8 text-gray-600">
+                       لا توجد بيانات أنظمة لعرضها.
+                     </div>
+                   ) : (
+                     <div className="mt-12">
+                       <h2 className="text-xl font-bold text-slate-800 text-center mb-8">مستوى الالتزام لكل نظام</h2>
+                       
+                       {systemsComplianceData.map((system, index) => (
+                         <div key={index} className="mb-12 pb-12 border-b border-gray-200 last:border-0">
+                           <h3 className="text-lg font-bold text-slate-800 text-center mb-6">
+                             مستوى نظام {system.systemName}
+                           </h3>
+                           
+                           {/* Two-column grid for system */}
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                             {/* Left column: Pie chart */}
+                             <Card className="shadow-md">
+                               <CardHeader className="bg-gray-50 rounded-t-lg">
+                                 <CardTitle className="text-lg font-semibold text-slate-700">توزيع مستويات الالتزام</CardTitle>
+                               </CardHeader>
+                               <CardContent className="p-4">
+                                 {Object.values(system.complianceCounts).every(count => count === 0) ? (
+                                   <div className="text-center py-10 text-gray-600">
+                                     لا توجد بيانات التزام لعرضها.
+                                   </div>
+                                 ) : (
+                                   <Chart 
+                                     options={{
+                                       chart: { type: 'pie', fontFamily: 'inherit' },
+                                       labels: complianceLevelOrder.map(level => complianceLevelLabels[level]),
+                                       colors: complianceLevelOrder.map(level => complianceLevelColors[level]),
+                                       legend: { position: 'bottom', fontFamily: 'inherit' },
+                                       tooltip: { 
+                                         y: { 
+                                           formatter: (val) => `${val} ضابط` 
+                                         }, 
+                                         style: { fontFamily: 'inherit' } 
+                                       },
+                                       dataLabels: { 
+                                         enabled: true, 
+                                         formatter: (val, opts) => {
+                                           const total = opts.w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
+                                           if (total === 0) return '0%';
+                                           return `${((opts.w.globals.series[opts.seriesIndex] / total) * 100).toFixed(1)}%`;
+                                         },
+                                         style: { fontFamily: 'inherit' } 
+                                       },
+                                     }} 
+                                     series={complianceLevelOrder.map(level => system.complianceCounts[level])} 
+                                     type="pie" 
+                                     height={350} 
+                                     width="100%" 
+                                   />
+                                 )}
+                               </CardContent>
+                             </Card>
+                             
+                             {/* Right column: Stat card */}
+                             <Card className="shadow-md">
+                               <CardHeader className="bg-gray-50 rounded-t-lg">
+                                 <CardTitle className="text-lg font-semibold text-slate-700">إحصائيات النظام</CardTitle>
+                               </CardHeader>
+                               <CardContent className="p-6">
+                                 <div className="text-center">
+                                   <h4 className="text-xl font-bold text-slate-800 mb-2">اسم النظام</h4>
+                                   <div className="text-2xl font-bold text-nca-teal mb-8">{system.systemName}</div>
+                                   
+                                   <h4 className="text-xl font-bold text-slate-800 mb-4">إجمالي الضوابط</h4>
+                                   <div className="text-3xl font-bold text-slate-700">
+                                     {system.totalControls}
+                                   </div>
+                                 </div>
+                               </CardContent>
+                             </Card>
+                           </div>
+                           
+                           {/* Compliance levels table for system */}
+                           <Card className="shadow-md">
+                             <CardHeader className="bg-gray-50 rounded-t-lg">
+                               <CardTitle className="text-lg font-semibold text-slate-700">تفاصيل مستويات الالتزام</CardTitle>
+                             </CardHeader>
+                             <CardContent className="p-0"> {/* Remove padding for table */}
+                               <div className="overflow-x-auto">
+                                 <table className="min-w-full divide-y divide-gray-200">
+                                   <thead className="bg-gray-50">
+                                     <tr>
+                                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">مستوى الالتزام</th>
+                                       <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">عدد الضوابط</th>
+                                       <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">النسبة المئوية</th>
+                                     </tr>
+                                   </thead>
+                                   <tbody className="bg-white divide-y divide-gray-200">
+                                     {complianceLevelOrder.map(level => {
+                                       const count = system.complianceCounts[level];
+                                       const total = Object.values(system.complianceCounts).reduce((sum, c) => sum + c, 0);
+                                       const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+                                       
+                                       return (
+                                         <tr key={level}>
+                                           <td className="px-6 py-4 whitespace-nowrap">
+                                             <div className="flex items-center">
+                                               <div className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: complianceLevelColors[level] }}></div>
+                                               <div className="text-sm font-medium text-gray-900">{complianceLevelLabels[level]}</div>
+                                             </div>
+                                           </td>
+                                           <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">{count}</td>
+                                           <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">{percentage}%</td>
+                                         </tr>
+                                       );
+                                     })}
+                                     <tr className="bg-gray-50 font-medium">
+                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">الإجمالي</td>
+                                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                                         {Object.values(system.complianceCounts).reduce((sum, count) => sum + count, 0)}
+                                       </td>
+                                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">100%</td>
+                                     </tr>
+                                   </tbody>
+                                 </table>
+                               </div>
+                             </CardContent>
+                           </Card>
+                         </div>
+                       ))}
+                     </div>
+                   )}
                  </div>
                )}
              </TabsContent>
