@@ -1,63 +1,60 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL") // Prisma Client uses this (pooler)
-  directUrl = env("DIRECT_URL") // Prisma Migrate uses this (direct connection)
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(USER)
-  department String?
-  nameAr    String? // Added Arabic Name
-  mobile    String? // Added Mobile Number
-  phone     String? // Added Phone Number
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  createdAssessments Assessment[] @relation("CreatedByAdmin") // Relation for assessments created by this admin
-  managedAssessments Assessment[] @relation("ManagedBySecurityManager") // Relation for assessments managed by this security manager
-  assignedTasks      Task[]       @relation("AssignedTasks") // Tasks assigned *by* this user (Security Manager)
-  responsibleTasks   Task[]       @relation("ResponsibleTasks") // Tasks assigned *to* this user (Department Manager)
-  controlAssignments ControlAssignment[] // Assignments given TO this user
+  id                           String              @id @default(uuid())
+  email                        String              @unique
+  password                     String
+  name                         String
+  role                         Role                @default(USER)
+  department                   String?
+  nameAr                       String?
+  mobile                       String?
+  phone                        String?
+  createdAt                    DateTime            @default(now())
+  updatedAt                    DateTime            @updatedAt
+  createdAssessments           Assessment[]        @relation("CreatedByAdmin")
+  managedAssessments           Assessment[]        @relation("ManagedBySecurityManager")
+  departmentManagerAssessments AssessmentStatus[]  @relation("AssessmentStatusDepartmentManager")
+  securityManagerAssessments   AssessmentStatus[]  @relation("AssessmentStatusSecurityManager")
+  controlAssignments           ControlAssignment[]
+  assignedTasks                Task[]              @relation("AssignedTasks")
+  responsibleTasks             Task[]              @relation("ResponsibleTasks")
 }
 
 model Assessment {
-  id                      String   @id @default(uuid())
-  companyNameAr           String
-  companyNameEn           String
-  logoPath                String? // Path or URL to the uploaded logo
-  securityManagerId       String   // Foreign key for the selected Security Manager
-  secondaryContactNameAr  String
-  secondaryContactNameEn  String
-  secondaryContactMobile  String
-  secondaryContactPhone   String
-  secondaryContactEmail   String
-  assessmentName          String   // Made required again
-  createdById             String   // Foreign key for the Admin who created it
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-
-  securityManager User @relation("ManagedBySecurityManager", fields: [securityManagerId], references: [id])
-  createdBy       User @relation("CreatedByAdmin", fields: [createdById], references: [id])
+  id                     String                @id @default(uuid())
+  companyNameAr          String
+  companyNameEn          String
+  logoPath               String?
+  securityManagerId      String
+  secondaryContactNameAr String
+  secondaryContactNameEn String
+  secondaryContactMobile String
+  secondaryContactPhone  String
+  secondaryContactEmail  String
+  assessmentName         String
+  createdById            String
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  createdBy              User                  @relation("CreatedByAdmin", fields: [createdById], references: [id])
+  securityManager        User                  @relation("ManagedBySecurityManager", fields: [securityManagerId], references: [id])
+  assessmentStatuses     AssessmentStatus[]
+  sensitiveSystems       SensitiveSystemInfo[]
 
   @@index([securityManagerId])
   @@index([createdById])
-
-  sensitiveSystems SensitiveSystemInfo[] // Relation to the sensitive system info
 }
 
 model SensitiveSystemInfo {
-  id                         String  @id @default(uuid())
+  id                         String             @id @default(uuid())
   systemName                 String
   systemCategory             String
   systemDescription          String
@@ -78,46 +75,107 @@ model SensitiveSystemInfo {
   assetDocumentationCount    Int
   otherAssetType             String?
   otherAssetCount            Int?
-  totalAssetCount            Int // Consider calculating this on the frontend/backend if needed
-
-  assessmentId String
-  assessment   Assessment @relation(fields: [assessmentId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tasks Task[] // Tasks related to this sensitive system
+  totalAssetCount            Int
+  assessmentId               String
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+  assessmentStatuses         AssessmentStatus[]
+  assessment                 Assessment         @relation(fields: [assessmentId], references: [id])
+  tasks                      Task[]
 
   @@index([assessmentId])
 }
 
 model Control {
-  id            String  @id @default(uuid())
-  mainComponent String
-  subComponent  String?
-  controlType   String // Could be an Enum if values are fixed: ControlType @default(BASIC)
-  controlNumber String  @unique // Assuming control numbers are unique identifiers
-  controlText   String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // tasks Task[] // Removed old relation
-  controlAssignments ControlAssignment[] // Assignments related to this control
+  id                 String              @id @default(uuid())
+  mainComponent      String
+  subComponent       String?
+  controlType        String
+  controlNumber      String              @unique
+  controlText        String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  controlAssignments ControlAssignment[]
 }
-
-// Optional Enum for ControlType if needed
-// enum ControlType {
-//   BASIC // أساسي
-//   SUB   // فرعي
-// }
 
 model Department {
   id        String   @id @default(uuid())
-  name      String   @unique // Department name must be unique
+  name      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
 
-  // tasks Task[] // Remove this - Tasks are no longer directly linked to Department
+model Task {
+  id                 String              @id @default(uuid())
+  deadline           DateTime
+  status             TaskStatus          @default(PENDING)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  sensitiveSystemId  String
+  assignedById       String
+  assignedToId       String?
+  controlAssignments ControlAssignment[]
+  assignedBy         User                @relation("AssignedTasks", fields: [assignedById], references: [id])
+  assignedTo         User?               @relation("ResponsibleTasks", fields: [assignedToId], references: [id])
+  sensitiveSystem    SensitiveSystemInfo @relation(fields: [sensitiveSystemId], references: [id])
+
+  @@index([sensitiveSystemId])
+  @@index([assignedById])
+  @@index([assignedToId])
+}
+
+model ControlAssignment {
+  id                     String           @id @default(uuid())
+  taskId                 String
+  controlId              String
+  assignedUserId         String?
+  status                 TaskStatus       @default(PENDING)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  notes                  String?
+  correctiveActions      String?
+  expectedComplianceDate DateTime?
+  complianceLevel        ComplianceLevel?
+  managerNote            String?
+  managerStatus          String?
+  assignedUser           User?            @relation(fields: [assignedUserId], references: [id])
+  control                Control          @relation(fields: [controlId], references: [id])
+  task                   Task             @relation(fields: [taskId], references: [id])
+  files                  ControlFile[]
+
+  @@index([assignedUserId])
+}
+
+model ControlFile {
+  id                  String            @id @default(uuid())
+  filePath            String
+  originalFilename    String
+  controlAssignmentId String
+  createdAt           DateTime          @default(now())
+  controlAssignment   ControlAssignment @relation(fields: [controlAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([controlAssignmentId])
+}
+
+model AssessmentStatus {
+  id                      String              @id @default(uuid())
+  assessmentId            String
+  sensitiveSystemId       String
+  securityManagerId       String
+  departmentManagerId     String
+  securityManagerStatus   ReviewStatus?
+  departmentManagerStatus ReviewStatus?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  assessment              Assessment          @relation(fields: [assessmentId], references: [id])
+  departmentManager       User                @relation("AssessmentStatusDepartmentManager", fields: [departmentManagerId], references: [id])
+  securityManager         User                @relation("AssessmentStatusSecurityManager", fields: [securityManagerId], references: [id])
+  sensitiveSystem         SensitiveSystemInfo @relation(fields: [sensitiveSystemId], references: [id])
+
+  @@index([assessmentId])
+  @@index([sensitiveSystemId])
+  @@index([securityManagerId])
+  @@index([departmentManagerId])
 }
 
 enum Role {
@@ -127,96 +185,23 @@ enum Role {
   USER
 }
 
-// Enum for Task Status
 enum TaskStatus {
-  PENDING      // قيد الانتظار (Implicitly)
-  IN_PROGRESS  // قيد التنفيذ
-  COMPLETED    // مكتمل (User completed, awaiting review)
-  APPROVED     // مقبول (Manager approved)
-  REJECTED     // مرفوض (Manager rejected)
-  OVERDUE      // متأخر
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  APPROVED
+  REJECTED
+  OVERDUE
 }
 
-// Model for Task Assignments
-model Task {
-  id                  String     @id @default(uuid())
-  deadline            DateTime
-  status              TaskStatus @default(PENDING)
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
-
-  sensitiveSystemId   String
-  sensitiveSystem     SensitiveSystemInfo @relation(fields: [sensitiveSystemId], references: [id])
-
-  // departmentId        String // No longer assigning directly to department ID
-  // department          Department @relation(fields: [departmentId], references: [id]) // Remove relation
-
-  assignedById        String // Security Manager who assigned the task
-  assignedBy          User     @relation("AssignedTasks", fields: [assignedById], references: [id])
-
-  assignedToId        String? // Department Manager responsible for the task (optional for now, but should be required by logic)
-  assignedTo          User?    @relation("ResponsibleTasks", fields: [assignedToId], references: [id])
-
-  // controls            Control[] // Removed direct many-to-many relation
-
-  controlAssignments ControlAssignment[] // Relation to the new assignment model
-
-  @@index([sensitiveSystemId])
-  @@index([assignedById])
-  @@index([assignedToId])
-}
-
-// New model for assigning individual controls within a task to users
-model ControlAssignment {
-  id            String     @id @default(uuid())
-  taskId        String
-  controlId     String
-  assignedUserId String?    // The specific user this control is assigned to (can be null initially)
-  status        TaskStatus @default(PENDING) // Status for this specific control assignment
-  // Add fields for evidence if needed later, e.g.:
-  // evidenceNotes    String?
-  // evidenceFilePath String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-
-  task          Task    @relation(fields: [taskId], references: [id])
-  control       Control @relation(fields: [controlId], references: [id])
-  assignedUser  User?   @relation(fields: [assignedUserId], references: [id]) // Relation to the assigned user
-
-  notes                  String?    // الملاحظات - Re-adding this field
-  correctiveActions      String?    // إجراءات التصحيح
-  expectedComplianceDate DateTime?  // تاريخ الالتزام المتوقع
-  complianceLevel        ComplianceLevel? // مستوى الالتزام
-
-  // --- Manager Review Fields ---
-  managerStatus          String?    // حالة مراجعة المدير (e.g., معتمد, طلب تنفيذ, طلب مراجعة)
-  managerNote            String?    // ملاحظة المدير للمستخدم
-
-  // @@index([taskId]) // Removed duplicate
-  // @@index([controlId]) // Removed duplicate
-  @@index([assignedUserId])
-
-  files ControlFile[] // Relation to uploaded files for this assignment
-}
-
-// Model for storing uploaded file paths related to a control assignment
-model ControlFile {
-  id                 String   @id @default(uuid())
-  filePath           String   // Path where the file is stored (e.g., /uploads/control-files/...)
-  originalFilename   String   // Original name of the uploaded file
-  controlAssignmentId String   // Foreign key to link to the specific control assignment
-  createdAt          DateTime @default(now())
-
-  controlAssignment ControlAssignment @relation(fields: [controlAssignmentId], references: [id], onDelete: Cascade) // Ensure files are deleted if assignment is deleted
-
-  @@index([controlAssignmentId])
-}
-
-
-// Enum for Compliance Level
 enum ComplianceLevel {
-  NOT_IMPLEMENTED       // غير مطبق
-  PARTIALLY_IMPLEMENTED // مطبق جزئيًا
-  IMPLEMENTED           // مطبق كليًا
-  NOT_APPLICABLE        // لا ينطبق
+  NOT_IMPLEMENTED
+  PARTIALLY_IMPLEMENTED
+  IMPLEMENTED
+  NOT_APPLICABLE
+}
+
+enum ReviewStatus {
+  REVIEW_REQUESTED @map("طلب مراجعة")
+  FINISHED         @map("معتمد")
 }

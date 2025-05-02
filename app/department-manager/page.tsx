@@ -64,7 +64,7 @@ interface FrontendTask extends Omit<PrismaTask, 'deadline' | 'createdAt' | 'upda
   deadline: string;
   createdAt: string;
   sensitiveSystem: (Pick<PrismaSensitiveSystemInfo, 'systemName'> & {
-    assessment?: { assessmentName: string } | null; // Include nested assessment name
+    assessment?: { id: string; assessmentName: string } | null; // Include nested assessment id and name
   }) | null;
   assignedTo: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null; // Manager responsible for the task
   controlAssignments: FrontendControlAssignment[]; // Use the new interface
@@ -88,6 +88,15 @@ export default function DepartmentManagerDashboardPage() {
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set()); // Track expanded tasks for manager's view
   // Removed expandedTeamAssignments state
 
+  // State for latest assessment and approval status
+  const [latestAssessment, setLatestAssessment] = useState<{
+    assessmentId: string;
+    sensitiveSystemId: string;
+    securityManagerId: string;
+  } | null>(null);
+  const [isApproved, setIsApproved] = useState(false);
+  const [isApprovingAssessment, setIsApprovingAssessment] = useState(false);
+
   // State for modals
   const [_isDetailsModalOpen, _setIsDetailsModalOpen] = useState(false);
   // Modal now shows details of a Task, focusing on its ControlAssignments
@@ -98,6 +107,133 @@ export default function DepartmentManagerDashboardPage() {
   // Auth and Routing
   const { user, logout } = useAuth(); // Get user from auth context
   const router = useRouter();
+
+  // Function to find the latest assessment from tasks
+  const findLatestAssessment = useCallback((tasks: FrontendTask[]) => {
+    if (!tasks || tasks.length === 0) return null;
+
+    // Sort tasks by createdAt in descending order (newest first)
+    const sortedTasks = [...tasks].sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    // Find the first task with a valid assessment
+    for (const task of sortedTasks) {
+      if (task.sensitiveSystem?.assessment) {
+        return {
+          assessmentId: task.sensitiveSystem.assessment.id,
+          sensitiveSystemId: task.sensitiveSystemId,
+          securityManagerId: task.assignedById, // Security manager is the one who assigned the task
+        };
+      }
+    }
+
+    return null;
+  }, []);
+
+  // Check if the latest assessment is approved
+  const checkAssessmentApproval = useCallback(async (assessmentData: {
+    assessmentId: string;
+    sensitiveSystemId: string;
+    securityManagerId: string;
+  } | null) => {
+    if (!assessmentData || !user?.id) return;
+
+    try {
+      console.log("Checking assessment approval with data:", {
+        assessmentId: assessmentData.assessmentId,
+        departmentManagerId: user.id
+      });
+
+      // Default to not approved if we can't check
+      setIsApproved(false);
+
+      // Try to fetch the approval status
+      const response = await fetch(
+        `/api/assessment-status/check?assessmentId=${assessmentData.assessmentId}&departmentManagerId=${user.id}`,
+        { cache: 'no-store' }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API error response:", errorText);
+        // Don't throw an error, just log it and continue with default (not approved)
+        console.error(`Failed to check assessment status: ${response.status} ${response.statusText}`);
+        return;
+      }
+
+      const data = await response.json();
+      console.log("Assessment approval check result:", data);
+      setIsApproved(data.approved);
+      // Clear any previous errors if the check was successful
+      setError(null);
+    } catch (err) {
+      console.error("Error checking assessment approval:", err);
+      // Don't show the error if we're still loading tasks
+      // And don't set an error at all - just default to not approved
+      // if (!isLoadingTasks) {
+      //   setError("فشل في التحقق من حالة الاعتماد");
+      // }
+    }
+  }, [user?.id]);
+
+  // Handle approving the latest assessment
+  const handleApproveLatest = async () => {
+    if (!latestAssessment || !user?.id || isApproved || isApprovingAssessment) return;
+
+    setIsApprovingAssessment(true);
+    setError(null);
+
+    try {
+      console.log("Approving assessment with data:", {
+        ...latestAssessment,
+        departmentManagerId: user.id
+      });
+
+      // Try to approve the assessment
+      const response = await fetch('/api/assessment-status/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...latestAssessment,
+          departmentManagerId: user.id
+        }),
+      });
+
+      // Log the raw response for debugging
+      const responseText = await response.text();
+      console.log("Raw API response:", responseText);
+
+      // Try to parse the response as JSON
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Error parsing response as JSON:", parseError);
+        throw new Error("Invalid response format from server");
+      }
+
+      // Check if the response was successful
+      if (!response.ok) {
+        throw new Error(result.error || result.message || `Failed to approve assessment: ${response.statusText}`);
+      }
+
+      console.log("Assessment approval result:", result);
+      setIsApproved(true);
+      
+      // Show success message
+      alert("تم اعتماد التقييم بنجاح");
+    } catch (err: unknown) {
+      console.error("Error approving assessment:", err);
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      setError(errorMessage || "فشل في اعتماد التقييم");
+      
+      // Show error message
+      alert("فشل في اعتماد التقييم: " + errorMessage);
+    } finally {
+      setIsApprovingAssessment(false);
+    }
+  };
 
   // --- Toggle Task Expansion ---
   const toggleTaskExpansion = (taskId: string) => {
@@ -213,6 +349,25 @@ export default function DepartmentManagerDashboardPage() {
   useEffect(() => {
     fetchManagerTasks();
   }, [fetchManagerTasks]); // Run when fetchManagerTasks changes
+
+  // Set latest assessment when manager tasks change
+  useEffect(() => {
+    if (!isLoadingTasks && managerTasks.length > 0) {
+      const latest = findLatestAssessment(managerTasks);
+      console.log("Found latest assessment:", latest);
+      setLatestAssessment(latest);
+    }
+  }, [managerTasks, isLoadingTasks, findLatestAssessment]);
+
+  // Check approval status when latest assessment changes
+  useEffect(() => {
+    if (latestAssessment) {
+      checkAssessmentApproval(latestAssessment);
+    } else {
+      // Reset approval status when there's no latest assessment
+      setIsApproved(false);
+    }
+  }, [latestAssessment, checkAssessmentApproval]);
 
 
   // --- Add User to Team ---
@@ -540,7 +695,13 @@ export default function DepartmentManagerDashboardPage() {
             <Card className="p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">المهام المعينة لك ({user?.nameAr || user?.name})</h2> {/* Use user.nameAr or user.name */}
-              {/* Removed the Approve button from here */}
+              <Button 
+                onClick={handleApproveLatest} 
+                disabled={isApproved || !latestAssessment || isApprovingAssessment}
+                className={`${isApproved ? 'bg-gray-500' : 'bg-blue-800 hover:bg-blue-900'} text-white`}
+              >
+                {isApprovingAssessment ? 'جاري الاعتماد...' : isApproved ? 'تم الاعتماد' : 'اعتماد'}
+              </Button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -604,10 +765,6 @@ export default function DepartmentManagerDashboardPage() {
                            {/* Button to show/hide details */}
                            <Button variant="link" size="sm" onClick={() => toggleTaskExpansion(task.id)} className="text-nca-teal hover:underline">
                              {expandedTasks.has(task.id) ? "إخفاء التفاصيل" : "عرض التفاصيل"}
-                           </Button>
-                           {/* Add Approve button with ml-auto (Tailwind handles RTL) */}
-                           <Button variant="default" size="sm" className="bg-blue-800 hover:bg-blue-900 text-white px-4 ml-auto"> {/* Kept ml-auto */}
-                             اعتماد
                            </Button>
                         </td>
                       </tr>
