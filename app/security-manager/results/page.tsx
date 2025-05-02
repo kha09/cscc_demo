@@ -1043,10 +1043,6 @@ function ResultsContent() {
                     </Card>
                   ))}
 
-                  {/* Render the chart component if data is available */}
-                  {selectedSystemChartData && selectedSystemChartData.length > 0 && (
-                    <SystemAnalyticsCharts data={selectedSystemChartData} />
-                  )}
 
                      </div>
                    )}
