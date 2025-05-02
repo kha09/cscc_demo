@@ -9,27 +9,42 @@ export const dynamic = 'force-dynamic'; // Force dynamic rendering, disable cach
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const securityManagerId = searchParams.get('securityManagerId');
+  const assessmentId = searchParams.get('assessmentId');
 
-  // Validate securityManagerId
-  if (!securityManagerId) {
-    return NextResponse.json({ message: "Security Manager ID query parameter is required" }, { status: 400 });
+  // Validate parameters
+  if (!securityManagerId && !assessmentId) {
+    return NextResponse.json({ message: "Either Security Manager ID or Assessment ID query parameter is required" }, { status: 400 });
   }
-  if (!z.string().uuid().safeParse(securityManagerId).success) {
+  
+  if (securityManagerId && !z.string().uuid().safeParse(securityManagerId).success) {
     return NextResponse.json({ message: "Invalid Security Manager ID format" }, { status: 400 });
+  }
+  
+  if (assessmentId && !z.string().uuid().safeParse(assessmentId).success) {
+    return NextResponse.json({ message: "Invalid Assessment ID format" }, { status: 400 });
   }
 
   try {
-    const assignments = await prisma.controlAssignment.findMany({
-      where: {
-        // Filter based on the ID of the user who assigned the parent task
-        task: {
-          assignedById: securityManagerId,
+    // Build the where clause based on provided parameters
+    const whereClause: any = {};
+    
+    if (securityManagerId) {
+      whereClause.task = {
+        assignedById: securityManagerId,
+      };
+    }
+    
+    if (assessmentId) {
+      whereClause.task = {
+        ...whereClause.task,
+        sensitiveSystem: {
+          assessmentId: assessmentId,
         },
-        // Optionally, filter out assignments that haven't been evaluated yet
-        // complianceLevel: {
-        //   not: null // Only include assignments with a compliance level set
-        // }
-      },
+      };
+    }
+
+    const assignments = await prisma.controlAssignment.findMany({
+      where: whereClause,
       select: {
         id: true, // Include assignment ID if needed later
         complianceLevel: true, // The compliance level for this specific assignment

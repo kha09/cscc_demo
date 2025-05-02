@@ -149,7 +149,8 @@ function ResultsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get("tab");
-  const activeTab = tabParam === "detailed" ? "detailed" : "general";
+  const activeTab = tabParam === "detailed" ? "detailed" : 
+                   tabParam === "overall" ? "overall" : "general";
   
   // State for layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -162,6 +163,26 @@ function ResultsContent() {
   const [analyticsData, setAnalyticsData] = useState<ProcessedAnalyticsData | null>(null);
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(true); // Loading for general analytics
   const [analyticsError, setAnalyticsError] = useState<string | null>(null); // Error for general analytics
+
+  // State for assessment data (Overall Compliance Tab)
+  const [assessment, setAssessment] = useState<any>(null);
+  const [isAssessmentLoading, setIsAssessmentLoading] = useState(false);
+  const [assessmentError, setAssessmentError] = useState<string | null>(null);
+  
+  // State for sensitive systems count (Overall Compliance Tab)
+  const [systemsCount, setSystemsCount] = useState<number>(0);
+  const [isSystemsCountLoading, setIsSystemsCountLoading] = useState(false);
+  const [systemsCountError, setSystemsCountError] = useState<string | null>(null);
+  
+  // State for compliance counts (Overall Compliance Tab)
+  const [complianceCounts, setComplianceCounts] = useState<Record<ComplianceLevel, number>>({
+    [ComplianceLevel.IMPLEMENTED]: 0,
+    [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0,
+    [ComplianceLevel.NOT_IMPLEMENTED]: 0,
+    [ComplianceLevel.NOT_APPLICABLE]: 0
+  });
+  const [isComplianceCountsLoading, setIsComplianceCountsLoading] = useState(false);
+  const [complianceCountsError, setComplianceCountsError] = useState<string | null>(null);
 
   // State for detailed results (Detailed Results Tab)
   // Define SensitiveSystemInfo interface based on expected API response structure
@@ -238,6 +259,123 @@ function ResultsContent() {
   // }, []);
   // --- End User ID Fetch --- Removed
 
+
+  // --- Assessment Data Fetch (Triggered by user) ---
+  useEffect(() => {
+    if (!user?.id) {
+      if (assessment) setAssessment(null);
+      if (isAssessmentLoading) setIsAssessmentLoading(false);
+      return;
+    }
+
+    const userId = user.id;
+
+    const fetchAssessment = async () => {
+      setIsAssessmentLoading(true);
+      setAssessmentError(null);
+      setAssessment(null);
+
+      try {
+        console.log(`Fetching assessments for user ID: ${userId}`);
+        const response = await fetch(`/api/users/${userId}/assessments`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Failed to fetch assessments: ${response.statusText}`);
+        }
+        
+        const assessments = await response.json();
+        if (assessments.length > 0) {
+          // Get the first assessment
+          setAssessment(assessments[0]);
+          
+          // Fetch sensitive systems and compliance counts for this assessment
+          fetchSensitiveSystemsCount(assessments[0].id);
+          fetchComplianceCounts(assessments[0].id);
+        } else {
+          setAssessmentError("لا توجد تقييمات متاحة");
+        }
+      } catch (err) {
+        console.error("Error fetching assessment:", err);
+        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred.";
+        setAssessmentError(errorMsg);
+      } finally {
+        setIsAssessmentLoading(false);
+      }
+    };
+
+    fetchAssessment();
+  }, [user]);
+  // --- End Assessment Data Fetch ---
+
+  // --- Sensitive Systems Count Fetch ---
+  const fetchSensitiveSystemsCount = async (assessmentId: string) => {
+    if (!assessmentId) return;
+    
+    setIsSystemsCountLoading(true);
+    setSystemsCountError(null);
+    
+    try {
+      console.log(`Fetching sensitive systems for assessment ID: ${assessmentId}`);
+      const response = await fetch(`/api/assessments/${assessmentId}/sensitive-systems`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to fetch sensitive systems: ${response.statusText}`);
+      }
+      
+      const systems = await response.json();
+      setSystemsCount(systems.length);
+    } catch (err) {
+      console.error("Error fetching sensitive systems count:", err);
+      const errorMsg = err instanceof Error ? err.message : "An unknown error occurred.";
+      setSystemsCountError(errorMsg);
+    } finally {
+      setIsSystemsCountLoading(false);
+    }
+  };
+  // --- End Sensitive Systems Count Fetch ---
+
+  // --- Compliance Counts Fetch ---
+  const fetchComplianceCounts = async (assessmentId: string) => {
+    if (!assessmentId) return;
+    
+    setIsComplianceCountsLoading(true);
+    setComplianceCountsError(null);
+    
+    try {
+      console.log(`Fetching compliance counts for assessment ID: ${assessmentId}`);
+      const response = await fetch(`/api/control-assignments/analytics?assessmentId=${assessmentId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to fetch compliance counts: ${response.statusText}`);
+      }
+      
+      const assignments = await response.json();
+      
+      // Initialize counts
+      const counts = {
+        [ComplianceLevel.IMPLEMENTED]: 0,
+        [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0,
+        [ComplianceLevel.NOT_IMPLEMENTED]: 0,
+        [ComplianceLevel.NOT_APPLICABLE]: 0
+      };
+      
+      // Count assignments by compliance level
+      assignments.forEach((assignment: AnalyticsAssignment) => {
+        if (assignment.complianceLevel) {
+          counts[assignment.complianceLevel]++;
+        }
+      });
+      
+      setComplianceCounts(counts);
+    } catch (err) {
+      console.error("Error fetching compliance counts:", err);
+      const errorMsg = err instanceof Error ? err.message : "An unknown error occurred.";
+      setComplianceCountsError(errorMsg);
+    } finally {
+      setIsComplianceCountsLoading(false);
+    }
+  };
+  // --- End Compliance Counts Fetch ---
 
   // --- General Analytics Data Fetch (Triggered by user) ---
   useEffect(() => {
@@ -869,20 +1007,167 @@ function ResultsContent() {
              onValueChange={(val) => {
                if (val === "detailed") {
                  router.push("/security-manager/results?tab=detailed");
+               } else if (val === "overall") {
+                 router.push("/security-manager/results?tab=overall");
                } else {
-                 router.push("/security-manager/results");
+                 router.push("/security-manager/results?tab=general");
                }
              }}
              className="w-full"
              dir="rtl"
            > {/* Ensure Tabs has dir */}
              {/* Use flexbox for RTL tab order */}
-             <TabsList className="flex w-full mb-4 flex-row-reverse justify-start gap-4 border-b">
-               <TabsTrigger value="general" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-1">النتائج العامة</TabsTrigger>
+             <TabsList className="flex w-full mb-4 flex-row-reverse justify-start gap-8 border-b">
+               <TabsTrigger value="general" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-4 cursor-pointer">النتائج العامة</TabsTrigger>
+               <TabsTrigger value="overall" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-4 cursor-pointer">المستوى العام للالتزام</TabsTrigger>
              </TabsList>
              <TabsContent value="general" dir="rtl"> {/* Ensure content has dir */}
                {/* Render the general analytics content, loading, or error state */}
                {renderGeneralAnalyticsContent()}
+             </TabsContent>
+             <TabsContent value="overall" dir="rtl"> {/* Overall Compliance Tab */}
+               {isAssessmentLoading || isSystemsCountLoading || isComplianceCountsLoading ? (
+                 <div className="flex justify-center items-center h-[calc(100vh-250px)]">
+                   <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
+                   <span className="mr-2">جاري تحميل بيانات المستوى العام للالتزام...</span>
+                 </div>
+               ) : assessmentError || systemsCountError || complianceCountsError ? (
+                 <div className="flex justify-center items-center h-[calc(100vh-250px)] text-red-600">
+                   <AlertCircle className="h-6 w-6" />
+                   <span className="mr-2">خطأ في تحميل البيانات: {assessmentError || systemsCountError || complianceCountsError}</span>
+                 </div>
+               ) : !assessment ? (
+                 <div className="text-center py-10 text-gray-600">
+                   لا توجد تقييمات متاحة لعرض المستوى العام للالتزام.
+                 </div>
+               ) : (
+                 <div className="space-y-6 pt-4">
+                   {/* Assessment Logo and Name */}
+                   <div className="text-center mb-8">
+                     {assessment.logoPath && (
+                       <img 
+                         src={assessment.logoPath} 
+                         alt={assessment.assessmentName} 
+                         className="mx-auto h-24 w-auto mb-4"
+                       />
+                     )}
+                     <h2 className="text-xl font-bold text-slate-800">{assessment.assessmentName}</h2>
+                     <h3 className="text-lg font-medium text-slate-600 mt-2">المستوى العام للالتزام</h3>
+                   </div>
+                   
+                   {/* Two-column grid */}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     {/* Left column: Pie chart */}
+                     <Card className="shadow-md">
+                       <CardHeader className="bg-gray-50 rounded-t-lg">
+                         <CardTitle className="text-lg font-semibold text-slate-700">توزيع مستويات الالتزام</CardTitle>
+                       </CardHeader>
+                       <CardContent className="p-4">
+                         {Object.values(complianceCounts).every(count => count === 0) ? (
+                           <div className="text-center py-10 text-gray-600">
+                             لا توجد بيانات التزام لعرضها.
+                           </div>
+                         ) : (
+                           <Chart 
+                             options={{
+                               chart: { type: 'pie', fontFamily: 'inherit' },
+                               labels: complianceLevelOrder.map(level => complianceLevelLabels[level]),
+                               colors: complianceLevelOrder.map(level => complianceLevelColors[level]),
+                               legend: { position: 'bottom', fontFamily: 'inherit' },
+                               tooltip: { 
+                                 y: { 
+                                   formatter: (val) => `${val} ضابط` 
+                                 }, 
+                                 style: { fontFamily: 'inherit' } 
+                               },
+                               dataLabels: { 
+                                 enabled: true, 
+                                 formatter: (val, opts) => {
+                                   const total = opts.w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
+                                   if (total === 0) return '0%';
+                                   return `${((opts.w.globals.series[opts.seriesIndex] / total) * 100).toFixed(1)}%`;
+                                 },
+                                 style: { fontFamily: 'inherit' } 
+                               },
+                             }} 
+                             series={complianceLevelOrder.map(level => complianceCounts[level])} 
+                             type="pie" 
+                             height={350} 
+                             width="100%" 
+                           />
+                         )}
+                       </CardContent>
+                     </Card>
+                     
+                     {/* Right column: Stat card */}
+                     <Card className="shadow-md">
+                       <CardHeader className="bg-gray-50 rounded-t-lg">
+                         <CardTitle className="text-lg font-semibold text-slate-700">إحصائيات التقييم</CardTitle>
+                       </CardHeader>
+                       <CardContent className="p-6">
+                         <div className="text-center">
+                           <h4 className="text-xl font-bold text-slate-800 mb-2">عدد الأنظمة الحساسة</h4>
+                           <div className="text-4xl font-bold text-nca-teal">{systemsCount}</div>
+                           
+                           <div className="mt-8">
+                             <h4 className="text-xl font-bold text-slate-800 mb-4">إجمالي الضوابط</h4>
+                             <div className="text-3xl font-bold text-slate-700">
+                               {Object.values(complianceCounts).reduce((sum, count) => sum + count, 0)}
+                             </div>
+                           </div>
+                         </div>
+                       </CardContent>
+                     </Card>
+                   </div>
+                   
+                   {/* Compliance levels table */}
+                   <Card className="shadow-md">
+                     <CardHeader className="bg-gray-50 rounded-t-lg">
+                       <CardTitle className="text-lg font-semibold text-slate-700">تفاصيل مستويات الالتزام</CardTitle>
+                     </CardHeader>
+                     <CardContent className="p-0"> {/* Remove padding for table */}
+                       <div className="overflow-x-auto">
+                         <table className="min-w-full divide-y divide-gray-200">
+                           <thead className="bg-gray-50">
+                             <tr>
+                               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">مستوى الالتزام</th>
+                               <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">عدد الضوابط</th>
+                               <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">النسبة المئوية</th>
+                             </tr>
+                           </thead>
+                           <tbody className="bg-white divide-y divide-gray-200">
+                             {complianceLevelOrder.map(level => {
+                               const count = complianceCounts[level];
+                               const total = Object.values(complianceCounts).reduce((sum, c) => sum + c, 0);
+                               const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+                               
+                               return (
+                                 <tr key={level}>
+                                   <td className="px-6 py-4 whitespace-nowrap">
+                                     <div className="flex items-center">
+                                       <div className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: complianceLevelColors[level] }}></div>
+                                       <div className="text-sm font-medium text-gray-900">{complianceLevelLabels[level]}</div>
+                                     </div>
+                                   </td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">{count}</td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">{percentage}%</td>
+                                 </tr>
+                               );
+                             })}
+                             <tr className="bg-gray-50 font-medium">
+                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">الإجمالي</td>
+                               <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                                 {Object.values(complianceCounts).reduce((sum, count) => sum + count, 0)}
+                               </td>
+                               <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">100%</td>
+                             </tr>
+                           </tbody>
+                         </table>
+                       </div>
+                     </CardContent>
+                   </Card>
+                 </div>
+               )}
              </TabsContent>
              <TabsContent value="detailed" dir="rtl"> {/* Ensure content has dir */}
                {/* Render the detailed results content, loading, or error state */}

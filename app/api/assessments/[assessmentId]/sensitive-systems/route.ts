@@ -2,6 +2,54 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // Removed next-auth imports as authentication is not yet implemented server-side
 
+export async function GET(
+  request: Request,
+  { params }: { params: { assessmentId: string } }
+) {
+  const { assessmentId } = params;
+  if (!assessmentId) {
+    return NextResponse.json({ error: 'Assessment ID is required' }, { status: 400 });
+  }
+
+  try {
+    // Fetch all sensitive systems for this assessment
+    const sensitiveSystems = await prisma.sensitiveSystemInfo.findMany({
+      where: {
+        assessmentId: assessmentId,
+      },
+      include: {
+        assessment: {
+          select: {
+            id: true,
+            companyNameAr: true,
+            companyNameEn: true,
+            logoPath: true,
+            assessmentName: true,
+          }
+        },
+        tasks: {
+          include: {
+            assignedTo: {
+              select: {
+                id: true,
+                name: true,
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc', // Sort by creation date, newest first
+      },
+    });
+
+    return NextResponse.json(sensitiveSystems);
+  } catch (error) {
+    console.error('Error fetching sensitive systems:', error);
+    return NextResponse.json({ error: 'Failed to fetch sensitive systems' }, { status: 500 });
+  }
+}
+
 export async function POST(
   request: Request,
   { params }: { params: { assessmentId: string } }
