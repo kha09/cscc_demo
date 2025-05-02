@@ -200,11 +200,14 @@ export default function DepartmentManagerDashboardPage() {
       });
 
       // Try to approve the assessment
+      // Try to approve the assessment
       const response = await fetch('/api/assessment-status/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...latestAssessment,
+          assessmentId: latestAssessment.assessmentId,
+          sensitiveSystemId: latestAssessment.sensitiveSystemId,
+          securityManagerId: latestAssessment.securityManagerId,
           departmentManagerId: user.id
         }),
       });

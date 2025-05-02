@@ -217,6 +217,8 @@ function ResultsContent() {
   const [isApproving, setIsApproving] = useState(false);
   const [approvalSuccess, setApprovalSuccess] = useState<string | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
+  // State for security manager approval status
+  const [securityStatusMap, setSecurityStatusMap] = useState<Record<string, string | null>>({});
   // Define SensitiveSystemInfo interface based on expected API response structure
   interface SensitiveSystemInfo {
     id: string;
@@ -567,6 +569,23 @@ function ResultsContent() {
         }
         const fetchedSystems: SensitiveSystemInfo[] = await response.json();
         setSystems(fetchedSystems);
+        
+        // Fetch security approval status for each system
+        const statusMap: Record<string, string | null> = {};
+        for (const system of fetchedSystems) {
+          try {
+            const statusResponse = await fetch(
+              `/api/assessment-status/security-check?assessmentId=${assessment?.id || ''}&sensitiveSystemId=${system.id}&securityManagerId=${userId}`
+            );
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              statusMap[system.id] = statusData.securityManagerStatus;
+            }
+          } catch (statusErr) {
+            console.error(`Error fetching security status for system ${system.id}:`, statusErr);
+          }
+        }
+        setSecurityStatusMap(statusMap);
       } catch (err: unknown) {
         console.error("Error fetching systems:", err);
         const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching systems.";
@@ -578,7 +597,7 @@ function ResultsContent() {
 
     fetchSystems();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // Dependency: user object
+  }, [user, assessment?.id]); // Dependencies: user object and assessment ID
   // --- End Systems List Fetch ---
 
 
@@ -1013,7 +1032,18 @@ function ResultsContent() {
                              <div className="mb-6">
                                <AlertDialog>
                                  <AlertDialogTrigger asChild>
-                                   <Button size="sm" variant="outline" className="bg-nca-dark-blue text-white hover:bg-nca-teal">اعتماد</Button>
+                                   <Button 
+                                     size="sm" 
+                                     variant="outline" 
+                                     className={`${
+                                       securityStatusMap[selectedSystemId || ''] === 'FINISHED' 
+                                         ? 'bg-gray-400 cursor-not-allowed' 
+                                         : 'bg-nca-dark-blue hover:bg-nca-teal'
+                                     } text-white`}
+                                     disabled={securityStatusMap[selectedSystemId || ''] === 'FINISHED'}
+                                   >
+                                     {securityStatusMap[selectedSystemId || ''] === 'FINISHED' ? 'معتمد' : 'اعتماد'}
+                                   </Button>
                                  </AlertDialogTrigger>
                                  <AlertDialogContent>
                                    <AlertDialogHeader>
@@ -1024,26 +1054,31 @@ function ResultsContent() {
                                      <AlertDialogCancel>لا</AlertDialogCancel>
                                      <AlertDialogAction 
                                        onClick={async () => {
-                                         if (!user?.id) return;
+                                         if (!user?.id || !selectedSystemId) return;
                                          
                                          setIsApproving(true);
                                          setApprovalSuccess(null);
                                          setApprovalError(null);
                                          
                                          try {
-                                           // For now, we're using placeholder values for sensitiveSystemId and departmentManagerId
-                                           // In a real implementation, you would need to fetch or pass these values
-                                           const response = await fetch('/api/assessment-status/approve', {
+                                           // Get the department manager ID from the selected system
+                                           const selectedSystem = systems.find(s => s.id === selectedSystemId);
+                                           const departmentManagerId = selectedSystem?.department?.manager?.id || "";
+                                           
+                                           if (!departmentManagerId) {
+                                             throw new Error('Department manager ID not found for this system');
+                                           }
+                                           
+                                           const response = await fetch('/api/assessment-status/security-approve', {
                                              method: 'POST',
                                              headers: {
                                                'Content-Type': 'application/json',
                                              },
                                              body: JSON.stringify({
-                                               assessmentId: selectedSystemId || "placeholder-assessment-id", // Use selectedSystemId if available
+                                               assessmentId: assessment?.id || selectedSystemId, // Use assessment ID if available
                                                securityManagerId: user.id,
-                                               // These would need to be fetched or passed from the assessment data
-                                               sensitiveSystemId: selectedSystemId || "placeholder-system-id", // Use selectedSystemId if available
-                                               departmentManagerId: "placeholder-manager-id", // This needs to be a real ID
+                                               sensitiveSystemId: selectedSystemId,
+                                               departmentManagerId: departmentManagerId,
                                              }),
                                            });
                                            
@@ -1051,6 +1086,12 @@ function ResultsContent() {
                                              const errorData = await response.json();
                                              throw new Error(errorData.error || 'Failed to approve assessment');
                                            }
+                                           
+                                           // Update the status map to reflect the approval
+                                           setSecurityStatusMap(prev => ({
+                                             ...prev,
+                                             [selectedSystemId]: 'FINISHED'
+                                           }));
                                            
                                            setApprovalSuccess(`تم اعتماد التقييم بنجاح`);
                                            
@@ -1620,7 +1661,18 @@ function ResultsContent() {
                              <div className="mb-6">
                                <AlertDialog>
                                  <AlertDialogTrigger asChild>
-                                   <Button size="sm" variant="outline" className="bg-nca-dark-blue text-white hover:bg-nca-teal">اعتماد</Button>
+                                   <Button 
+                                     size="sm" 
+                                     variant="outline" 
+                                     className={`${
+                                       securityStatusMap[assessment?.id || ''] === 'FINISHED' 
+                                         ? 'bg-gray-400 cursor-not-allowed' 
+                                         : 'bg-nca-dark-blue hover:bg-nca-teal'
+                                     } text-white`}
+                                     disabled={securityStatusMap[assessment?.id || ''] === 'FINISHED'}
+                                   >
+                                     {securityStatusMap[assessment?.id || ''] === 'FINISHED' ? 'معتمد' : 'اعتماد'}
+                                   </Button>
                                  </AlertDialogTrigger>
                                  <AlertDialogContent>
                                    <AlertDialogHeader>
@@ -1638,7 +1690,15 @@ function ResultsContent() {
                                          setApprovalError(null);
                                          
                                          try {
-                                           const response = await fetch('/api/assessment-status/approve', {
+                                           // Get the first system's department manager ID
+                                           const firstSystem = systems.length > 0 ? systems[0] : null;
+                                           const departmentManagerId = firstSystem?.department?.manager?.id || "";
+                                           
+                                           if (!departmentManagerId) {
+                                             throw new Error('Department manager ID not found');
+                                           }
+                                           
+                                           const response = await fetch('/api/assessment-status/security-approve', {
                                              method: 'POST',
                                              headers: {
                                                'Content-Type': 'application/json',
@@ -1646,9 +1706,8 @@ function ResultsContent() {
                                              body: JSON.stringify({
                                                assessmentId: assessment.id,
                                                securityManagerId: user.id,
-                                               // These would need to be fetched or passed from the assessment data
-                                               sensitiveSystemId: assessment.sensitiveSystemId || "placeholder-system-id",
-                                               departmentManagerId: assessment.departmentManagerId || "placeholder-manager-id",
+                                               sensitiveSystemId: firstSystem?.id || assessment.id,
+                                               departmentManagerId: departmentManagerId,
                                              }),
                                            });
                                            
@@ -1656,6 +1715,12 @@ function ResultsContent() {
                                              const errorData = await response.json();
                                              throw new Error(errorData.error || 'Failed to approve assessment');
                                            }
+                                           
+                                           // Update the status map to reflect the approval
+                                           setSecurityStatusMap(prev => ({
+                                             ...prev,
+                                             [assessment.id]: 'FINISHED'
+                                           }));
                                            
                                            setApprovalSuccess(`تم اعتماد التقييم بنجاح`);
                                            

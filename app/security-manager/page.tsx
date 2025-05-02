@@ -756,7 +756,25 @@ export default function SecurityManagerDashboardPage() {
                                 try {
                                   // For now, we're using placeholder values for sensitiveSystemId and departmentManagerId
                                   // In a real implementation, you would need to fetch or pass these values
-                                  const response = await fetch('/api/assessment-status/approve', {
+                                  // First, get a sensitive system ID for this assessment
+                                  let sensitiveSystemId = "";
+                                  let departmentManagerId = "";
+                                  
+                                  // Try to find a sensitive system for this assessment
+                                  if (sensitiveSystems.length > 0) {
+                                    sensitiveSystemId = sensitiveSystems[0].id;
+                                  }
+                                  
+                                  // Try to find a department manager
+                                  if (departmentManagers.length > 0) {
+                                    departmentManagerId = departmentManagers[0].id;
+                                  }
+                                  
+                                  if (!sensitiveSystemId || !departmentManagerId) {
+                                    throw new Error("لم يتم العثور على نظام حساس أو مدير قسم. يرجى إضافة نظام حساس ومدير قسم أولاً.");
+                                  }
+                                  
+                                  const response = await fetch('/api/assessment-status/security-approve', {
                                     method: 'POST',
                                     headers: {
                                       'Content-Type': 'application/json',
@@ -764,9 +782,8 @@ export default function SecurityManagerDashboardPage() {
                                     body: JSON.stringify({
                                       assessmentId: assessment.id,
                                       securityManagerId: user.id,
-                                      // These would need to be fetched or passed from the assessment data
-                                      sensitiveSystemId: "placeholder-system-id", // This needs to be a real ID
-                                      departmentManagerId: "placeholder-manager-id", // This needs to be a real ID
+                                      sensitiveSystemId: sensitiveSystemId,
+                                      departmentManagerId: departmentManagerId,
                                     }),
                                   });
                                   
