@@ -102,6 +102,7 @@ export default function DepartmentManagerDashboardPage() {
   // Modal now shows details of a Task, focusing on its ControlAssignments
   const [_selectedTaskForDetailsModal] = useState<FrontendTask | null>(null); // Removed unused setter
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
   // Removed state related to the old incorrect assignment modal
 
   // Auth and Routing
@@ -177,12 +178,20 @@ export default function DepartmentManagerDashboardPage() {
     }
   }, [user?.id]);
 
+  // Open the confirmation dialog
+  const openApproveConfirmation = () => {
+    if (!latestAssessment || !user?.id || isApproved || isApprovingAssessment) return;
+    setIsApproveConfirmOpen(true);
+  };
+
   // Handle approving the latest assessment
   const handleApproveLatest = async () => {
     if (!latestAssessment || !user?.id || isApproved || isApprovingAssessment) return;
 
     setIsApprovingAssessment(true);
     setError(null);
+    // Close the confirmation dialog
+    setIsApproveConfirmOpen(false);
 
     try {
       console.log("Approving assessment with data:", {
@@ -696,7 +705,7 @@ export default function DepartmentManagerDashboardPage() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">المهام المعينة لك ({user?.nameAr || user?.name})</h2> {/* Use user.nameAr or user.name */}
               <Button 
-                onClick={handleApproveLatest} 
+                onClick={openApproveConfirmation} 
                 disabled={isApproved || !latestAssessment || isApprovingAssessment}
                 className={`${isApproved ? 'bg-gray-500' : 'bg-blue-800 hover:bg-blue-900'} text-white`}
               >
@@ -903,6 +912,29 @@ export default function DepartmentManagerDashboardPage() {
             </Card>
           </div> {/* Close the two-column grid div */}
 
+
+          {/* Approval Confirmation Dialog */}
+          <Dialog open={isApproveConfirmOpen} onOpenChange={setIsApproveConfirmOpen}>
+            <DialogContent className="sm:max-w-[425px]" dir="rtl">
+              <DialogHeader>
+                <DialogTitle>تأكيد الاعتماد</DialogTitle>
+                <DialogDescription>
+                  هل أنت متأكد من إجراء الاعتماد؟
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex justify-between mt-4">
+                <Button variant="outline" onClick={() => setIsApproveConfirmOpen(false)}>
+                  لا
+                </Button>
+                <Button 
+                  onClick={handleApproveLatest}
+                  className="bg-blue-800 hover:bg-blue-900 text-white"
+                >
+                  نعم
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Add User Modal */}
           {/* Trigger is now inside the Team Members Card Header */}
