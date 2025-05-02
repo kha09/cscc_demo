@@ -973,10 +973,49 @@ function ResultsContent() {
                     <SystemAnalyticsCharts data={selectedSystemChartData} />
                   )}
 
-                </div>
-              )}
-            </div>
-          )}
+                     </div>
+                   )}
+                   
+                   {/* Signature Section */}
+                   <div className="mt-16 mb-10">
+                     <div className="border-t border-gray-300 pt-8">
+                       <h2 className="text-xl font-bold text-slate-800 text-center mb-6">اعتماد صاحب الصلاحية</h2>
+                       
+                       <div className="flex flex-col items-center">
+                         {/* Signature Box */}
+                         <div className="border-2 border-dashed border-gray-400 rounded-md w-64 h-32 mb-6 flex items-center justify-center bg-gray-50">
+                           <span className="text-gray-400 text-sm">مكان التوقيع</span>
+                         </div>
+                         
+                         {/* Name and Date */}
+                         <div className="grid grid-cols-2 gap-8 w-full max-w-lg">
+                           <div className="flex flex-col items-center">
+                             <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
+                               &nbsp;
+                             </div>
+                             <span className="text-sm text-gray-600">الاسم</span>
+                           </div>
+                           
+                           <div className="flex flex-col items-center">
+                             <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
+                               &nbsp;
+                             </div>
+                             <span className="text-sm text-gray-600">التاريخ</span>
+                           </div>
+                         </div>
+                         
+                         {/* Position/Title */}
+                         <div className="mt-6 flex flex-col items-center">
+                           <div className="border-b border-gray-400 w-64 text-center pb-1 mb-1">
+                             &nbsp;
+                           </div>
+                           <span className="text-sm text-gray-600">المنصب</span>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               )}
           {/* --- End Detailed View Area --- */}
       </div>
     );
@@ -1371,6 +1410,39 @@ function ResultsContent() {
                            </Card>
                          </div>
                        ))}
+                       
+                       {/* Signature Section */}
+                       <div className="mt-16 mb-10">
+                         <div className="border-t border-gray-300 pt-8">
+                           <h2 className="text-xl font-bold text-slate-800 text-center mb-6">اعتماد صاحب الصلاحية</h2>
+                           
+                           <div className="flex flex-col items-center">
+                             {/* Signature Box */}
+                             <div className="border-2 border-dashed border-gray-400 rounded-md w-64 h-32 mb-6 flex items-center justify-center bg-gray-50">
+                               <span className="text-gray-400 text-sm"></span>
+                             </div>
+                             
+                             {/* Name and Date */}
+                             <div className="grid grid-cols-2 gap-8 w-full max-w-lg">
+                               <div className="flex flex-col items-center">
+                                 <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
+                                   &nbsp;
+                                 </div>
+                                 <span className="text-sm text-gray-600">الاسم</span>
+                               </div>
+                               
+                               <div className="flex flex-col items-center">
+                                 <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
+                                   &nbsp;
+                                 </div>
+                                 <span className="text-sm text-gray-600">التاريخ</span>
+                               </div>
+                             </div>
+                             
+                             
+                           </div>
+                         </div>
+                       </div>
                      </div>
                    )}
                  </div>
