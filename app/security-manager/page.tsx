@@ -103,6 +103,12 @@ export default function SecurityManagerDashboardPage() {
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const [currentAssessmentName, setCurrentAssessmentName] = useState<string>(""); // State for the new input
   const [assessmentNameError, setAssessmentNameError] = useState<string | null>(null); // Error state for name update
+  
+  // New state for rename assessment dialog
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renameInput, setRenameInput] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
 
   // State variables for controls
   const [controls, setControls] = useState<SimpleControl[]>([]);
@@ -309,11 +315,13 @@ export default function SecurityManagerDashboardPage() {
     }
   };
 
-  // Filter assessments based on search query (simple example)
-  const filteredAssessments = assessments.filter(assessment =>
-    assessment.companyNameAr.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    assessment.companyNameEn.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter assessments based on search query and hide "غير محدد" assessments
+  const filteredAssessments = assessments
+    .filter(assessment => (assessment as AssessmentWithName).assessmentName !== "غير محدد") // Hide "غير محدد" assessments
+    .filter(assessment =>
+      assessment.companyNameAr.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      assessment.companyNameEn.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   // Format date helper
   const formatDate = (dateString: string | Date) => {
@@ -643,7 +651,17 @@ export default function SecurityManagerDashboardPage() {
           {/* Active Assessments Section - Using CardHeader/Content */}
           <Card className="mb-6">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-xl font-semibold"> التقييمات المعينة</CardTitle>
+              <div className="flex items-center gap-4">
+                <CardTitle className="text-xl font-semibold"> التقييمات المعينة</CardTitle>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="bg-nca-teal text-white hover:bg-nca-teal-dark"
+                  onClick={() => setIsRenameModalOpen(true)}
+                >
+                  إنشاء تقييم جديد
+                </Button>
+              </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="gap-2">
                   <Filter className="h-4 w-4" />
@@ -721,73 +739,109 @@ export default function SecurityManagerDashboardPage() {
           </Card>
 
           {/* Modal for Sensitive System Form */}
-          {/* Modal for Sensitive System Form - Updated */}
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>إنشاء تقييم جديد</DialogTitle>
+                <DialogTitle>إضافة نظام جديد</DialogTitle>
               </DialogHeader>
               {selectedAssessmentId ? (
                 <div className="space-y-4 py-4">
-                  {/* Assessment Name Input */}
-                  <div className="space-y-1 text-right">
-                    <Label htmlFor="assessmentName">اسم التقييم <span className="text-red-500">*</span></Label>
-                    <Input
-                      id="assessmentName"
-                      name="assessmentName"
-                      value={currentAssessmentName}
-                      onChange={(e) => setCurrentAssessmentName(e.target.value)}
-                      required
-                      className="text-right"
-                      placeholder="أدخل اسم التقييم هنا"
-                    />
-                    {assessmentNameError && <p className="text-sm text-red-600">{assessmentNameError}</p>}
-                  </div>
-
-                  {/* Separator or spacing */}
-                  <hr className="my-4" />
-
                   {/* Existing Sensitive System Form */}
                   <SensitiveSystemForm
                     assessmentId={selectedAssessmentId}
-                    // Pass assessmentName and update logic if needed inside the form,
-                    // OR handle the PATCH before calling onFormSubmit here.
-                    // For simplicity, let's handle PATCH here before closing.
-                    onFormSubmit={async () => {
-                      // --- PATCH Assessment Name before closing ---
-                      setAssessmentNameError(null); // Clear previous errors
-                      if (!currentAssessmentName.trim()) {
-                        setAssessmentNameError("اسم التقييم مطلوب.");
-                        return; // Prevent closing if name is empty
-                      }
-                      try {
-                        const patchResponse = await fetch(`/api/assessments/${selectedAssessmentId}`, {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ assessmentName: currentAssessmentName }),
-                        });
-                        if (!patchResponse.ok) {
-                          const errorData = await patchResponse.json();
-                          throw new Error(errorData.error || 'Failed to update assessment name');
-                        }
-                        // Update local assessment state if needed
-                        setAssessments(prev => prev.map(a =>
-                          a.id === selectedAssessmentId ? { ...a, assessmentName: currentAssessmentName } : a
-                        ));
-                        setIsModalOpen(false); // Close modal on successful submit of BOTH
-                      } catch (error: unknown) {
-                        console.error("Error updating assessment name:", error);
-                        // Added instanceof Error check here as well
-                        setAssessmentNameError(error instanceof Error ? error.message : "فشل تحديث اسم التقييم.");
-                        // Do not close the modal if the PATCH fails
-                      }
-                      // --- End PATCH ---
-                    }}
+                    onFormSubmit={() => setIsModalOpen(false)}
                   />
                 </div>
               ) : (
                 <div className="p-4 text-center">لم يتم تحديد تقييم.</div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* New Dialog for Renaming Assessment */}
+          <Dialog open={isRenameModalOpen} onOpenChange={setIsRenameModalOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>أنشئ تقييم جديد</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2 text-right">
+                  <Label htmlFor="renameInput">ادخل اسم التقييم</Label>
+                  <Input
+                    id="renameInput"
+                    value={renameInput}
+                    onChange={(e) => setRenameInput(e.target.value)}
+                    className="text-right"
+                    placeholder="اسم التقييم الجديد"
+                  />
+                  {renameError && <p className="text-sm text-red-600">{renameError}</p>}
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsRenameModalOpen(false)}
+                  >
+                    إلغاء
+                  </Button>
+                  <Button 
+                    className="bg-nca-teal text-white hover:bg-nca-teal-dark"
+                    disabled={isRenaming || !renameInput.trim()}
+                    onClick={async () => {
+                      if (!renameInput.trim()) {
+                        setRenameError("اسم التقييم مطلوب");
+                        return;
+                      }
+                      
+                      setIsRenaming(true);
+                      setRenameError(null);
+                      
+                      try {
+                        // Find the latest assessment for this security manager
+                        if (!user?.id) {
+                          throw new Error("لم يتم العثور على معرف المستخدم");
+                        }
+                        
+                        // Get the latest assessment by createdAt
+                        const latestAssessment = [...assessments].sort((a, b) => 
+                          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                        )[0];
+                        
+                        if (!latestAssessment) {
+                          throw new Error("لم يتم العثور على تقييمات");
+                        }
+                        
+                        // Update the assessment name
+                        const response = await fetch(`/api/assessments/${latestAssessment.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ assessmentName: renameInput }),
+                        });
+                        
+                        if (!response.ok) {
+                          const errorData = await response.json();
+                          throw new Error(errorData.error || 'فشل تحديث اسم التقييم');
+                        }
+                        
+                        // Update local state
+                        setAssessments(prev => prev.map(a =>
+                          a.id === latestAssessment.id ? { ...a, assessmentName: renameInput } : a
+                        ));
+                        
+                        // Close dialog and reset input
+                        setRenameInput("");
+                        setIsRenameModalOpen(false);
+                      } catch (error: unknown) {
+                        console.error("Error updating assessment name:", error);
+                        setRenameError(error instanceof Error ? error.message : "فشل تحديث اسم التقييم");
+                      } finally {
+                        setIsRenaming(false);
+                      }
+                    }}
+                  >
+                    {isRenaming ? 'جاري الحفظ...' : 'حفظ'}
+                  </Button>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
 
