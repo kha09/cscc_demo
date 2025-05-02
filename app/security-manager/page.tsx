@@ -240,7 +240,7 @@ export default function SecurityManagerDashboardPage() {
       setIsLoadingRiskAssignments(true);
       setRiskAssignmentsError(null);
       try {
-        const response = await fetch(`/api/control-assignments?securityManagerId=${userId}`);
+        const response = await fetch(`/api/control-assignments?securityManagerId=${userId}&hasDeptReview=true`);
         if (!response.ok) {
           throw new Error(`Failed to fetch risk assignments: ${response.statusText}`);
         }
@@ -388,12 +388,10 @@ export default function SecurityManagerDashboardPage() {
 
   // Helper function to translate Manager Review Status
   const translateManagerStatus = (status: string | null): string => {
-    switch (status) {
-      case 'APPROVED': return 'معتمد';
-      case 'REJECTED': return 'مرفوض';
-      case 'PENDING': return 'قيد المراجعة';
-      default: return 'قيد المراجعة'; // Default text
-    }
+    if (!status) return 'قيد المراجعة'; // Default if null
+    
+    // Use the actual value from the database
+    return status;
   };
 
 

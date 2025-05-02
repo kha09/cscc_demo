@@ -4,10 +4,12 @@ import { z } from 'zod';
 import { Prisma, ControlAssignment } from '@prisma/client'; // Import ControlAssignment type
 
 // GET handler to fetch control assignments, filtered by assignedUserId OR securityManagerId
+// With optional filter for department manager reviews
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
   const securityManagerId = searchParams.get('securityManagerId');
+  const hasDeptReview = searchParams.get('hasDeptReview') === 'true';
 
   // Validate IDs - At least one must be provided and valid
   let filter: Prisma.ControlAssignmentWhereInput = {};
@@ -25,6 +27,17 @@ export async function GET(request: NextRequest) {
     filter = { task: { assignedById: securityManagerId } };
   } else {
     return NextResponse.json({ message: "Either userId or securityManagerId query parameter is required" }, { status: 400 });
+  }
+
+  // Add filter for department manager reviews if requested
+  if (hasDeptReview) {
+    filter = {
+      ...filter,
+      OR: [
+        { managerNote: { not: null } },
+        { managerStatus: { not: null } }
+      ]
+    };
   }
 
   try {
