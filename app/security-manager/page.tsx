@@ -1191,7 +1191,7 @@ export default function SecurityManagerDashboardPage() {
           {/* Anchor for Reports */}
           <div id="reports"></div>
           {/* Report Generation */}
-          <Card className="mt-6"> {/* Removed p-6 */}
+<Card className="hidden mt-6"> {/* Removed p-6 */}
             <CardHeader>
               <CardTitle className="text-xl font-semibold">إنشاء التقارير</CardTitle>
             </CardHeader>
