@@ -16,7 +16,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Find any assessment status for this assessment
-    // @ts-ignore - Prisma model name issue
     const statuses = await prisma.assessmentStatus.findMany({
       where: {
         assessmentId,
@@ -27,12 +26,14 @@ export async function GET(request: NextRequest) {
     });
 
     // If any status is FINISHED, consider the whole assessment approved
-    const isApproved = statuses.some((status: any) => status.securityManagerStatus === 'FINISHED');
+    const isApproved = statuses.some((status: { securityManagerStatus: string | null }) => 
+      status.securityManagerStatus === 'FINISHED'
+    );
     
     return NextResponse.json({ 
       securityManagerStatus: isApproved ? 'FINISHED' : null 
     }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error checking security manager status:', error);
     return NextResponse.json(
       { error: 'Failed to check security manager status' },

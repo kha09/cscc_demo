@@ -42,7 +42,7 @@ export default function SystemInfoPage() {
   // State for modal and assessment
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [latestAssessmentId, setLatestAssessmentId] = useState<string | null>(null);
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [_assessments, _setAssessments] = useState<Assessment[]>([]);
   const [isLoadingAssessments, setIsLoadingAssessments] = useState(true);
   const [assessmentsError, setAssessmentsError] = useState<string | null>(null);
 
@@ -63,7 +63,7 @@ export default function SystemInfoPage() {
           throw new Error(`Failed to fetch assessments: ${response.statusText}`);
         }
         const data: Assessment[] = await response.json();
-        setAssessments(data);
+        _setAssessments(data);
         
         // Sort assessments by createdAt in descending order and get the latest one
         if (data.length > 0) {

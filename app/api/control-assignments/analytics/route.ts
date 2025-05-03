@@ -26,7 +26,14 @@ export async function GET(request: NextRequest) {
 
   try {
     // Build the where clause based on provided parameters
-    const whereClause: any = {};
+    const whereClause: {
+      task?: {
+        assignedById?: string;
+        sensitiveSystem?: {
+          assessmentId?: string;
+        };
+      };
+    } = {};
     
     if (securityManagerId) {
       whereClause.task = {
@@ -69,7 +76,7 @@ export async function GET(request: NextRequest) {
     // Return the raw data; aggregation will happen on the client-side
     return NextResponse.json(assignments);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error fetching control assignments for analytics:", error);
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       console.error("Prisma Error Code:", error.code);

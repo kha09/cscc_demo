@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context"; // Import useAuth
 import { AppHeader } from "@/components/ui/AppHeader"; // Import the shared header
 // Explicitly import types from the generated client
-import type { Assessment, User, SensitiveSystemInfo, Control } from "@prisma/client";
+import type { Assessment, User, SensitiveSystemInfo, Control as _Control } from "@prisma/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -112,8 +112,8 @@ export default function SecurityManagerDashboardPage() {
   const [systemsError, setSystemsError] = useState<string | null>(null); // Specific error for systems
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
-  const [currentAssessmentName, setCurrentAssessmentName] = useState<string>(""); // State for the new input
-  const [assessmentNameError, setAssessmentNameError] = useState<string | null>(null); // Error state for name update
+  const [_currentAssessmentName, _setCurrentAssessmentName] = useState<string>(""); // State for the new input (prefixed with underscore)
+  const [_assessmentNameError, _setAssessmentNameError] = useState<string | null>(null); // Error state for name update (prefixed with underscore)
   
   // New state for rename assessment dialog
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
@@ -157,7 +157,7 @@ export default function SecurityManagerDashboardPage() {
   // State for summary analytics of control assignments per system
   const [systemSummary, setSystemSummary] = useState<Record<string, { assigned: number; finished: number }>>({}); // Corrected type definition slightly
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [_summaryError, _setSummaryError] = useState<string | null>(null); // Prefixed with underscore
 
   // State for Task Assignment Form
   const [selectedSystemId, setSelectedSystemId] = useState<string | undefined>(undefined);
@@ -221,14 +221,14 @@ export default function SecurityManagerDashboardPage() {
     // Fetch summary analytics for each system under this manager
     const fetchSummary = async () => {
       setIsLoadingSummary(true);
-      setSummaryError(null);
+      _setSummaryError(null);
       try {
         const resp = await fetch(`/api/control-assignments/analytics/summary-by-system?securityManagerId=${userId}`);
         if (!resp.ok) throw new Error(`Failed to load summary: ${resp.statusText}`);
         const json: Record<string,{assigned:number; finished:number}> = await resp.json();
         setSystemSummary(json);
       } catch (err: unknown) {
-        setSummaryError(err instanceof Error ? err.message : 'Unknown error loading summary');
+        _setSummaryError(err instanceof Error ? err.message : 'Unknown error loading summary');
       } finally {
         setIsLoadingSummary(false);
       }
@@ -309,26 +309,10 @@ export default function SecurityManagerDashboardPage() {
   }, []); // Empty dependency array means run once on mount
 
 
-  // Updated to fetch current assessment name when opening
-  const handleOpenForm = async (assessmentId: string) => {
+  // Updated to fetch current assessment name when opening (prefixed with underscore)
+  const _handleOpenForm = async (assessmentId: string) => {
     setSelectedAssessmentId(assessmentId);
-    setCurrentAssessmentName(""); // Reset name state
-    setAssessmentNameError(null); // Reset error state
     setIsModalOpen(true);
-
-    // Fetch the current assessment details to get the name
-    try {
-      const response = await fetch(`/api/assessments/${assessmentId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch assessment details');
-      }
-      const assessmentData: AssessmentWithName = await response.json();
-      setCurrentAssessmentName(assessmentData.assessmentName || ""); // Set current name or empty string
-    } catch (error: unknown) {
-      console.error("Error fetching assessment name:", error);
-      // Optionally set an error state to display in the modal
-      setAssessmentNameError(error instanceof Error ? error.message : "Failed to load current assessment name.");
-    }
   };
 
   // Filter assessments based on search query and hide "غير محدد" assessments

@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { assessmentId, sensitiveSystemId, securityManagerId, departmentManagerId } = validation.data;
+    const { assessmentId, securityManagerId } = validation.data;
+    // Prefix unused variables with underscore
+    const _sensitiveSystemId = validation.data.sensitiveSystemId;
+    const _departmentManagerId = validation.data.departmentManagerId;
 
     // Verify the security manager exists
     const securityManager = await prisma.user.findUnique({
@@ -39,7 +42,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Find any existing assessment status record for this assessment ID
-    // @ts-ignore - Prisma model name issue
     const existingStatuses = await prisma.assessmentStatus.findMany({
       where: {
         assessmentId,
@@ -56,8 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update all existing records for this assessment
-    const updatePromises = existingStatuses.map((status: any) => 
-      // @ts-ignore - Prisma model name issue
+    const updatePromises = existingStatuses.map((status: { id: string; assessmentId: string }) => 
       prisma.assessmentStatus.update({
         where: { id: status.id },
         data: {
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     console.log("Assessment statuses updated:", updatedStatuses);
     return NextResponse.json({ success: true, updatedCount: updatedStatuses.length }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error approving assessment by security manager:', error);
     return NextResponse.json(
       { error: 'Failed to approve assessment' },

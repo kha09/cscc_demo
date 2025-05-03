@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useRef } from "react";
 import dynamic from 'next/dynamic';
-// import Image from "next/image"; // Removed, AppHeader handles logo
+import Image from "next/image"; // Import for logo in PDF export
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context"; // Import useAuth
 import { AppHeader } from "@/components/ui/AppHeader"; // Import shared header
@@ -21,12 +21,12 @@ import {
   AlertDialogCancel
 } from "@/components/ui/alert-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon, FileDown, Printer } from "lucide-react"; // Prefixed unused imports with underscore
+import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon, FileDown, Printer as _Printer } from "lucide-react"; // Renamed unused Printer import
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { TaskStatus } from "@prisma/client";
 import type { User as _User } from "@prisma/client"; // Prefixed with underscore to avoid unused type error
-import SystemAnalyticsCharts from "@/components/ui/SystemAnalyticsCharts"; // Import the new chart component
+// Import removed: SystemAnalyticsCharts
 
 // Add TypeScript declaration for window.resolve
 declare global {
@@ -184,7 +184,7 @@ function ResultsContent() {
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
 
   // State for assessment data (Overall Compliance Tab)
-  const [assessment, setAssessment] = useState<any>(null);
+  const [assessment, setAssessment] = useState<{id: string; assessmentName: string; logoPath?: string} | null>(null);
   const [isAssessmentLoading, setIsAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   
@@ -253,7 +253,7 @@ function ResultsContent() {
   // State for detailed view when a system is selected
   const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
   const [selectedSystemDetails, setSelectedSystemDetails] = useState<ProcessedDetailedAnalytics | null>(null);
-  const [selectedSystemChartData, setSelectedSystemChartData] = useState<ChartDataPoint[] | null>(null); // State for chart data
+  const [_selectedSystemChartData, setSelectedSystemChartData] = useState<ChartDataPoint[] | null>(null); // Prefixed with underscore to avoid unused var error
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [expandedMainComponents, setExpandedMainComponents] = useState<Record<string, boolean>>({});
@@ -310,6 +310,36 @@ function ResultsContent() {
 
     const userId = user.id;
 
+    // Define checkAssessmentApproval inside the useEffect to avoid dependency issues
+    const checkAssessmentApproval = async (assessmentId: string, securityManagerId: string) => {
+      setIsCheckingApproval(true);
+      
+      try {
+        console.log(`Checking approval status for assessment ID: ${assessmentId}`);
+        const response = await fetch(`/api/assessment-status/security-check?assessmentId=${assessmentId}&sensitiveSystemId=${assessmentId}&securityManagerId=${securityManagerId}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to check approval status: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const isApproved = data.securityManagerStatus === 'FINISHED';
+        setIsAssessmentApproved(isApproved);
+        
+        console.log(`Assessment approval status: ${isApproved ? 'Approved' : 'Not Approved'}`);
+        
+        // Only fetch data if assessment is approved
+        if (isApproved) {
+          fetchSensitiveSystemsCount(assessmentId);
+          fetchComplianceCounts(assessmentId);
+        }
+      } catch (err) {
+        console.error("Error checking assessment approval:", err);
+      } finally {
+        setIsCheckingApproval(false);
+      }
+    };
+
     const fetchAssessment = async () => {
       setIsAssessmentLoading(true);
       setAssessmentError(null);
@@ -343,37 +373,8 @@ function ResultsContent() {
     };
 
     fetchAssessment();
-  }, [user]);
+  }, [user, assessment, isAssessmentLoading]);
 
-  // Check if assessment is approved by security manager
-  const checkAssessmentApproval = async (assessmentId: string, securityManagerId: string) => {
-    setIsCheckingApproval(true);
-    
-    try {
-      console.log(`Checking approval status for assessment ID: ${assessmentId}`);
-      const response = await fetch(`/api/assessment-status/security-check?assessmentId=${assessmentId}&sensitiveSystemId=${assessmentId}&securityManagerId=${securityManagerId}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to check approval status: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      const isApproved = data.securityManagerStatus === 'FINISHED';
-      setIsAssessmentApproved(isApproved);
-      
-      console.log(`Assessment approval status: ${isApproved ? 'Approved' : 'Not Approved'}`);
-      
-      // Only fetch data if assessment is approved
-      if (isApproved) {
-        fetchSensitiveSystemsCount(assessmentId);
-        fetchComplianceCounts(assessmentId);
-      }
-    } catch (err) {
-      console.error("Error checking assessment approval:", err);
-    } finally {
-      setIsCheckingApproval(false);
-    }
-  };
   // --- End Assessment Data Fetch ---
 
   // --- Sensitive Systems Count Fetch ---
@@ -407,7 +408,7 @@ function ResultsContent() {
   // --- End Sensitive Systems Count Fetch ---
   
   // --- Systems Compliance Data Fetch ---
-  const fetchSystemsComplianceData = async (systems: any[], assessmentId: string) => {
+  const fetchSystemsComplianceData = async (systems: {id: string; systemName: string}[], assessmentId: string) => {
     if (!systems.length || !assessmentId || !user?.id) return;
     
     setIsSystemsComplianceLoading(true);
@@ -574,8 +575,7 @@ function ResultsContent() {
     };
 
     fetchAnalyticsData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // Dependency: user object
+  }, [user, analyticsData, isAnalyticsLoading]); // Dependencies: user, analyticsData, isAnalyticsLoading
   // --- End General Analytics Data Fetch ---
 
 
@@ -632,8 +632,7 @@ function ResultsContent() {
     };
 
     fetchSystems();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, assessment?.id]); // Dependencies: user object and assessment ID
+  }, [user, assessment?.id, fetchSensitiveSystemsCount]); // Dependencies: user object, assessment ID, and fetchSensitiveSystemsCount
   // --- End Systems List Fetch ---
 
 
@@ -673,7 +672,7 @@ function ResultsContent() {
 
     fetchSystemAnalytics();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // Dependency: user object
+  }, [user, analyticsData, isAnalyticsLoading]); // Added missing dependencies
   // --- End System Summary Analytics Fetch ---
 
 
@@ -690,7 +689,7 @@ function ResultsContent() {
 
     const userId = user.id; // Use authenticated user's ID
 
-    const fetchDetailedAnalytics = async () => {
+  const fetchDetailedAnalytics = async () => {
       setIsDetailsLoading(true);
       setDetailsError(null);
       setSelectedSystemDetails(null);
@@ -1307,14 +1306,12 @@ function ResultsContent() {
                                // If content is longer than one page, add more pages
                                const pageHeight = 295; // A4 height in mm
                                
-                               if (imgHeight > pageHeight) {
+                                 if (imgHeight > pageHeight) {
                                  let remainingHeight = imgHeight;
-                                 let currentPosition = 0;
                                  
                                  while (remainingHeight > 0) {
                                    position -= pageHeight;
                                    remainingHeight -= pageHeight;
-                                   currentPosition += pageHeight;
                                    
                                    if (remainingHeight > 0) {
                                      pdf.addPage();
@@ -1357,11 +1354,16 @@ function ResultsContent() {
                      </div>
                      
                      {assessment.logoPath && (
-                       <img 
-                         src={assessment.logoPath} 
-                         alt={assessment.assessmentName} 
-                         className="mx-auto h-24 w-auto mb-4"
-                       />
+                       <div>
+                         {/* Using next/image for better performance */}
+                         <Image 
+                           src={assessment.logoPath} 
+                           alt={assessment.assessmentName} 
+                           className="mx-auto h-24 w-auto mb-4"
+                           width={96}
+                           height={96}
+                         />
+                       </div>
                      )}
                      <h2 className="text-xl font-bold text-slate-800">{assessment.assessmentName}</h2>
                      <h3 className="text-lg font-medium text-slate-600 mt-2">المستوى العام للالتزام</h3>

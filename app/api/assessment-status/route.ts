@@ -18,7 +18,12 @@ export async function GET(request: NextRequest) {
     const departmentManagerId = searchParams.get('departmentManagerId');
 
     // Build the where clause based on provided parameters
-    const whereClause: any = {};
+    const whereClause: {
+      assessmentId?: string;
+      sensitiveSystemId?: string;
+      securityManagerId?: string;
+      departmentManagerId?: string;
+    } = {};
     
     if (assessmentId) {
       whereClause.assessmentId = assessmentId;
@@ -79,7 +84,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(assessmentStatuses);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching assessment statuses:', error);
     return NextResponse.json(
       { error: 'Failed to fetch assessment statuses' },

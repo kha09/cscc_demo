@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
 import { z } from 'zod';
+// Removed unused import: getServerSession
 
 // Zod schema for validating the POST request body
 const approveAssessmentSchema = z.object({

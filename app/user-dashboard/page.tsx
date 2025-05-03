@@ -211,7 +211,7 @@ export default function UserDashboardPage() {
   };
 
   // Helper to map status to Badge props - now all use grey background
-  const getStatusBadgeProps = (status: TaskStatus | undefined): { variant: BadgeProps["variant"], className: string } => {
+  const getStatusBadgeProps = (_status: TaskStatus | undefined): { variant: BadgeProps["variant"], className: string } => {
     // Return grey styling for all statuses
     return { variant: 'outline', className: 'bg-gray-100 text-gray-700 border-gray-300' };
   };
@@ -413,7 +413,7 @@ export default function UserDashboardPage() {
         assignment.task.sensitiveSystem.systemName.toLowerCase().includes(searchTerm)) ||
       (assignment.task.sensitiveSystem?.assessment?.assessmentName && // Added assessment name to search
         assignment.task.sensitiveSystem.assessment.assessmentName.toLowerCase().includes(searchTerm)) ||
-      assignment.status.toLowerCase().includes(searchTerm) ||
+      translateStatus(assignment.status).toLowerCase().includes(searchTerm) ||
       getComplianceLevelText(assignment.complianceLevel).toLowerCase().includes(searchTerm)
      );
    });
