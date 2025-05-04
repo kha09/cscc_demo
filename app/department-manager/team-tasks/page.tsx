@@ -393,7 +393,6 @@ export default function TeamTasksPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="معتمد">معتمد</SelectItem>
-                                      <SelectItem value="طلب تنفيذ">طلب تنفيذ</SelectItem>
                                       <SelectItem value="طلب مراجعة">طلب مراجعة</SelectItem>
                                     </SelectContent>
                                   </Select>
