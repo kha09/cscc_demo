@@ -21,7 +21,7 @@ import {
   AlertDialogCancel
 } from "@/components/ui/alert-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon, FileDown, Printer as _Printer } from "lucide-react"; // Renamed unused Printer import
+import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon, FileDown, Printer as _Printer, Activity } from "lucide-react"; // Renamed unused Printer import
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { TaskStatus } from "@prisma/client";
@@ -164,8 +164,7 @@ function ResultsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get("tab");
-  const activeTab = tabParam === "detailed" ? "detailed" : 
-                   tabParam === "overall" ? "overall" : "general";
+  const activeTab = tabParam === "overall" ? "overall" : "general";
   
   // State for layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -581,8 +580,9 @@ function ResultsContent() {
 
   // --- Systems List Fetch (Triggered by user) ---
   useEffect(() => {
+  // Only fetch when user exists
     if (!user?.id) {
-      // Don't fetch if user ID is not available
+      // Don't fetch if not on detailed tab or user ID is not available
       if (systems.length > 0) setSystems([]); // Clear old data if user resets
       if (isSystemsLoading) setIsSystemsLoading(false);
       return;
@@ -590,6 +590,7 @@ function ResultsContent() {
 
     const userId = user.id; // Use authenticated user's ID
 
+    // Define fetchSystems inside the effect to avoid dependency issues
     const fetchSystems = async () => {
       setIsSystemsLoading(true);
       setSystemsError(null);
@@ -638,6 +639,7 @@ function ResultsContent() {
 
   // --- System Summary Analytics Fetch (Triggered by user) ---
   useEffect(() => {
+  // Only fetch when user exists
     if (!user?.id) {
       if (Object.keys(systemAnalytics).length > 0) setSystemAnalytics({}); // Clear old data
       if (isSystemAnalyticsLoading) setIsSystemAnalyticsLoading(false);
@@ -678,7 +680,8 @@ function ResultsContent() {
 
   // --- Detailed System Analytics Fetch (Triggered by selectedSystemId and user) ---
   useEffect(() => {
-    if (!selectedSystemId || !user?.id) { // Check user.id as well
+  // Only fetch when a system is selected and user exists
+    if (!selectedSystemId || !user?.id) {
       setSelectedSystemDetails(null);
       setSelectedSystemChartData(null); // Clear chart data too
       setDetailsError(null);
@@ -1168,8 +1171,9 @@ function ResultsContent() {
               <BarChart className="h-4 w-4 flex-shrink-0" />
               <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>النتائج</span>
             </Link>
-            <Link href="/security-manager/results?tab=detailed" className={`flex items-center gap-3 px-3 py-2 rounded text-white text-sm ${activeTab === "detailed" ? 'bg-nca-dark-blue font-semibold' : 'hover:bg-slate-700'} ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              سير العمل
+            <Link href="/security-manager/detailed-results" className={`flex items-center gap-3 px-3 py-2 rounded text-white text-sm hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <Activity className="h-4 w-4 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden md:hidden' : 'block'}`}>سير العمل</span>
             </Link>
           </nav>
         </aside>
@@ -1181,9 +1185,7 @@ function ResultsContent() {
            <Tabs
              value={activeTab}
              onValueChange={(val) => {
-               if (val === "detailed") {
-                 router.push("/security-manager/results?tab=detailed");
-               } else if (val === "overall") {
+               if (val === "overall") {
                  router.push("/security-manager/results?tab=overall");
                } else {
                  router.push("/security-manager/results?tab=general");
@@ -1748,10 +1750,6 @@ function ResultsContent() {
                    )}
                  </div>
                )}
-             </TabsContent>
-             <TabsContent value="detailed" dir="rtl"> {/* Ensure content has dir */}
-               {/* Render the detailed results content, loading, or error state */}
-               {renderDetailedResultsContent()}
              </TabsContent>
            </Tabs>
         </main>
