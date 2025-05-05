@@ -182,8 +182,7 @@ function DetailedResultsContent() {
     };
 
     fetchSystems();
-  // Added missing dependencies: isSystemsLoading, systems.length
-  }, [user, isSystemsLoading, systems.length]);
+  }, [user?.id]);
 
   // --- System Summary Analytics Fetch ---
   useEffect(() => {
@@ -219,8 +218,7 @@ function DetailedResultsContent() {
     };
 
     fetchSystemAnalytics();
-  // Added missing dependencies: isSystemAnalyticsLoading, systemAnalytics
-  }, [user, isSystemAnalyticsLoading, systemAnalytics]);
+  }, [user?.id]);
 
   // --- Detailed System Analytics Fetch ---
   useEffect(() => {
@@ -307,8 +305,7 @@ function DetailedResultsContent() {
     };
 
     fetchDetailedAnalytics();
-  // Added missing dependency: isDetailsLoading
-  }, [selectedSystemId, user, isDetailsLoading]);
+  }, [selectedSystemId, user?.id]);
 
   // Handle loading and unauthenticated states
   if (authLoading) {
