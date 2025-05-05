@@ -8,6 +8,10 @@ const nextConfig = {
     };
     return config;
   },
+  images: {
+    // Allow images from Vercel Blob storage
+    domains: ['vandhz2u601yidrb.public.blob.vercel-storage.com'],
+  },
 };
 
 export default nextConfig;

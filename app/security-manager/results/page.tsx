@@ -20,7 +20,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation"; // Re-added useRouter
 import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon, FileDown, Printer as _Printer, Activity } from "lucide-react"; // Renamed unused Printer import
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -159,15 +159,13 @@ interface ProcessedDetailedAnalytics {
 
 // --- Component ---
 
-// Client component that uses searchParams
+// Client component
 function ResultsContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const tabParam = searchParams.get("tab");
-  const activeTab = tabParam === "overall" ? "overall" : "general";
-  
+  const router = useRouter(); // Re-initialize router
   // State for layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // State for active tab, default to 'general'
+  const [activeTab, setActiveTab] = useState<"general" | "overall">("general");
 
   // Auth state
   const { user, loading: authLoading } = useAuth();
@@ -371,8 +369,12 @@ function ResultsContent() {
       }
     };
 
-    fetchAssessment();
-  }, [user, assessment, isAssessmentLoading]);
+    // Only fetch if user exists and assessment is not already loaded/loading
+    if (user?.id && !assessment && !isAssessmentLoading) {
+      fetchAssessment();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // Depend only on user
 
   // --- End Assessment Data Fetch ---
 
@@ -632,8 +634,12 @@ function ResultsContent() {
       }
     };
 
-    fetchSystems();
-  }, [user, assessment?.id, fetchSensitiveSystemsCount]); // Dependencies: user object, assessment ID, and fetchSensitiveSystemsCount
+    // Only fetch if user and assessment ID exist and systems are not loaded/loading
+    if (user?.id && assessment?.id && systems.length === 0 && !isSystemsLoading) {
+      fetchSystems();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, assessment?.id]); // Dependencies: user object, assessment ID
   // --- End Systems List Fetch ---
 
 
@@ -672,9 +678,12 @@ function ResultsContent() {
       }
     };
 
-    fetchSystemAnalytics();
+    // Only fetch if user exists and system analytics are not loaded/loading
+    if (user?.id && Object.keys(systemAnalytics).length === 0 && !isSystemAnalyticsLoading) {
+      fetchSystemAnalytics();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, analyticsData, isAnalyticsLoading]); // Added missing dependencies
+  }, [user]); // Depend only on user
   // --- End System Summary Analytics Fetch ---
 
 
@@ -764,7 +773,13 @@ function ResultsContent() {
       }
     };
 
-    fetchDetailedAnalytics();
+    // Only fetch if a system is selected, user exists, and details are not loaded/loading for this system
+    if (selectedSystemId && user?.id && !isDetailsLoading) {
+      // Optional: Add a check if details for this specific system are already loaded
+      // if (!selectedSystemDetails || !selectedSystemDetails[systems.find(s => s.id === selectedSystemId)?.systemName || '']) {
+      fetchDetailedAnalytics();
+      // }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSystemId, user]); // Dependencies: selectedSystemId and user object
   // --- End Detailed System Analytics Fetch ---
@@ -1184,13 +1199,7 @@ function ResultsContent() {
            {/* Tabs Navigation */}
            <Tabs
              value={activeTab}
-             onValueChange={(val) => {
-               if (val === "overall") {
-                 router.push("/security-manager/results?tab=overall");
-               } else {
-                 router.push("/security-manager/results?tab=general");
-               }
-             }}
+             onValueChange={(val) => setActiveTab(val as "general" | "overall")} // Directly set state
              className="w-full"
              dir="rtl"
            > {/* Ensure Tabs has dir */}
