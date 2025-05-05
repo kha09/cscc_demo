@@ -574,7 +574,7 @@ function ResultsContent() {
     };
 
     fetchAnalyticsData();
-  }, [user, analyticsData, isAnalyticsLoading]); // Dependencies: user, analyticsData, isAnalyticsLoading
+  }, [user]); // Only depend on user changes to prevent infinite loops
   // --- End General Analytics Data Fetch ---
 
 
