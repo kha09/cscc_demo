@@ -216,10 +216,13 @@ function ResultsContent() {
                <TabsTrigger value="general" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-4 cursor-pointer">النتائج العامة</TabsTrigger>
                <TabsTrigger value="overall" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-4 cursor-pointer">المستوى العام للالتزام</TabsTrigger>
              </TabsList>
-             <TabsContent value="general" dir="rtl">
-               {isCheckingApproval ? (
-                 <div className="flex justify-center items-center h-[calc(100vh-250px)]">
-                   <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
+
+             {/* Conditionally render tab content directly */}
+             {activeTab === 'general' && (
+               <div> {/* Wrap content */}
+                 {isCheckingApproval ? (
+                   <div className="flex justify-center items-center h-[calc(100vh-250px)]">
+                     <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
                    <span className="mr-2">جاري التحقق من حالة الاعتماد...</span>
                  </div>
                ) : !isAssessmentApproved ? (
@@ -242,19 +245,23 @@ function ResultsContent() {
                    isCheckingApproval={isCheckingApproval}
                  />
                )}
-             </TabsContent>
-             <TabsContent value="overall" dir="rtl">
-               {/* Render the OverallComplianceTab component */}
-               <OverallComplianceTab
-                 user={user}
+               </div>
+             )}
+
+             {activeTab === 'overall' && (
+               <div> {/* Wrap content */}
+                 {/* Render the OverallComplianceTab component */}
+                 <OverallComplianceTab
+                   user={user}
                  assessment={assessment}
                  isAssessmentLoading={isAssessmentLoading}
                  assessmentError={assessmentError}
                  isAssessmentApproved={isAssessmentApproved}
                  isCheckingApproval={isCheckingApproval}
-                 // Remove props related to PDF generation
-               />
-             </TabsContent>
+                   // Remove props related to PDF generation
+                 />
+               </div>
+             )}
            </Tabs>
         </main>
       </div> {/* Closing tag for the flex flex-row div */}

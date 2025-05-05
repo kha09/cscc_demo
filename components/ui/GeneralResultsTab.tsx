@@ -92,13 +92,17 @@ export function GeneralResultsTab({ user, isAssessmentApproved, isCheckingApprov
       setAnalyticsData(null);
 
       try {
-        console.log(`Fetching general analytics for user ID: ${userId}`);
+        console.log(`[GeneralResultsTab] Fetching general analytics for user ID: ${userId}`); // Added component name
         const response = await fetch(`/api/control-assignments/analytics?securityManagerId=${userId}`);
+        console.log(`[GeneralResultsTab] API response status: ${response.status}`); // Log status
+
         if (!response.ok) {
           const errorData = await response.json();
+          console.error(`[GeneralResultsTab] API error data:`, errorData); // Log error data
           throw new Error(errorData.message || `Failed to fetch analytics data: ${response.statusText}`);
         }
         const rawAssignments: AnalyticsAssignment[] = await response.json();
+        console.log("[GeneralResultsTab] Fetched raw assignments:", rawAssignments); // Log fetched data
 
         // Process the data
         const processedData: ProcessedAnalyticsData = {};
@@ -129,19 +133,24 @@ export function GeneralResultsTab({ user, isAssessmentApproved, isCheckingApprov
           }
         });
 
+        console.log("[GeneralResultsTab] Processed analytics data:", processedData); // Log processed data
         setAnalyticsData(processedData);
       } catch (err: unknown) {
-        console.error("Error fetching or processing analytics data:", err);
+        console.error("[GeneralResultsTab] Error fetching or processing analytics data:", err); // Added component name
         const errorMsg = err instanceof Error ? err.message : "An unknown error occurred.";
         setAnalyticsError(errorMsg);
       } finally {
+        console.log("[GeneralResultsTab] Setting isAnalyticsLoading to false."); // Log finally block
         setIsAnalyticsLoading(false);
       }
     };
 
-    // Only fetch if approved and not already loading
-    if (isAssessmentApproved && !isAnalyticsLoading) {
+    // Only fetch if approved (removed !isAnalyticsLoading check)
+    if (isAssessmentApproved) {
+        console.log("[GeneralResultsTab] Assessment approved, calling fetchAnalyticsData."); // Log fetch trigger
         fetchAnalyticsData();
+    } else {
+        console.log("[GeneralResultsTab] Assessment not approved, skipping fetch."); // Log skip reason
     }
   // Depend on user and approval status
   // eslint-disable-next-line react-hooks/exhaustive-deps
