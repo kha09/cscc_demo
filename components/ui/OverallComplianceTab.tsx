@@ -12,6 +12,27 @@ import type { User } from "@prisma/client"; // Assuming User type is needed
 
 // Dynamically import ApexCharts to avoid SSR issues
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
+
+// Polyfill for potential ApexCharts issue (ReferenceError: resolve is not defined)
+if (typeof window !== 'undefined' && typeof (window as any).resolve !== 'function') {
+  (window as any).resolve = function() {};
+}
+
+// Helper component to delay chart rendering until mounted client-side
+const ClientOnlyChart = (props: any) => {
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  if (!hasMounted) {
+    // Optional: Render a placeholder or loader while waiting for mount
+    return <div className="flex justify-center items-center h-[350px]"><Loader2 className="h-6 w-6 animate-spin text-nca-teal" /></div>;
+  }
+
+  return <Chart {...props} />;
+};
 // Removed the window.resolve polyfill as it might be unnecessary and causing issues.
 
 // --- Types and Constants (Copied from results/page.tsx) ---
@@ -432,27 +453,36 @@ export function OverallComplianceTab({
             <CardTitle className="text-lg font-semibold text-slate-700">توزيع مستويات الالتزام</CardTitle>
           </CardHeader>
           <CardContent className="p-4">
-            {Object.values(complianceCounts).every(count => count === 0) ? (
+            {/* Add loading check specifically for this chart's data */}
+            {isComplianceCountsLoading ? (
+              <div className="flex justify-center items-center h-[350px]">
+                <Loader2 className="h-6 w-6 animate-spin text-nca-teal" />
+              </div>
+            ) : Object.values(complianceCounts).every(count => count === 0) ? (
               <div className="text-center py-10 text-gray-600">
                 لا توجد بيانات التزام لعرضها.
               </div>
             ) : (
-              <Chart 
+              <ClientOnlyChart // Use the wrapper component
                 options={{
                   chart: { type: 'pie', fontFamily: 'inherit' },
                   labels: complianceLevelOrder.map(level => complianceLevelLabels[level]),
                   colors: complianceLevelOrder.map(level => complianceLevelColors[level]),
                   legend: { position: 'bottom', fontFamily: 'inherit' },
-                  tooltip: { 
-                    y: { formatter: (val) => `${val} ضابط` }, 
-                    style: { fontFamily: 'inherit' } 
+                  tooltip: {
+                    y: { formatter: (val: number) => `${val} ضابط` }, // Add type for val
+                    style: { fontFamily: 'inherit' }
                   },
-                  dataLabels: { 
-                    enabled: true, 
-                    formatter: (val, opts) => {
+                  dataLabels: {
+                    enabled: true,
+                    // Add types for val and opts
+                    formatter: (val: number, opts: { seriesIndex: number; w: any }) => { 
                       const total = opts.w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
                       if (total === 0) return '0%';
-                      return `${((opts.w.globals.series[opts.seriesIndex] / total) * 100).toFixed(1)}%`;
+                      // Ensure series value is treated as a number
+                      const seriesValue = Number(opts.w.globals.series[opts.seriesIndex]); 
+                      if (isNaN(seriesValue)) return 'N/A'; // Handle potential NaN
+                      return `${((seriesValue / total) * 100).toFixed(1)}%`;
                     },
                     style: { fontFamily: 'inherit' } 
                   },
@@ -567,27 +597,36 @@ export function OverallComplianceTab({
                     <CardTitle className="text-lg font-semibold text-slate-700">توزيع مستويات الالتزام</CardTitle>
                   </CardHeader>
                   <CardContent className="p-4">
-                    {Object.values(system.complianceCounts).every(count => count === 0) ? (
+                    {/* Add loading check specifically for this system's chart data */}
+                    {isSystemsComplianceLoading ? ( // Use the overall system loading flag here
+                       <div className="flex justify-center items-center h-[350px]">
+                         <Loader2 className="h-6 w-6 animate-spin text-nca-teal" />
+                       </div>
+                    ) : Object.values(system.complianceCounts).every(count => count === 0) ? (
                       <div className="text-center py-10 text-gray-600">
                         لا توجد بيانات التزام لعرضها.
                       </div>
                     ) : (
-                      <Chart 
+                      <ClientOnlyChart // Use the wrapper component
                         options={{
                           chart: { type: 'pie', fontFamily: 'inherit' },
                           labels: complianceLevelOrder.map(level => complianceLevelLabels[level]),
                           colors: complianceLevelOrder.map(level => complianceLevelColors[level]),
                           legend: { position: 'bottom', fontFamily: 'inherit' },
-                          tooltip: { 
-                            y: { formatter: (val) => `${val} ضابط` }, 
-                            style: { fontFamily: 'inherit' } 
+                          tooltip: {
+                            y: { formatter: (val: number) => `${val} ضابط` }, // Add type for val
+                            style: { fontFamily: 'inherit' }
                           },
-                          dataLabels: { 
-                            enabled: true, 
-                            formatter: (val, opts) => {
+                          dataLabels: {
+                            enabled: true,
+                             // Add types for val and opts
+                            formatter: (val: number, opts: { seriesIndex: number; w: any }) => {
                               const total = opts.w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
                               if (total === 0) return '0%';
-                              return `${((opts.w.globals.series[opts.seriesIndex] / total) * 100).toFixed(1)}%`;
+                              // Ensure series value is treated as a number
+                              const seriesValue = Number(opts.w.globals.series[opts.seriesIndex]);
+                              if (isNaN(seriesValue)) return 'N/A'; // Handle potential NaN
+                              return `${((seriesValue / total) * 100).toFixed(1)}%`;
                             },
                             style: { fontFamily: 'inherit' } 
                           },
