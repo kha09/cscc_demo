@@ -1632,7 +1632,7 @@ function ResultsContent() {
                        {/* Signature Section */}
                        <div className="mt-16 mb-10">
                          <div className="border-t border-gray-300 pt-8">
-                           <h2 className="text-xl font-bold text-slate-800 text-center mb-6">اعتماد صاحب الصلاحية</h2>
+                           <h2 className="text-xl font-bold text-slate-800 text-center mb-6">اعتماد مدير الأمن</h2>
                            
                            <div className="flex flex-col items-center">
                              {/* Signature Box */}
@@ -1640,87 +1640,7 @@ function ResultsContent() {
                                <span className="text-gray-400 text-sm"></span>
                              </div>
                              
-                             {/* Approval Button */}
-                             <div className="mb-6">
-                               <AlertDialog>
-                                 <AlertDialogTrigger asChild>
-                                   <Button 
-                                     size="sm" 
-                                     variant="outline" 
-                                     className={`${
-                                       securityStatusMap[assessment?.id || ''] === 'FINISHED' 
-                                         ? 'bg-gray-400 cursor-not-allowed' 
-                                         : 'bg-nca-dark-blue hover:bg-nca-teal'
-                                     } text-white`}
-                                     disabled={securityStatusMap[assessment?.id || ''] === 'FINISHED'}
-                                   >
-                                     {securityStatusMap[assessment?.id || ''] === 'FINISHED' ? 'معتمد' : 'اعتماد'}
-                                   </Button>
-                                 </AlertDialogTrigger>
-                                 <AlertDialogContent>
-                                   <AlertDialogHeader>
-                                     <AlertDialogTitle>تأكيد الاعتماد</AlertDialogTitle>
-                                     <AlertDialogDescription>هل أنت متأكد أنك تريد اعتماد هذا التقييم؟</AlertDialogDescription>
-                                   </AlertDialogHeader>
-                                   <AlertDialogFooter>
-                                     <AlertDialogCancel>لا</AlertDialogCancel>
-                                     <AlertDialogAction 
-                                       onClick={async () => {
-                                         if (!user?.id || !assessment?.id) return;
-                                         
-                                         setIsApproving(true);
-                                         setApprovalSuccess(null);
-                                         setApprovalError(null);
-                                         
-                                         try {
-                                           // Get the first system's department manager ID
-                                           const firstSystem = systems.length > 0 ? systems[0] : null;
-                                           const departmentManagerId = firstSystem?.department?.manager?.id || "";
-                                           
-                                           if (!departmentManagerId) {
-                                             throw new Error('Department manager ID not found');
-                                           }
-                                           
-                                           const response = await fetch('/api/assessment-status/security-approve', {
-                                             method: 'POST',
-                                             headers: {
-                                               'Content-Type': 'application/json',
-                                             },
-                                             body: JSON.stringify({
-                                               assessmentId: assessment.id,
-                                               securityManagerId: user.id,
-                                               sensitiveSystemId: firstSystem?.id || assessment.id,
-                                               departmentManagerId: departmentManagerId,
-                                             }),
-                                           });
-                                           
-                                           if (!response.ok) {
-                                             const errorData = await response.json();
-                                             throw new Error(errorData.error || 'Failed to approve assessment');
-                                           }
-                                           
-                                           // Update the status map to reflect the approval
-                                           setSecurityStatusMap(prev => ({
-                                             ...prev,
-                                             [assessment.id]: 'FINISHED'
-                                           }));
-                                           
-                                           setApprovalSuccess(`تم اعتماد التقييم بنجاح`);
-                                           
-                                         } catch (error) {
-                                           console.error("Error approving assessment:", error);
-                                           setApprovalError(error instanceof Error ? error.message : 'حدث خطأ أثناء اعتماد التقييم');
-                                         } finally {
-                                           setIsApproving(false);
-                                         }
-                                       }}
-                                     >
-                                       {isApproving ? 'جاري الاعتماد...' : 'نعم'}
-                                     </AlertDialogAction>
-                                   </AlertDialogFooter>
-                                 </AlertDialogContent>
-                               </AlertDialog>
-                             </div>
+                             
                              
                              {/* Display approval success/error messages */}
                              {approvalSuccess && (
