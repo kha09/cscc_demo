@@ -5,8 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
-import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User } from "lucide-react";
+import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, MinusCircle, ChevronDown, ChevronUp, User } from "lucide-react"; // Removed XCircle, AlertTriangle
 import { TaskStatus } from "@prisma/client";
 
 // Define ComplianceLevel Enum based on Prisma schema
@@ -102,7 +101,7 @@ interface SystemSummaryAnalytics {
 
 // Client component
 function DetailedResultsContent() {
-  const router = useRouter();
+  // const router = useRouter(); // Removed unused router
   
   // State for layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -115,8 +114,8 @@ function DetailedResultsContent() {
   const [isSystemsLoading, setIsSystemsLoading] = useState(false);
   const [systemsError, setSystemsError] = useState<string | null>(null);
 
-  // State for security manager approval status
-  const [securityStatusMap, setSecurityStatusMap] = useState<Record<string, string | null>>({});
+  // State for security manager approval status - Removed unused securityStatusMap
+  // const [securityStatusMap, setSecurityStatusMap] = useState<Record<string, string | null>>({});
 
   // State for summary analytics per system (for the cards)
   const [systemAnalytics, setSystemAnalytics] = useState<Record<string, SystemSummaryAnalytics>>({});
@@ -126,7 +125,7 @@ function DetailedResultsContent() {
   // State for detailed view when a system is selected
   const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
   const [selectedSystemDetails, setSelectedSystemDetails] = useState<ProcessedDetailedAnalytics | null>(null);
-  const [selectedSystemChartData, setSelectedSystemChartData] = useState<ChartDataPoint[] | null>(null);
+  // const [selectedSystemChartData, setSelectedSystemChartData] = useState<ChartDataPoint[] | null>(null); // Removed unused state
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [expandedMainComponents, setExpandedMainComponents] = useState<Record<string, boolean>>({});
@@ -172,7 +171,7 @@ function DetailedResultsContent() {
             console.error(`Error fetching security status for system ${system.id}:`, statusErr);
           }
         }
-        setSecurityStatusMap(statusMap);
+        // setSecurityStatusMap(statusMap); // Removed usage of commented-out state setter
       } catch (err) {
         console.error("Error fetching systems:", err);
         const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching systems.";
@@ -183,7 +182,8 @@ function DetailedResultsContent() {
     };
 
     fetchSystems();
-  }, [user]);
+  // Added missing dependencies: isSystemsLoading, systems.length
+  }, [user, isSystemsLoading, systems.length]);
 
   // --- System Summary Analytics Fetch ---
   useEffect(() => {
@@ -219,13 +219,14 @@ function DetailedResultsContent() {
     };
 
     fetchSystemAnalytics();
-  }, [user]);
+  // Added missing dependencies: isSystemAnalyticsLoading, systemAnalytics
+  }, [user, isSystemAnalyticsLoading, systemAnalytics]);
 
   // --- Detailed System Analytics Fetch ---
   useEffect(() => {
     if (!selectedSystemId || !user?.id) {
       setSelectedSystemDetails(null);
-      setSelectedSystemChartData(null);
+      // setSelectedSystemChartData(null); // Removed usage of unused state
       setDetailsError(null);
       if (isDetailsLoading) setIsDetailsLoading(false);
       setExpandedMainComponents({});
@@ -238,7 +239,7 @@ function DetailedResultsContent() {
       setIsDetailsLoading(true);
       setDetailsError(null);
       setSelectedSystemDetails(null);
-      setSelectedSystemChartData(null);
+      // setSelectedSystemChartData(null); // Removed usage of unused state
       setExpandedMainComponents({});
 
       try {
@@ -294,7 +295,7 @@ function DetailedResultsContent() {
         });
 
         setSelectedSystemDetails(processed);
-        setSelectedSystemChartData(rawData.chartData);
+        // setSelectedSystemChartData(rawData.chartData); // Removed usage of unused state
 
       } catch (err) {
         console.error("Error fetching detailed system analytics:", err);
@@ -306,7 +307,8 @@ function DetailedResultsContent() {
     };
 
     fetchDetailedAnalytics();
-  }, [selectedSystemId, user]);
+  // Added missing dependency: isDetailsLoading
+  }, [selectedSystemId, user, isDetailsLoading]);
 
   // Handle loading and unauthenticated states
   if (authLoading) {

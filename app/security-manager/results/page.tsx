@@ -1,303 +1,51 @@
 "use client"
 
-import { useState, useEffect, Suspense, useRef } from "react";
-import dynamic from 'next/dynamic';
-import Image from "next/image"; // Import for logo in PDF export
+import { useState, useEffect, Suspense } from "react"; // Remove useRef
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-context"; // Import useAuth
-import { AppHeader } from "@/components/ui/AppHeader"; // Import shared header
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+// Removed unused Image import
+import { useAuth } from "@/lib/auth-context";
+import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel
-} from "@/components/ui/alert-dialog";
-import { useRouter } from "next/navigation"; // Re-added useRouter
-import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, XCircle as _XCircle, AlertTriangle as _AlertTriangle, MinusCircle, ChevronDown, ChevronUp, User as _UserIcon, FileDown, Printer as _Printer, Activity } from "lucide-react"; // Renamed unused Printer import
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
-import { TaskStatus } from "@prisma/client";
-import type { User as _User } from "@prisma/client"; // Prefixed with underscore to avoid unused type error
-// Import removed: SystemAnalyticsCharts
-
-// Add TypeScript declaration for window.resolve
-declare global {
-  interface Window {
-    resolve?: (url: string) => string;
-  }
-}
-
-// Dynamically import ApexCharts to avoid SSR issues
-const Chart = dynamic(() => 
-  import('react-apexcharts').then(mod => {
-    // Add a global polyfill for resolve if it doesn't exist
-    if (typeof window !== 'undefined' && !window.resolve) {
-      window.resolve = function(url: string): string {
-        return url;
-      };
-    }
-    return mod;
-  }),
-  { ssr: false }
-);
-
-// --- Analytics Specific Types and Constants ---
-
-// Define the expected structure of the fetched analytics data item
-interface AnalyticsAssignment {
-  id: string;
-  complianceLevel: ComplianceLevel | null; // Can be null if not set
-  control: {
-    id: string;
-    mainComponent: string;
-    controlNumber: string;
-  };
-}
-
-// Define the structure for processed data grouped by main component
-interface ComponentAnalytics {
-  total: number;
-  levels: {
-    [key in ComplianceLevel]: number;
-  };
-  percentages: {
-    [key in ComplianceLevel]: number;
-  };
-}
-
-interface ProcessedAnalyticsData {
-  [mainComponent: string]: ComponentAnalytics;
-}
-
-// Define ComplianceLevel Enum based on Prisma schema (Keep existing)
-enum ComplianceLevel {
-  NOT_IMPLEMENTED = "NOT_IMPLEMENTED",
-  PARTIALLY_IMPLEMENTED = "PARTIALLY_IMPLEMENTED",
-  IMPLEMENTED = "IMPLEMENTED",
-  NOT_APPLICABLE = "NOT_APPLICABLE",
-}
-
-// Mapping for display names (Arabic) (Keep existing)
-const complianceLevelLabels: Record<ComplianceLevel, string> = {
-  [ComplianceLevel.NOT_IMPLEMENTED]: "غير مطبق",
-  [ComplianceLevel.PARTIALLY_IMPLEMENTED]: "مطبق جزئيًا",
-  [ComplianceLevel.IMPLEMENTED]: "مطبق كليًا",
-  [ComplianceLevel.NOT_APPLICABLE]: "لا ينطبق",
-};
-
-// Define colors for consistency (adjust as needed)
-const complianceLevelColors: Record<ComplianceLevel, string> = {
-  [ComplianceLevel.NOT_IMPLEMENTED]: '#EF4444', // Red-500
-  [ComplianceLevel.PARTIALLY_IMPLEMENTED]: '#F59E0B', // Amber-500
-  [ComplianceLevel.IMPLEMENTED]: '#10B981', // Emerald-500
-  [ComplianceLevel.NOT_APPLICABLE]: '#6B7280', // Gray-500
-};
-
-// Order for displaying levels in charts/legends
-const complianceLevelOrder: ComplianceLevel[] = [ // Keep this for the general analytics tab
-  ComplianceLevel.IMPLEMENTED,
-  ComplianceLevel.PARTIALLY_IMPLEMENTED,
-  ComplianceLevel.NOT_IMPLEMENTED,
-  ComplianceLevel.NOT_APPLICABLE,
-];
-
-// --- Detailed Analytics Types (for the new API endpoint) ---
-interface DetailedAssignmentData {
-  id: string;
-  status: TaskStatus; // Use imported TaskStatus
-  complianceLevel: ComplianceLevel | null;
-  assignedUserId: string | null;
-  reviewRequested: boolean; // Add field for review requests
-  reviewComment?: string | null; // Optional comment for the review
-  control: {
-    id: string;
-    mainComponent: string;
-    subComponent: string | null;
-    controlNumber: string;
-    controlText: string;
-  };
-}
-
-// Structure for chart data points (as defined in the API)
-interface ChartDataPoint {
-  name: string; // Main control name
-  totalControls: number;
-  withCompliance: number;
-  withoutCompliance: number;
-} // <-- Add missing closing brace
-
-interface DetailedSystemAnalyticsResponse {
-  systemName: string;
-  assignments: DetailedAssignmentData[];
-  chartData: ChartDataPoint[]; // Expect chart data from the API
-}
-
-// Structure for processed detailed data, grouped by main component
-interface MainComponentDetailedAnalytics {
-  subControls: DetailedAssignmentData[];
-  counts: {
-    total: number;
-    finished: number; // Status = DONE
-    assigned: number; // assignedUserId is not null AND status != DONE
-    notAssigned: number; // assignedUserId is null
-    // Add compliance level counts if needed later
-  };
-}
-
-interface ProcessedDetailedAnalytics {
-  [mainComponent: string]: MainComponentDetailedAnalytics;
-}
+import { useRouter } from "next/navigation";
+import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Activity } from "lucide-react"; // Remove FileDown
+import { GeneralResultsTab } from "@/components/ui/GeneralResultsTab";
+import { OverallComplianceTab } from "@/components/ui/OverallComplianceTab";
+// Removed unused User type import
+// import type { User } from "@prisma/client";
+// Remove PDF generation imports
+// import html2canvas from "html2canvas";
+// import jsPDF from "jspdf";
 
 
 // --- Component ---
 
 // Client component
 function ResultsContent() {
-  const router = useRouter(); // Re-initialize router
+  const router = useRouter();
   // State for layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   // State for active tab, default to 'general'
   const [activeTab, setActiveTab] = useState<"general" | "overall">("general");
 
   // Auth state
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth(); // Keep only one call
 
-  // State for overall analytics
-  // State for overall analytics (General Results Tab)
-  const [analyticsData, setAnalyticsData] = useState<ProcessedAnalyticsData | null>(null);
-  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(true); // Loading for general analytics
-  const [analyticsError, setAnalyticsError] = useState<string | null>(null); // Error for general analytics
-  
-  // Reference for PDF generation
-  const overallComplianceRef = useRef<HTMLDivElement>(null);
-  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
-
-  // State for assessment data (Overall Compliance Tab)
+  // State for assessment data (needed for checking approval status)
   const [assessment, setAssessment] = useState<{id: string; assessmentName: string; logoPath?: string} | null>(null);
   const [isAssessmentLoading, setIsAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
-  
-  // State for sensitive systems count (Overall Compliance Tab)
-  const [systemsCount, setSystemsCount] = useState<number>(0);
-  const [isSystemsCountLoading, setIsSystemsCountLoading] = useState(false);
-  const [systemsCountError, setSystemsCountError] = useState<string | null>(null);
-  
-  // State for compliance counts (Overall Compliance Tab)
-  const [complianceCounts, setComplianceCounts] = useState<Record<ComplianceLevel, number>>({
-    [ComplianceLevel.IMPLEMENTED]: 0,
-    [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0,
-    [ComplianceLevel.NOT_IMPLEMENTED]: 0,
-    [ComplianceLevel.NOT_APPLICABLE]: 0
-  });
-  const [isComplianceCountsLoading, setIsComplianceCountsLoading] = useState(false);
-  const [complianceCountsError, setComplianceCountsError] = useState<string | null>(null);
-  
-  // State for system-specific compliance data (Overall Compliance Tab)
-  interface SystemComplianceData {
-    systemName: string;
-    complianceCounts: Record<ComplianceLevel, number>;
-    totalControls: number;
-  }
-  const [systemsComplianceData, setSystemsComplianceData] = useState<SystemComplianceData[]>([]);
-  const [isSystemsComplianceLoading, setIsSystemsComplianceLoading] = useState(false);
-  const [systemsComplianceError, setSystemsComplianceError] = useState<string | null>(null);
 
-  // State for detailed results (Detailed Results Tab)
-  
-  // State for approval
-  const [isApproving, setIsApproving] = useState(false);
-  const [approvalSuccess, setApprovalSuccess] = useState<string | null>(null);
-  const [approvalError, setApprovalError] = useState<string | null>(null);
-  // State for security manager approval status
-  const [securityStatusMap, setSecurityStatusMap] = useState<Record<string, string | null>>({});
-  // Define SensitiveSystemInfo interface based on expected API response structure
-  interface SensitiveSystemInfo {
-    id: string;
-    systemName: string;
-    systemDescription?: string | null;
-    department?: {
-      id: string;
-      name: string;
-      manager?: {
-        id: string;
-        name: string;
-      } | null;
-    } | null;
-    // Add other relevant fields as needed from your API
-  }
-  const [systems, setSystems] = useState<SensitiveSystemInfo[]>([]);
-  const [isSystemsLoading, setIsSystemsLoading] = useState(false); // Start false, trigger on user ID
-  const [systemsError, setSystemsError] = useState<string | null>(null);
-
-  // State for summary analytics per system (for the cards)
-  interface SystemSummaryAnalytics {
-    assigned: number;
-    finished: number;
-    // delayed: number; // Omitted for now
-  }
-  const [systemAnalytics, setSystemAnalytics] = useState<Record<string, SystemSummaryAnalytics>>({});
-  const [isSystemAnalyticsLoading, setIsSystemAnalyticsLoading] = useState(false); // Single loading state for all system summaries
-  const [systemAnalyticsError, setSystemAnalyticsError] = useState<string | null>(null);
-
-  // State for detailed view when a system is selected
-  const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
-  const [selectedSystemDetails, setSelectedSystemDetails] = useState<ProcessedDetailedAnalytics | null>(null);
-  const [_selectedSystemChartData, setSelectedSystemChartData] = useState<ChartDataPoint[] | null>(null); // Prefixed with underscore to avoid unused var error
-  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
-  const [detailsError, setDetailsError] = useState<string | null>(null);
-  const [expandedMainComponents, setExpandedMainComponents] = useState<Record<string, boolean>>({});
-
-  // --- User ID Fetch --- Removed
-  // useEffect(() => {
-  //   const fetchUserId = async () => {
-  //     // Reset states on new fetch attempt
-  //     setIsAnalyticsLoading(true);
-  //     setAnalyticsError(null);
-  //     setAnalyticsData(null);
-  //     setIsSystemsLoading(false); // Don't start system loading yet
-  //     setSystemsError(null);
-  //     setSystems([]);
-  //     try {
-  //       const response = await fetch('/api/users/security-managers');
-  //       if (!response.ok) throw new Error('Failed to fetch security managers');
-  //       const managers: User[] = await response.json();
-  //       if (managers.length > 0) {
-  //         setUserId(managers[0].id);
-  //         // Analytics and Systems fetching will be triggered by userId change in their respective useEffects
-  //       } else {
-  //         const errorMsg = "No Security Manager user found.";
-  //         setAnalyticsError(errorMsg);
-  //         setSystemsError(errorMsg); // Also set systems error
-  //         setIsAnalyticsLoading(false);
-  //         setIsSystemsLoading(false);
-  //       }
-  //     } catch (err: unknown) {
-  //       console.error("Error fetching user ID:", err);
-  //       const errorMsg = err instanceof Error ? err.message : "Failed to get user ID";
-  //       setAnalyticsError(errorMsg);
-  //       setSystemsError(errorMsg); // Also set systems error
-  //       setIsAnalyticsLoading(false);
-  //       setIsSystemsLoading(false);
-  //     }
-  //   };
-  //   fetchUserId();
-  // }, []);
-  // --- End User ID Fetch --- Removed
-
-
-  // State to track if assessment is approved
+  // State to track if assessment is approved by security manager
   const [isAssessmentApproved, setIsAssessmentApproved] = useState<boolean>(false);
   const [isCheckingApproval, setIsCheckingApproval] = useState<boolean>(false);
 
-  // --- Assessment Data Fetch (Triggered by user) ---
+  // Remove PDF generation ref and state
+  // const overallComplianceRef = useRef<HTMLDivElement>(null);
+  // const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+
+
+  // --- Assessment Data Fetch & Approval Check ---
   useEffect(() => {
     if (!user?.id) {
       if (assessment) setAssessment(null);
@@ -305,33 +53,27 @@ function ResultsContent() {
       return;
     }
 
+    // Removed duplicate user check block
+
     const userId = user.id;
 
-    // Define checkAssessmentApproval inside the useEffect to avoid dependency issues
+    // Define checkAssessmentApproval inside the useEffect
     const checkAssessmentApproval = async (assessmentId: string, securityManagerId: string) => {
       setIsCheckingApproval(true);
-      
       try {
         console.log(`Checking approval status for assessment ID: ${assessmentId}`);
+        // Assuming the sensitiveSystemId is the same as assessmentId for the overall check
         const response = await fetch(`/api/assessment-status/security-check?assessmentId=${assessmentId}&sensitiveSystemId=${assessmentId}&securityManagerId=${securityManagerId}`);
-        
         if (!response.ok) {
           throw new Error(`Failed to check approval status: ${response.statusText}`);
         }
-        
         const data = await response.json();
         const isApproved = data.securityManagerStatus === 'FINISHED';
         setIsAssessmentApproved(isApproved);
-        
         console.log(`Assessment approval status: ${isApproved ? 'Approved' : 'Not Approved'}`);
-        
-        // Only fetch data if assessment is approved
-        if (isApproved) {
-          fetchSensitiveSystemsCount(assessmentId);
-          fetchComplianceCounts(assessmentId);
-        }
       } catch (err) {
         console.error("Error checking assessment approval:", err);
+        // Optionally set an error state here
       } finally {
         setIsCheckingApproval(false);
       }
@@ -341,7 +83,6 @@ function ResultsContent() {
       setIsAssessmentLoading(true);
       setAssessmentError(null);
       setAssessment(null);
-
       try {
         console.log(`Fetching assessments for user ID: ${userId}`);
         const response = await fetch(`/api/users/${userId}/assessments`);
@@ -349,13 +90,10 @@ function ResultsContent() {
           const errorData = await response.json();
           throw new Error(errorData.error || `Failed to fetch assessments: ${response.statusText}`);
         }
-        
         const assessments = await response.json();
         if (assessments.length > 0) {
-          // Get the first assessment
           setAssessment(assessments[0]);
-          
-          // Check if assessment is approved before fetching data
+          // Check approval status after fetching the assessment
           checkAssessmentApproval(assessments[0].id, userId);
         } else {
           setAssessmentError("لا توجد تقييمات متاحة");
@@ -369,747 +107,19 @@ function ResultsContent() {
       }
     };
 
-    // Only fetch if user exists and assessment is not already loaded/loading
+    // Fetch only if user exists and assessment is not already loaded/loading
     if (user?.id && !assessment && !isAssessmentLoading) {
       fetchAssessment();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // Depend only on user
-
-  // --- End Assessment Data Fetch ---
-
-  // --- Sensitive Systems Count Fetch ---
-  const fetchSensitiveSystemsCount = async (assessmentId: string) => {
-    if (!assessmentId) return;
-    
-    setIsSystemsCountLoading(true);
-    setSystemsCountError(null);
-    
-    try {
-      console.log(`Fetching sensitive systems for assessment ID: ${assessmentId}`);
-      const response = await fetch(`/api/assessments/${assessmentId}/sensitive-systems`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to fetch sensitive systems: ${response.statusText}`);
-      }
-      
-      const systems = await response.json();
-      setSystemsCount(systems.length);
-      
-      // Fetch compliance data for each system
-      fetchSystemsComplianceData(systems, assessmentId);
-    } catch (err) {
-      console.error("Error fetching sensitive systems count:", err);
-      const errorMsg = err instanceof Error ? err.message : "An unknown error occurred.";
-      setSystemsCountError(errorMsg);
-    } finally {
-      setIsSystemsCountLoading(false);
-    }
-  };
-  // --- End Sensitive Systems Count Fetch ---
-  
-  // --- Systems Compliance Data Fetch ---
-  const fetchSystemsComplianceData = async (systems: {id: string; systemName: string}[], assessmentId: string) => {
-    if (!systems.length || !assessmentId || !user?.id) return;
-    
-    setIsSystemsComplianceLoading(true);
-    setSystemsComplianceError(null);
-    
-    try {
-      const systemsData: SystemComplianceData[] = [];
-      
-      // Process each system sequentially to avoid overwhelming the server
-      for (const system of systems) {
-        console.log(`Fetching compliance data for system ID: ${system.id}`);
-        const response = await fetch(`/api/control-assignments/analytics/by-system/${system.id}?securityManagerId=${user.id}`);
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to fetch compliance data for system: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
-        // Initialize counts
-        const counts = {
-          [ComplianceLevel.IMPLEMENTED]: 0,
-          [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0,
-          [ComplianceLevel.NOT_IMPLEMENTED]: 0,
-          [ComplianceLevel.NOT_APPLICABLE]: 0
-        };
-        
-        // Count assignments by compliance level
-        data.assignments.forEach((assignment: DetailedAssignmentData) => {
-          if (assignment.complianceLevel) {
-            counts[assignment.complianceLevel]++;
-          }
-        });
-        
-        systemsData.push({
-          systemName: system.systemName,
-          complianceCounts: counts,
-          totalControls: data.assignments.length
-        });
-      }
-      
-      setSystemsComplianceData(systemsData);
-    } catch (err) {
-      console.error("Error fetching systems compliance data:", err);
-      const errorMsg = err instanceof Error ? err.message : "An unknown error occurred.";
-      setSystemsComplianceError(errorMsg);
-    } finally {
-      setIsSystemsComplianceLoading(false);
-    }
-  };
-  // --- End Systems Compliance Data Fetch ---
-
-  // --- Compliance Counts Fetch ---
-  const fetchComplianceCounts = async (assessmentId: string) => {
-    if (!assessmentId) return;
-    
-    setIsComplianceCountsLoading(true);
-    setComplianceCountsError(null);
-    
-    try {
-      console.log(`Fetching compliance counts for assessment ID: ${assessmentId}`);
-      const response = await fetch(`/api/control-assignments/analytics?assessmentId=${assessmentId}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to fetch compliance counts: ${response.statusText}`);
-      }
-      
-      const assignments = await response.json();
-      
-      // Initialize counts
-      const counts = {
-        [ComplianceLevel.IMPLEMENTED]: 0,
-        [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0,
-        [ComplianceLevel.NOT_IMPLEMENTED]: 0,
-        [ComplianceLevel.NOT_APPLICABLE]: 0
-      };
-      
-      // Count assignments by compliance level
-      assignments.forEach((assignment: AnalyticsAssignment) => {
-        if (assignment.complianceLevel) {
-          counts[assignment.complianceLevel]++;
-        }
-      });
-      
-      setComplianceCounts(counts);
-    } catch (err) {
-      console.error("Error fetching compliance counts:", err);
-      const errorMsg = err instanceof Error ? err.message : "An unknown error occurred.";
-      setComplianceCountsError(errorMsg);
-    } finally {
-      setIsComplianceCountsLoading(false);
-    }
-  };
-  // --- End Compliance Counts Fetch ---
-
-  // --- General Analytics Data Fetch (Triggered by user) ---
-  useEffect(() => {
-    if (!user?.id) {
-      // Don't fetch if user ID is not available
-      // Ensure loading is false if user becomes null after being set
-      if (analyticsData) setAnalyticsData(null); // Clear old data if user resets
-      if (isAnalyticsLoading) setIsAnalyticsLoading(false);
-      return;
-    }
-
-    const userId = user.id; // Use authenticated user's ID
-
-    const fetchAnalyticsData = async () => {
-      setIsAnalyticsLoading(true); // Start loading for analytics
-      setAnalyticsError(null);
-      // setAnalyticsData(null); // Keep previous data while loading? Or clear? Let's clear.
-      setAnalyticsData(null);
-
-      try {
-        console.log(`Fetching general analytics for user ID: ${userId}`);
-        const response = await fetch(`/api/control-assignments/analytics?securityManagerId=${userId}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to fetch analytics data: ${response.statusText}`);
-        }
-        // --- Start of correct logic ---
-        const rawAssignments: AnalyticsAssignment[] = await response.json();
-
-        // Process the data
-        const processedData: ProcessedAnalyticsData = {};
-        rawAssignments.forEach(assignment => {
-          const component = assignment.control.mainComponent;
-          const level = assignment.complianceLevel;
-          if (!component) return;
-          if (!processedData[component]) {
-            processedData[component] = {
-              total: 0,
-              levels: { [ComplianceLevel.NOT_IMPLEMENTED]: 0, [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0, [ComplianceLevel.IMPLEMENTED]: 0, [ComplianceLevel.NOT_APPLICABLE]: 0 },
-              percentages: { [ComplianceLevel.NOT_IMPLEMENTED]: 0, [ComplianceLevel.PARTIALLY_IMPLEMENTED]: 0, [ComplianceLevel.IMPLEMENTED]: 0, [ComplianceLevel.NOT_APPLICABLE]: 0 }
-            };
-          }
-          processedData[component].total++;
-          if (level && complianceLevelLabels[level]) {
-            processedData[component].levels[level]++;
-          }
-        });
-
-        // Calculate percentages
-        Object.keys(processedData).forEach(component => {
-          const componentData = processedData[component];
-          if (componentData.total > 0) {
-            complianceLevelOrder.forEach(level => {
-              componentData.percentages[level] = parseFloat(((componentData.levels[level] / componentData.total) * 100).toFixed(1));
-            });
-          }
-        });
-
-        setAnalyticsData(processedData);
-        // --- End of correct logic ---
-
-      } catch (err: unknown) { // Changed any to unknown
-        console.error("Error fetching or processing analytics data:", err);
-        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred."; // Added type check
-        setAnalyticsError(errorMsg);
-      } finally {
-        setIsAnalyticsLoading(false);
-      }
-    };
-
-    fetchAnalyticsData();
-  }, [user]); // Only depend on user changes to prevent infinite loops
-  // --- End General Analytics Data Fetch ---
+  }, [user?.id]); // Depend only on user ID to prevent loops if user object reference changes
+  // --- End Assessment Data Fetch & Approval Check ---
 
 
-  // --- Systems List Fetch (Triggered by user) ---
-  useEffect(() => {
-  // Only fetch when user exists
-    if (!user?.id) {
-      // Don't fetch if not on detailed tab or user ID is not available
-      if (systems.length > 0) setSystems([]); // Clear old data if user resets
-      if (isSystemsLoading) setIsSystemsLoading(false);
-      return;
-    }
+  // Define estimated header height (should match AppHeader)
+  const HEADER_HEIGHT = 88; // Adjust if AppHeader styling changes
 
-    const userId = user.id; // Use authenticated user's ID
-
-    // Define fetchSystems inside the effect to avoid dependency issues
-    const fetchSystems = async () => {
-      setIsSystemsLoading(true);
-      setSystemsError(null);
-      setSystems([]); // Clear previous systems
-
-      try {
-        console.log(`Fetching systems for user ID: ${userId}`);
-        const response = await fetch(`/api/users/${userId}/sensitive-systems`); // Use authenticated user ID
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to fetch systems: ${response.statusText}`);
-        }
-        const fetchedSystems: SensitiveSystemInfo[] = await response.json();
-        setSystems(fetchedSystems);
-        
-        // Fetch security approval status for each system
-        const statusMap: Record<string, string | null> = {};
-        for (const system of fetchedSystems) {
-          try {
-            const statusResponse = await fetch(
-              `/api/assessment-status/security-check?assessmentId=${assessment?.id || ''}&sensitiveSystemId=${system.id}&securityManagerId=${userId}`
-            );
-            if (statusResponse.ok) {
-              const statusData = await statusResponse.json();
-              statusMap[system.id] = statusData.securityManagerStatus;
-              console.log(`Status for system ${system.id}:`, statusData.securityManagerStatus);
-            }
-          } catch (statusErr) {
-            console.error(`Error fetching security status for system ${system.id}:`, statusErr);
-          }
-        }
-        setSecurityStatusMap(statusMap);
-      } catch (err: unknown) {
-        console.error("Error fetching systems:", err);
-        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching systems.";
-        setSystemsError(errorMsg);
-      } finally {
-        setIsSystemsLoading(false);
-      }
-    };
-
-    // Only fetch if user and assessment ID exist and systems are not loaded/loading
-    if (user?.id && assessment?.id && systems.length === 0 && !isSystemsLoading) {
-      fetchSystems();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, assessment?.id]); // Dependencies: user object, assessment ID
-  // --- End Systems List Fetch ---
-
-
-  // --- System Summary Analytics Fetch (Triggered by user) ---
-  useEffect(() => {
-  // Only fetch when user exists
-    if (!user?.id) {
-      if (Object.keys(systemAnalytics).length > 0) setSystemAnalytics({}); // Clear old data
-      if (isSystemAnalyticsLoading) setIsSystemAnalyticsLoading(false);
-      return;
-    }
-
-    const userId = user.id; // Use authenticated user's ID
-
-    const fetchSystemAnalytics = async () => {
-      setIsSystemAnalyticsLoading(true);
-      setSystemAnalyticsError(null);
-      setSystemAnalytics({}); // Clear previous data
-
-      try {
-        console.log(`Fetching system summary analytics for user ID: ${userId}`);
-        // Use the new dedicated endpoint for summary counts
-        const response = await fetch(`/api/control-assignments/analytics/summary-by-system?securityManagerId=${userId}`); // Use authenticated user ID
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to fetch system summary analytics: ${response.statusText}`);
-        }
-        const fetchedAnalytics: Record<string, SystemSummaryAnalytics> = await response.json();
-        setSystemAnalytics(fetchedAnalytics);
-      } catch (err: unknown) {
-        console.error("Error fetching system summary analytics:", err);
-        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching system analytics.";
-        setSystemAnalyticsError(errorMsg); // Use the dedicated error state
-      } finally {
-        setIsSystemAnalyticsLoading(false);
-      }
-    };
-
-    // Only fetch if user exists and system analytics are not loaded/loading
-    if (user?.id && Object.keys(systemAnalytics).length === 0 && !isSystemAnalyticsLoading) {
-      fetchSystemAnalytics();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // Depend only on user
-  // --- End System Summary Analytics Fetch ---
-
-
-  // --- Detailed System Analytics Fetch (Triggered by selectedSystemId and user) ---
-  useEffect(() => {
-  // Only fetch when a system is selected and user exists
-    if (!selectedSystemId || !user?.id) {
-      setSelectedSystemDetails(null);
-      setSelectedSystemChartData(null); // Clear chart data too
-      setDetailsError(null);
-      if (isDetailsLoading) setIsDetailsLoading(false);
-      setExpandedMainComponents({});
-      return;
-    }
-
-    const userId = user.id; // Use authenticated user's ID
-
-  const fetchDetailedAnalytics = async () => {
-      setIsDetailsLoading(true);
-      setDetailsError(null);
-      setSelectedSystemDetails(null);
-      setSelectedSystemChartData(null); // Clear previous chart data
-      setExpandedMainComponents({});
-
-      try {
-        console.log(`Fetching detailed analytics for system ID: ${selectedSystemId}, user ID: ${userId}`);
-        const response = await fetch(`/api/control-assignments/analytics/by-system/${selectedSystemId}?securityManagerId=${userId}`); // Use authenticated user ID
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to fetch detailed analytics: ${response.statusText}`);
-        }
-        const rawData: DetailedSystemAnalyticsResponse = await response.json();
-
-        // Process the detailed data
-        const processed: ProcessedDetailedAnalytics = {};
-        
-        // Track first control in each main component to add sample review request
-        const firstControlInComponent: Record<string, boolean> = {};
-        
-        rawData.assignments.forEach(assignment => {
-          const mainComponent = assignment.control.mainComponent;
-          if (!processed[mainComponent]) {
-            processed[mainComponent] = {
-              subControls: [],
-              counts: { total: 0, finished: 0, assigned: 0, notAssigned: 0 }
-            };
-            firstControlInComponent[mainComponent] = true;
-          }
-          
-          // Add sample review request data to the first control of each component
-          // This is for demonstration purposes only
-          if (firstControlInComponent[mainComponent]) {
-            assignment.reviewRequested = true;
-            assignment.reviewComment = `طلب مراجعة من مدير القسم: يرجى التحقق من مستوى الامتثال لهذا الضابط والتأكد من صحة التقييم`;
-            firstControlInComponent[mainComponent] = false;
-          } else {
-            assignment.reviewRequested = false;
-            assignment.reviewComment = null;
-          }
-          
-          processed[mainComponent].subControls.push(assignment);
-          processed[mainComponent].counts.total++;
-
-          if (assignment.status === TaskStatus.COMPLETED) { // Correct enum member
-            processed[mainComponent].counts.finished++;
-          } else if (assignment.assignedUserId) {
-            processed[mainComponent].counts.assigned++;
-          } else {
-            processed[mainComponent].counts.notAssigned++;
-          }
-        });
-
-        // Sort subControls within each main component (optional)
-        Object.values(processed).forEach(mc => {
-          mc.subControls.sort((a, b) => a.control.controlNumber.localeCompare(b.control.controlNumber));
-        });
-
-        setSelectedSystemDetails(processed);
-        setSelectedSystemChartData(rawData.chartData); // Store the chart data
-
-      } catch (err: unknown) {
-        console.error("Error fetching detailed system analytics:", err);
-        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching detailed analytics.";
-        setDetailsError(errorMsg);
-      } finally {
-        setIsDetailsLoading(false);
-      }
-    };
-
-    // Only fetch if a system is selected, user exists, and details are not loaded/loading for this system
-    if (selectedSystemId && user?.id && !isDetailsLoading) {
-      // Optional: Add a check if details for this specific system are already loaded
-      // if (!selectedSystemDetails || !selectedSystemDetails[systems.find(s => s.id === selectedSystemId)?.systemName || '']) {
-      fetchDetailedAnalytics();
-      // }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSystemId, user]); // Dependencies: selectedSystemId and user object
-  // --- End Detailed System Analytics Fetch ---
-
-  // --- Chart Options (For General Analytics Tab) ---
-  const mainComponents = analyticsData ? Object.keys(analyticsData).sort() : [];
-
-  const _stackedBarSeries = analyticsData ? complianceLevelOrder.map(level => ({
-    name: complianceLevelLabels[level],
-    data: mainComponents.map(component => analyticsData[component]?.percentages[level] || 0)
-  })) : [];
-
-  const _stackedBarOptions: ApexCharts.ApexOptions = {
-    chart: { type: 'bar', stacked: true, stackType: '100%', toolbar: { show: true }, fontFamily: 'inherit' },
-    plotOptions: { bar: { horizontal: false } },
-    xaxis: { categories: mainComponents, labels: { style: { fontFamily: 'inherit' } } },
-    yaxis: { labels: { formatter: (val) => `${val.toFixed(0)}%`, style: { fontFamily: 'inherit' } } },
-    colors: complianceLevelOrder.map(level => complianceLevelColors[level]),
-    legend: { position: 'top', horizontalAlign: 'center', fontFamily: 'inherit', markers: { offsetX: 5 } },
-    tooltip: { y: { formatter: (val) => `${val.toFixed(1)}%` }, style: { fontFamily: 'inherit' } },
-    dataLabels: { enabled: false },
-    grid: { borderColor: '#e7e7e7', row: { colors: ['#f3f3f3', 'transparent'], opacity: 0.5 } },
-  };
- // --- End Chart Options ---
-
- // --- Polar Area Chart Options (For General Analytics Tab) ---
- const polarSeries = analyticsData
-   ? mainComponents.map(
-       (component) =>
-         analyticsData[component]?.percentages[ComplianceLevel.IMPLEMENTED] || 0
-     )
-   : [];
- const polarOptions: ApexCharts.ApexOptions = {
-   chart: { type: 'polarArea', fontFamily: 'inherit' },
-   labels: mainComponents,
-   fill: { opacity: 0.8 },
-   stroke: { width: 1 },
-   legend: { position: 'bottom', fontFamily: 'inherit' },
-   tooltip: { y: { formatter: (val) => `${val.toFixed(1)}%` }, style: { fontFamily: 'inherit' } }
- };
- // --- End Polar Area Chart Options ---
-
-
-  // --- Render Logic for General Analytics Tab ---
-  const renderGeneralAnalyticsContent = () => {
-    if (isAnalyticsLoading) {
-      return (
-        <div className="flex justify-center items-center h-[calc(100vh-250px)]"> {/* Adjusted height for tabs */}
-          <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
-          <span className="mr-2">جاري تحميل بيانات النتائج العامة...</span>
-        </div>
-      );
-    }
-
-    if (analyticsError) {
-      return (
-        <div className="flex justify-center items-center h-[calc(100vh-250px)] text-red-600"> {/* Adjusted height */}
-          <AlertCircle className="h-6 w-6" />
-          <span className="mr-2">خطأ في تحميل النتائج العامة: {analyticsError}</span>
-        </div>
-      );
-    }
-
-    if (!analyticsData || mainComponents.length === 0) {
-      return (
-        <div className="text-center py-10 text-gray-600">
-          لا توجد بيانات نتائج عامة لعرضها.
-        </div>
-      );
-    }
-
-    // Actual chart rendering for general analytics
-    return (
-      <div className="space-y-6 pt-4"> {/* Add padding top */}
-        {/* Overall Stacked Bar Chart */}
-        <Card className="shadow-md">
-          <CardHeader className="bg-gray-50 rounded-t-lg">
-            <CardTitle className="text-lg font-semibold text-slate-700">نظرة عامة على الامتثال حسب المكون الرئيسي</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4">
-            <Chart options={polarOptions} series={polarSeries} type="polarArea" height={350} width="100%" />
-          </CardContent>
-        </Card>
-
-        {/* Individual Doughnut Charts per Component */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {mainComponents.map((component) => {
-            const componentData = analyticsData[component];
-            if (!componentData) return null;
-
-            const doughnutSeries = complianceLevelOrder.map(level => componentData.levels[level]);
-            const doughnutLabels = complianceLevelOrder.map(level => complianceLevelLabels[level]);
-            const doughnutColors = complianceLevelOrder.map(level => complianceLevelColors[level]);
-
-            const doughnutOptions: ApexCharts.ApexOptions = {
-              chart: { type: 'donut', fontFamily: 'inherit' },
-              labels: doughnutLabels,
-              colors: doughnutColors,
-              legend: { position: 'bottom', fontFamily: 'inherit' },
-              tooltip: { y: { formatter: (val) => `${val} (${((val / componentData.total) * 100).toFixed(1)}%)` }, style: { fontFamily: 'inherit' } },
-              dataLabels: { enabled: true, formatter: (val) => `${parseFloat(val as string).toFixed(1)}%`, style: { fontFamily: 'inherit' } },
-              plotOptions: { pie: { donut: { labels: { show: true, total: { show: true, label: 'الإجمالي', formatter: () => componentData.total.toString() } } } } },
-              responsive: [{ breakpoint: 480, options: { chart: { width: 200 }, legend: { position: 'bottom' } } }]
-            };
-
-            return (
-              <Card key={component} className="shadow-md">
-                <CardHeader className="bg-gray-50 rounded-t-lg py-3 px-4">
-                  <CardTitle className="text-base font-semibold truncate text-slate-700" title={component}>{component}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                  <Chart options={doughnutOptions} series={doughnutSeries} type="donut" height={300} width="100%" />
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div> {/* Closing tag for the grid div */}
-      </div> // Closing tag for the main space-y-6 div
-    );
-  };
-  // --- End Render Logic for General Analytics Tab ---
-
-
-  // --- Render Logic for Detailed Results Tab ---
-  const renderDetailedResultsContent = () => {
-    // Combined loading state check
-    if (isSystemsLoading || isSystemAnalyticsLoading) {
-      return (
-        <div className="flex justify-center items-center h-[calc(100vh-250px)]">
-          <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
-          <span className="mr-2">جاري تحميل بيانات الأنظمة والنتائج...</span>
-        </div>
-      );
-    }
-
-    // Combined error state check
-    const combinedError = systemsError || systemAnalyticsError;
-    if (combinedError) {
-      return (
-        <div className="flex justify-center items-center h-[calc(100vh-250px)] text-red-600">
-          <AlertCircle className="h-6 w-6" />
-          <span className="mr-2">خطأ في تحميل البيانات: {combinedError}</span>
-        </div>
-      );
-    }
-
-    if (systems.length === 0) {
-      return (
-        <div className="text-center py-10 text-gray-600">
-          لم يتم العثور على أنظمة حساسة مرتبطة بهذا المستخدم.
-        </div>
-      );
-    }
-
-    // Render system boxes
-    return (
-      <div className="space-y-6 pt-4" dir="rtl"> {/* Ensure container has dir */}
-         <h2 className="text-xl font-bold text-slate-800 text-right">النتائج المفصلة لكل نظام</h2>
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {systems.map((system) => (
-              <Card
-                key={system.id}
-                className="shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => {
-                  // Reset expansion state when selecting a new system or deselecting
-                  setExpandedMainComponents({});
-                  setSelectedSystemId(system.id === selectedSystemId ? null : system.id);
-                }}
-              >
-                <CardHeader className="bg-gray-50 rounded-t-lg py-3 px-4">
-                  <CardTitle className="text-base font-semibold text-slate-700 flex items-center gap-2 truncate">
-                      <Server className="h-4 w-4 text-nca-teal" />
-                     {system.systemName}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-2 text-sm">
-                  {/* Display fetched control counts */}
-                  <div className="flex justify-between items-center text-gray-600">
-                    <span>الضوابط المكتملة:</span>
-                    <span className={`font-medium ${systemAnalytics[system.id]?.finished > 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                      {systemAnalytics[system.id]?.finished ?? '--'} / 105
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-gray-600">
-                    <span>الضوابط المعينة:</span>
-                     <span className={`font-medium ${systemAnalytics[system.id]?.assigned > 0 ? 'text-blue-600' : 'text-gray-500'}`}>
-                       {systemAnalytics[system.id]?.assigned ?? '--'} / 105
-                     </span>
-                  </div>
-                   <div className="flex justify-between items-center text-gray-600">
-                    <span>الضوابط المتأخرة:</span>
-                    <span className="font-medium text-red-600">-- / 105</span> {/* Still Placeholder */}
-                  </div>
-                  {/* Department Managers */}
-                  {system.department?.manager && (
-                     <div className="flex items-center gap-2 pt-2 border-t mt-2 text-gray-700">
-                       <Building className="h-4 w-4 text-gray-500"/>
-                       <span>مدير القسم: {system.department.manager.name} ({system.department.name})</span>
-                     </div>
-                  )}
-                   {/* TODO: Fetch and display actual counts and potentially more manager info */}
-                </CardContent>
-              </Card>
-            ))}
-         </div> {/* Closing tag for the grid div */}
-
-         {/* Detailed View Area (Placeholder) */}
-          {/* --- Detailed View Area --- */}
-          {selectedSystemId && (
-            <div className="mt-6" dir="rtl"> {/* Ensure container has dir */}
-              <h3 className="text-lg font-semibold text-slate-800 mb-3 text-right">
-                تفاصيل النظام: {systems.find(s => s.id === selectedSystemId)?.systemName}
-              </h3>
-              {isDetailsLoading && (
-                <div className="flex justify-center items-center p-6 bg-white rounded shadow">
-                  <Loader2 className="h-6 w-6 animate-spin text-nca-teal" />
-                  <span className="mr-2">جاري تحميل التفاصيل...</span>
-                </div>
-              )}
-              {detailsError && (
-                <div className="flex justify-center items-center p-6 bg-red-50 text-red-700 rounded shadow">
-                  <AlertCircle className="h-5 w-5" />
-                  <span className="mr-2">خطأ في تحميل التفاصيل: {detailsError}</span>
-                </div>
-              )}
-              {selectedSystemDetails && !isDetailsLoading && !detailsError && (
-                <div className="space-y-4">
-                  {Object.entries(selectedSystemDetails)
-                    .sort(([mainA], [mainB]) => mainA.localeCompare(mainB)) // Sort main components alphabetically
-                    .map(([mainComponent, data]) => (
-                    <Card key={mainComponent} className="shadow-sm border border-gray-200">
-                      <CardHeader
-                        className="bg-gray-100 rounded-t-md p-3 flex flex-row justify-between items-center cursor-pointer hover:bg-gray-200"
-                        onClick={() => setExpandedMainComponents(prev => ({ ...prev, [mainComponent]: !prev[mainComponent] }))}
-                      >
-                        <CardTitle className="text-base font-medium text-slate-700">{mainComponent}</CardTitle>
-                        <div className="flex items-center gap-4 text-xs text-gray-600">
-                           <span>الإجمالي: {data.counts.total}</span>
-                           <span className="text-green-600">مكتمل: {data.counts.finished}</span>
-                           <span className="text-blue-600">معين: {data.counts.assigned}</span>
-                           <span className="text-orange-600">غير معين: {data.counts.notAssigned}</span>
-                           {expandedMainComponents[mainComponent] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </div>
-                      </CardHeader>
-                      {expandedMainComponents[mainComponent] && (
-                        <CardContent className="p-0"> {/* Remove padding for table */}
-                          <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200 text-sm">
-                              <thead className="bg-gray-50">
-                                <tr>
-                                  <th scope="col" className="px-4 py-2 text-right font-medium text-gray-500 tracking-wider">رقم الضابط</th>
-                                  <th scope="col" className="px-4 py-2 text-right font-medium text-gray-500 tracking-wider">نص الضابط / المكون الفرعي</th>
-                                  <th scope="col" className="px-4 py-2 text-center font-medium text-gray-500 tracking-wider">الحالة</th>
-                                  <th scope="col" className="px-4 py-2 text-center font-medium text-gray-500 tracking-wider">مستوى الامتثال</th>
-                                  <th scope="col" className="px-4 py-2 text-center font-medium text-gray-500 tracking-wider">طلب مراجعة</th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
-                                {data.subControls.map(assignment => (
-                                  <tr key={assignment.id}>
-                                    <td className="px-4 py-2 whitespace-nowrap text-gray-700">{assignment.control.controlNumber}</td>
-                                    <td className="px-4 py-2 text-gray-700">{assignment.control.subComponent || assignment.control.controlText}</td>
-                                    <td className="px-4 py-2 text-center whitespace-nowrap">
-                                      {assignment.status === TaskStatus.COMPLETED ? ( // Correct enum member
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                          <CheckCircle className="h-3 w-3 mr-1" /> مكتمل
-                                        </span>
-                                      ) : assignment.assignedUserId ? (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                          <_UserIcon className="h-3 w-3 mr-1" /> معين
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                          <MinusCircle className="h-3 w-3 mr-1" /> غير معين
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-2 text-center whitespace-nowrap">
-                                      {assignment.complianceLevel ? (
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium`}
-                                              style={{
-                                                backgroundColor: `${complianceLevelColors[assignment.complianceLevel]}20`, // Add alpha for background
-                                                color: complianceLevelColors[assignment.complianceLevel]
-                                              }}>
-                                          {complianceLevelLabels[assignment.complianceLevel]}
-                                        </span>
-                                      ) : (
-                                        <span className="text-gray-400">-</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-2 text-center whitespace-nowrap">
-                                      {assignment.reviewRequested ? (
-                                        <div className="group relative">
-                                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 cursor-help">
-                                            <AlertCircle className="h-4 w-4" />
-                                          </span>
-                                          {assignment.reviewComment && (
-                                            <div className="absolute z-10 hidden group-hover:block bg-white border border-gray-200 rounded-md shadow-lg p-2 w-64 text-right text-xs text-gray-700 right-0 mt-1">
-                                              <p className="font-bold mb-1">تعليق المراجعة:</p>
-                                              <p>{assignment.reviewComment}</p>
-                                            </div>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-gray-400">-</span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </CardContent>
-                      )}
-                    </Card>
-                  ))}
-
-
-                     </div>
-                   )}
-                   
-                 </div>
-               )}
-          {/* --- End Detailed View Area --- */}
-      </div>
-    );
-  };
-  // --- End Render Logic for Detailed Results Tab ---
-
-  // Handle loading and unauthenticated states
+  // Handle loading and unauthenticated states FIRST
   if (authLoading) {
     return <div className="flex justify-center items-center min-h-screen">جاري التحميل...</div>;
   }
@@ -1123,9 +133,7 @@ function ResultsContent() {
     return <div className="flex justify-center items-center min-h-screen">غير مصرح لك بالوصول لهذه الصفحة.</div>;
   }
 
-  // Define estimated header height (should match AppHeader)
-  const HEADER_HEIGHT = 88; // Adjust if AppHeader styling changes
-
+  // Now render the main component structure
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
       {/* Use shared AppHeader */}
@@ -1208,7 +216,7 @@ function ResultsContent() {
                <TabsTrigger value="general" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-4 cursor-pointer">النتائج العامة</TabsTrigger>
                <TabsTrigger value="overall" className="text-right data-[state=active]:border-b-2 data-[state=active]:border-nca-dark-blue data-[state=active]:text-nca-dark-blue pb-2 px-4 cursor-pointer">المستوى العام للالتزام</TabsTrigger>
              </TabsList>
-             <TabsContent value="general" dir="rtl"> {/* Ensure content has dir */}
+             <TabsContent value="general" dir="rtl">
                {isCheckingApproval ? (
                  <div className="flex justify-center items-center h-[calc(100vh-250px)]">
                    <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
@@ -1219,7 +227,7 @@ function ResultsContent() {
                    <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
                    <h3 className="text-xl font-bold text-slate-800 mb-2">لم يتم اعتماد التقييم بعد</h3>
                    <p className="text-gray-600 mb-6">يجب اعتماد التقييم من قبل مدير الأمن قبل عرض النتائج</p>
-                   <Button 
+                   <Button
                      onClick={() => router.push('/security-manager')}
                      className="bg-nca-dark-blue hover:bg-nca-teal text-white"
                    >
@@ -1227,458 +235,25 @@ function ResultsContent() {
                    </Button>
                  </div>
                ) : (
-                 /* Render the general analytics content, loading, or error state */
-                 renderGeneralAnalyticsContent()
+                 /* Render the GeneralResultsTab component */
+                 <GeneralResultsTab
+                   user={user}
+                   isAssessmentApproved={isAssessmentApproved}
+                   isCheckingApproval={isCheckingApproval}
+                 />
                )}
              </TabsContent>
-             <TabsContent value="overall" dir="rtl"> {/* Overall Compliance Tab */}
-               {isCheckingApproval ? (
-                 <div className="flex justify-center items-center h-[calc(100vh-250px)]">
-                   <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
-                   <span className="mr-2">جاري التحقق من حالة الاعتماد...</span>
-                 </div>
-               ) : !isAssessmentApproved ? (
-                 <div className="flex flex-col justify-center items-center h-[calc(100vh-250px)] text-center">
-                   <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
-                   <h3 className="text-xl font-bold text-slate-800 mb-2">لم يتم اعتماد التقييم بعد</h3>
-                   <p className="text-gray-600 mb-6">يجب اعتماد التقييم من قبل مدير الأمن قبل عرض النتائج</p>
-                   <Button 
-                     onClick={() => router.push('/security-manager')}
-                     className="bg-nca-dark-blue hover:bg-nca-teal text-white"
-                   >
-                     العودة إلى لوحة المعلومات
-                   </Button>
-                 </div>
-               ) : isAssessmentLoading || isSystemsCountLoading || isComplianceCountsLoading ? (
-                 <div className="flex justify-center items-center h-[calc(100vh-250px)]">
-                   <Loader2 className="h-8 w-8 animate-spin text-nca-teal" />
-                   <span className="mr-2">جاري تحميل بيانات المستوى العام للالتزام...</span>
-                 </div>
-               ) : assessmentError || systemsCountError || complianceCountsError ? (
-                 <div className="flex justify-center items-center h-[calc(100vh-250px)] text-red-600">
-                   <AlertCircle className="h-6 w-6" />
-                   <span className="mr-2">خطأ في تحميل البيانات: {assessmentError || systemsCountError || complianceCountsError}</span>
-                 </div>
-               ) : !assessment ? (
-                 <div className="text-center py-10 text-gray-600">
-                   لا توجد تقييمات متاحة لعرض المستوى العام للالتزام.
-                 </div>
-               ) : (
-                 <div ref={overallComplianceRef} className="space-y-6 pt-4">
-                   {/* Assessment Logo and Name */}
-                   <div className="text-center mb-8">
-                     {/* Print Button */}
-                     <div className="flex justify-end mb-4">
-                       <Button 
-                         onClick={() => {
-                           if (!overallComplianceRef.current) return;
-                           
-                           setIsPdfGenerating(true);
-                           
-                           // Use setTimeout to allow the loading state to render
-                           setTimeout(() => {
-                             const content = overallComplianceRef.current;
-                             
-                             if (!content) {
-                               setIsPdfGenerating(false);
-                               return;
-                             }
-                             
-                             html2canvas(content, {
-                               scale: 2, // Higher scale for better quality
-                               useCORS: true, // Allow images from other domains
-                               logging: false,
-                               onclone: (document) => {
-                                 // Any modifications to the cloned document before rendering
-                                 const buttons = document.querySelectorAll('button');
-                                 buttons.forEach(button => {
-                                   if (button.textContent?.includes('تصدير') || 
-                                       button.textContent?.includes('طباعة')) {
-                                     button.style.display = 'none';
-                                   }
-                                 });
-                               }
-                             }).then(canvas => {
-                               const imgData = canvas.toDataURL('image/png');
-                               const pdf = new jsPDF({
-                                 orientation: 'portrait',
-                                 unit: 'mm',
-                                 format: 'a4'
-                               });
-                               
-                               const imgWidth = 210; // A4 width in mm
-                               const imgHeight = canvas.height * imgWidth / canvas.width;
-                               
-                               let position = 0;
-                               
-                               // Add image to PDF
-                               pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                               
-                               // If content is longer than one page, add more pages
-                               const pageHeight = 295; // A4 height in mm
-                               
-                                 if (imgHeight > pageHeight) {
-                                 let remainingHeight = imgHeight;
-                                 
-                                 while (remainingHeight > 0) {
-                                   position -= pageHeight;
-                                   remainingHeight -= pageHeight;
-                                   
-                                   if (remainingHeight > 0) {
-                                     pdf.addPage();
-                                     pdf.addImage(
-                                       imgData, 
-                                       'PNG', 
-                                       0, 
-                                       position, 
-                                       imgWidth, 
-                                       imgHeight
-                                     );
-                                   }
-                                 }
-                               }
-                               
-                               // Save the PDF
-                               pdf.save(`تقرير_المستوى_العام_للالتزام_${new Date().toLocaleDateString('ar-SA')}.pdf`);
-                               setIsPdfGenerating(false);
-                             }).catch(err => {
-                               console.error("Error generating PDF:", err);
-                               setIsPdfGenerating(false);
-                             });
-                           }, 100);
-                         }}
-                         disabled={isPdfGenerating}
-                         className="bg-nca-teal hover:bg-nca-dark-blue text-white"
-                       >
-                         {isPdfGenerating ? (
-                           <>
-                             <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                             جاري التصدير...
-                           </>
-                         ) : (
-                           <>
-                             <FileDown className="h-4 w-4 ml-2" />
-                             تصدير PDF
-                           </>
-                         )}
-                       </Button>
-                     </div>
-                     
-                     {assessment.logoPath && (
-                       <div>
-                         {/* Using next/image for better performance */}
-                         <Image 
-                           src={assessment.logoPath} 
-                           alt={assessment.assessmentName} 
-                           className="mx-auto h-24 w-auto mb-4"
-                           width={96}
-                           height={96}
-                         />
-                       </div>
-                     )}
-                     <h2 className="text-xl font-bold text-slate-800">{assessment.assessmentName}</h2>
-                     <h3 className="text-lg font-medium text-slate-600 mt-2">المستوى العام للالتزام</h3>
-                   </div>
-                   
-                   {/* Two-column grid */}
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     {/* Left column: Pie chart */}
-                     <Card className="shadow-md">
-                       <CardHeader className="bg-gray-50 rounded-t-lg">
-                         <CardTitle className="text-lg font-semibold text-slate-700">توزيع مستويات الالتزام</CardTitle>
-                       </CardHeader>
-                       <CardContent className="p-4">
-                         {Object.values(complianceCounts).every(count => count === 0) ? (
-                           <div className="text-center py-10 text-gray-600">
-                             لا توجد بيانات التزام لعرضها.
-                           </div>
-                         ) : (
-                           <Chart 
-                             options={{
-                               chart: { type: 'pie', fontFamily: 'inherit' },
-                               labels: complianceLevelOrder.map(level => complianceLevelLabels[level]),
-                               colors: complianceLevelOrder.map(level => complianceLevelColors[level]),
-                               legend: { position: 'bottom', fontFamily: 'inherit' },
-                               tooltip: { 
-                                 y: { 
-                                   formatter: (val) => `${val} ضابط` 
-                                 }, 
-                                 style: { fontFamily: 'inherit' } 
-                               },
-                               dataLabels: { 
-                                 enabled: true, 
-                                 formatter: (val, opts) => {
-                                   const total = opts.w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
-                                   if (total === 0) return '0%';
-                                   return `${((opts.w.globals.series[opts.seriesIndex] / total) * 100).toFixed(1)}%`;
-                                 },
-                                 style: { fontFamily: 'inherit' } 
-                               },
-                             }} 
-                             series={complianceLevelOrder.map(level => complianceCounts[level])} 
-                             type="pie" 
-                             height={350} 
-                             width="100%" 
-                           />
-                         )}
-                       </CardContent>
-                     </Card>
-                     
-                     {/* Right column: Stat card */}
-                     <Card className="shadow-md">
-                       <CardHeader className="bg-gray-50 rounded-t-lg">
-                         <CardTitle className="text-lg font-semibold text-slate-700">إحصائيات التقييم</CardTitle>
-                       </CardHeader>
-                       <CardContent className="p-6">
-                         <div className="text-center">
-                           <h4 className="text-xl font-bold text-slate-800 mb-2">عدد الأنظمة الحساسة</h4>
-                           <div className="text-4xl font-bold text-nca-teal">{systemsCount}</div>
-                           
-                           <div className="mt-8">
-                             <h4 className="text-xl font-bold text-slate-800 mb-4">إجمالي الضوابط</h4>
-                             <div className="text-3xl font-bold text-slate-700">
-                               {Object.values(complianceCounts).reduce((sum, count) => sum + count, 0)}
-                             </div>
-                           </div>
-                         </div>
-                       </CardContent>
-                     </Card>
-                   </div>
-                   
-                   {/* Compliance levels table */}
-                   <Card className="shadow-md">
-                     <CardHeader className="bg-gray-50 rounded-t-lg">
-                       <CardTitle className="text-lg font-semibold text-slate-700">تفاصيل مستويات الالتزام</CardTitle>
-                     </CardHeader>
-                     <CardContent className="p-0"> {/* Remove padding for table */}
-                       <div className="overflow-x-auto">
-                         <table className="min-w-full divide-y divide-gray-200">
-                           <thead className="bg-gray-50">
-                             <tr>
-                               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">مستوى الالتزام</th>
-                               <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">عدد الضوابط</th>
-                               <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">النسبة المئوية</th>
-                             </tr>
-                           </thead>
-                           <tbody className="bg-white divide-y divide-gray-200">
-                             {complianceLevelOrder.map(level => {
-                               const count = complianceCounts[level];
-                               const total = Object.values(complianceCounts).reduce((sum, c) => sum + c, 0);
-                               const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
-                               
-                               return (
-                                 <tr key={level}>
-                                   <td className="px-6 py-4 whitespace-nowrap">
-                                     <div className="flex items-center">
-                                       <div className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: complianceLevelColors[level] }}></div>
-                                       <div className="text-sm font-medium text-gray-900">{complianceLevelLabels[level]}</div>
-                                     </div>
-                                   </td>
-                                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">{count}</td>
-                                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">{percentage}%</td>
-                                 </tr>
-                               );
-                             })}
-                             <tr className="bg-gray-50 font-medium">
-                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">الإجمالي</td>
-                               <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
-                                 {Object.values(complianceCounts).reduce((sum, count) => sum + count, 0)}
-                               </td>
-                               <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">100%</td>
-                             </tr>
-                           </tbody>
-                         </table>
-                       </div>
-                     </CardContent>
-                   </Card>
-                   
-                   {/* System-specific compliance sections */}
-                   {isSystemsComplianceLoading ? (
-                     <div className="flex justify-center items-center py-8">
-                       <Loader2 className="h-6 w-6 animate-spin text-nca-teal" />
-                       <span className="mr-2">جاري تحميل بيانات الأنظمة...</span>
-                     </div>
-                   ) : systemsComplianceError ? (
-                     <div className="flex justify-center items-center py-8 text-red-600">
-                       <AlertCircle className="h-5 w-5" />
-                       <span className="mr-2">خطأ في تحميل بيانات الأنظمة: {systemsComplianceError}</span>
-                     </div>
-                   ) : systemsComplianceData.length === 0 ? (
-                     <div className="text-center py-8 text-gray-600">
-                       لا توجد بيانات أنظمة لعرضها.
-                     </div>
-                   ) : (
-                     <div className="mt-12">
-                       <h2 className="text-xl font-bold text-slate-800 text-center mb-8">مستوى الالتزام لكل نظام</h2>
-                       
-                       {systemsComplianceData.map((system, index) => (
-                         <div key={index} className="mb-12 pb-12 border-b border-gray-200 last:border-0">
-                           <h3 className="text-lg font-bold text-slate-800 text-center mb-6">
-                             مستوى نظام {system.systemName}
-                           </h3>
-                           
-                           {/* Two-column grid for system */}
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                             {/* Left column: Pie chart */}
-                             <Card className="shadow-md">
-                               <CardHeader className="bg-gray-50 rounded-t-lg">
-                                 <CardTitle className="text-lg font-semibold text-slate-700">توزيع مستويات الالتزام</CardTitle>
-                               </CardHeader>
-                               <CardContent className="p-4">
-                                 {Object.values(system.complianceCounts).every(count => count === 0) ? (
-                                   <div className="text-center py-10 text-gray-600">
-                                     لا توجد بيانات التزام لعرضها.
-                                   </div>
-                                 ) : (
-                                   <Chart 
-                                     options={{
-                                       chart: { type: 'pie', fontFamily: 'inherit' },
-                                       labels: complianceLevelOrder.map(level => complianceLevelLabels[level]),
-                                       colors: complianceLevelOrder.map(level => complianceLevelColors[level]),
-                                       legend: { position: 'bottom', fontFamily: 'inherit' },
-                                       tooltip: { 
-                                         y: { 
-                                           formatter: (val) => `${val} ضابط` 
-                                         }, 
-                                         style: { fontFamily: 'inherit' } 
-                                       },
-                                       dataLabels: { 
-                                         enabled: true, 
-                                         formatter: (val, opts) => {
-                                           const total = opts.w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
-                                           if (total === 0) return '0%';
-                                           return `${((opts.w.globals.series[opts.seriesIndex] / total) * 100).toFixed(1)}%`;
-                                         },
-                                         style: { fontFamily: 'inherit' } 
-                                       },
-                                     }} 
-                                     series={complianceLevelOrder.map(level => system.complianceCounts[level])} 
-                                     type="pie" 
-                                     height={350} 
-                                     width="100%" 
-                                   />
-                                 )}
-                               </CardContent>
-                             </Card>
-                             
-                             {/* Right column: Stat card */}
-                             <Card className="shadow-md">
-                               <CardHeader className="bg-gray-50 rounded-t-lg">
-                                 <CardTitle className="text-lg font-semibold text-slate-700">إحصائيات النظام</CardTitle>
-                               </CardHeader>
-                               <CardContent className="p-6">
-                                 <div className="text-center">
-                                   <h4 className="text-xl font-bold text-slate-800 mb-2">اسم النظام</h4>
-                                   <div className="text-2xl font-bold text-nca-teal mb-8">{system.systemName}</div>
-                                   
-                                   <h4 className="text-xl font-bold text-slate-800 mb-4">إجمالي الضوابط</h4>
-                                   <div className="text-3xl font-bold text-slate-700">
-                                     {system.totalControls}
-                                   </div>
-                                 </div>
-                               </CardContent>
-                             </Card>
-                           </div>
-                           
-                           {/* Compliance levels table for system */}
-                           <Card className="shadow-md">
-                             <CardHeader className="bg-gray-50 rounded-t-lg">
-                               <CardTitle className="text-lg font-semibold text-slate-700">تفاصيل مستويات الالتزام</CardTitle>
-                             </CardHeader>
-                             <CardContent className="p-0"> {/* Remove padding for table */}
-                               <div className="overflow-x-auto">
-                                 <table className="min-w-full divide-y divide-gray-200">
-                                   <thead className="bg-gray-50">
-                                     <tr>
-                                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">مستوى الالتزام</th>
-                                       <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">عدد الضوابط</th>
-                                       <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">النسبة المئوية</th>
-                                     </tr>
-                                   </thead>
-                                   <tbody className="bg-white divide-y divide-gray-200">
-                                     {complianceLevelOrder.map(level => {
-                                       const count = system.complianceCounts[level];
-                                       const total = Object.values(system.complianceCounts).reduce((sum, c) => sum + c, 0);
-                                       const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
-                                       
-                                       return (
-                                         <tr key={level}>
-                                           <td className="px-6 py-4 whitespace-nowrap">
-                                             <div className="flex items-center">
-                                               <div className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: complianceLevelColors[level] }}></div>
-                                               <div className="text-sm font-medium text-gray-900">{complianceLevelLabels[level]}</div>
-                                             </div>
-                                           </td>
-                                           <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">{count}</td>
-                                           <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">{percentage}%</td>
-                                         </tr>
-                                       );
-                                     })}
-                                     <tr className="bg-gray-50 font-medium">
-                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">الإجمالي</td>
-                                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
-                                         {Object.values(system.complianceCounts).reduce((sum, count) => sum + count, 0)}
-                                       </td>
-                                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">100%</td>
-                                     </tr>
-                                   </tbody>
-                                 </table>
-                               </div>
-                             </CardContent>
-                           </Card>
-                         </div>
-                       ))}
-                       
-                       {/* Signature Section */}
-                       <div className="mt-16 mb-10">
-                         <div className="border-t border-gray-300 pt-8">
-                           <h2 className="text-xl font-bold text-slate-800 text-center mb-6">اعتماد مدير الأمن</h2>
-                           
-                           <div className="flex flex-col items-center">
-                             {/* Signature Box */}
-                             <div className="border-2 border-dashed border-gray-400 rounded-md w-64 h-32 mb-6 flex items-center justify-center bg-gray-50">
-                               <span className="text-gray-400 text-sm"></span>
-                             </div>
-                             
-                             
-                             
-                             {/* Display approval success/error messages */}
-                             {approvalSuccess && (
-                               <div className="fixed bottom-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50">
-                                 <span className="block sm:inline">{approvalSuccess}</span>
-                               </div>
-                             )}
-                             {approvalError && (
-                               <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
-                                 <span className="block sm:inline">{approvalError}</span>
-                               </div>
-                             )}
-                             
-                             {/* Name and Date */}
-                             <div className="grid grid-cols-2 gap-8 w-full max-w-lg">
-                               <div className="flex flex-col items-center">
-                                 <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
-                                   &nbsp;
-                                 </div>
-                                 <span className="text-sm text-gray-600">الاسم</span>
-                               </div>
-                               
-                               <div className="flex flex-col items-center">
-                                 <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
-                                   &nbsp;
-                                 </div>
-                                 <span className="text-sm text-gray-600">التاريخ</span>
-                               </div>
-                             </div>
-                             
-                             
-                           </div>
-                         </div>
-                       </div>
-                     </div>
-                   )}
-                 </div>
-               )}
+             <TabsContent value="overall" dir="rtl">
+               {/* Render the OverallComplianceTab component */}
+               <OverallComplianceTab
+                 user={user}
+                 assessment={assessment}
+                 isAssessmentLoading={isAssessmentLoading}
+                 assessmentError={assessmentError}
+                 isAssessmentApproved={isAssessmentApproved}
+                 isCheckingApproval={isCheckingApproval}
+                 // Remove props related to PDF generation
+               />
              </TabsContent>
            </Tabs>
         </main>
