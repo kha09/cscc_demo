@@ -9,17 +9,20 @@ import { AlertCircle, Loader2, FileDown } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import type { User } from "@prisma/client"; // Assuming User type is needed
+import type { Props as ReactApexChartProps } from 'react-apexcharts'; // Import chart props type
 
 // Dynamically import ApexCharts to avoid SSR issues
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
 // Polyfill for potential ApexCharts issue (ReferenceError: resolve is not defined)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 if (typeof window !== 'undefined' && typeof (window as any).resolve !== 'function') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).resolve = function() {};
 }
 
 // Helper component to delay chart rendering until mounted client-side
-const ClientOnlyChart = (props: any) => {
+const ClientOnlyChart = (props: ReactApexChartProps) => { // Use imported type
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -475,8 +478,9 @@ export function OverallComplianceTab({
                   },
                   dataLabels: {
                     enabled: true,
-                    // Add types for val and opts
-                    formatter: (val: number, opts: { seriesIndex: number; w: any }) => { 
+                    // Add types for val and opts, disable lint for w: any
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    formatter: (val: number, opts: { seriesIndex: number; w: any }) => {
                       const total = opts.w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
                       if (total === 0) return '0%';
                       // Ensure series value is treated as a number
@@ -619,7 +623,8 @@ export function OverallComplianceTab({
                           },
                           dataLabels: {
                             enabled: true,
-                             // Add types for val and opts
+                             // Add types for val and opts, disable lint for w: any
+                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             formatter: (val: number, opts: { seriesIndex: number; w: any }) => {
                               const total = opts.w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
                               if (total === 0) return '0%';

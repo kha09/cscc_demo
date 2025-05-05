@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Removed TabsContent
 import { useRouter } from "next/navigation";
 import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Activity } from "lucide-react"; // Remove FileDown
 import { GeneralResultsTab } from "@/components/ui/GeneralResultsTab";
