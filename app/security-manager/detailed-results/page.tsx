@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -129,6 +131,7 @@ function DetailedResultsContent() {
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [expandedMainComponents, setExpandedMainComponents] = useState<Record<string, boolean>>({});
+  const [updatingComplianceId, setUpdatingComplianceId] = useState<string | null>(null);
 
   // --- Systems List Fetch (Triggered by user) ---
   useEffect(() => {
@@ -517,17 +520,73 @@ function DetailedResultsContent() {
                                         )}
                                       </td>
                                       <td className="px-4 py-2 text-center whitespace-nowrap">
-                                        {assignment.complianceLevel ? (
-                                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium`}
-                                                style={{
-                                                  backgroundColor: `${complianceLevelColors[assignment.complianceLevel]}20`,
-                                                  color: complianceLevelColors[assignment.complianceLevel]
-                                                }}>
-                                            {complianceLevelLabels[assignment.complianceLevel]}
-                                          </span>
-                                        ) : (
-                                          <span className="text-gray-400">-</span>
-                                        )}
+                                        <div className="relative">
+                                          <Select
+                                            value={assignment.complianceLevel ?? ""}
+                                            onValueChange={async (value) => {
+                                              setUpdatingComplianceId(assignment.id);
+                                              try {
+                                                const response = await fetch(`/api/control-assignments/${assignment.id}`, {
+                                                  method: 'PATCH',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  body: JSON.stringify({
+                                                    complianceLevel: value || null
+                                                  })
+                                                });
+                                                
+                                                if (!response.ok) {
+                                                  throw new Error('Failed to update compliance level');
+                                                }
+                                                
+                                                // Update local state
+                                                if (selectedSystemDetails) {
+                                                  const updatedDetails = { ...selectedSystemDetails };
+                                                  Object.keys(updatedDetails).forEach(mainComponent => {
+                                                    updatedDetails[mainComponent].subControls = 
+                                                      updatedDetails[mainComponent].subControls.map(control => 
+                                                        control.id === assignment.id 
+                                                          ? { ...control, complianceLevel: (value as ComplianceLevel) || null }
+                                                          : control
+                                                      );
+                                                  });
+                                                  setSelectedSystemDetails(updatedDetails);
+                                                }
+                                              } catch (error) {
+                                                console.error('Error updating compliance level:', error);
+                                                setDetailsError('Failed to update compliance level. Please try again.');
+                                              } finally {
+                                                setUpdatingComplianceId(null);
+                                              }
+                                            }}
+                                            disabled={updatingComplianceId === assignment.id}
+                                          >
+                                            <SelectTrigger 
+                                              className="h-7 w-36 text-xs justify-center"
+                                              style={{
+                                                backgroundColor: assignment.complianceLevel 
+                                                  ? `${complianceLevelColors[assignment.complianceLevel]}20`
+                                                  : undefined,
+                                                color: assignment.complianceLevel 
+                                                  ? complianceLevelColors[assignment.complianceLevel]
+                                                  : '#9CA3AF'
+                                              }}
+                                            >
+                                              <SelectValue placeholder="-" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {Object.entries(complianceLevelLabels).map(([level, label]) => (
+                                                <SelectItem key={level} value={level}>
+                                                  {label}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                          {updatingComplianceId === assignment.id && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50">
+                                              <Loader className="h-4 w-4 animate-spin" />
+                                            </div>
+                                          )}
+                                        </div>
                                       </td>
                                       <td className="px-4 py-2 text-center whitespace-nowrap">
                                         {assignment.reviewRequested ? (
