@@ -98,12 +98,10 @@ export default function TeamTasksPage() {
 
   // Custom assignment state logic
   const getAssignmentState = (level: ComplianceLevel | null | undefined, deadline: string | undefined): string => {
-    if (level === ComplianceLevel.IMPLEMENTED) return 'مكتمل'; // مطبق كليا -> Completed
+    if (level != null) return 'مكتمل';
     const now = new Date();
     const dl = deadline ? new Date(deadline) : null;
-    // If no compliance level AND deadline passed -> Overdue
-    if ((level == null || level === ComplianceLevel.NOT_IMPLEMENTED || level === ComplianceLevel.PARTIALLY_IMPLEMENTED || level === ComplianceLevel.NOT_APPLICABLE) && dl && now > dl) return 'متأخر';
-    // Otherwise (level is not IMPLEMENTED, or no deadline, or deadline not passed) -> In Progress
+    if (dl && now > dl) return 'متأخر';
     return 'قيد التنفيذ';
   };
 

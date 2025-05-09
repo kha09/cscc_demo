@@ -111,11 +111,11 @@ export default function LandingPage() {
                 </p>
               </CardContent>
             </Card>
-
+            
             <Card className="bg-white border-nca-teal">
               <CardContent className="pt-6">
                 <div className="mb-4 text-nca-teal">
-                  <BarChart3 className="h-10 w-10" />
+                  <BarChart3 className="h-10 w-10"/>
                 </div>
                 <h3 className="text-xl font-bold mb-2 text-nca-dark-blue">تقييم آلي</h3>
                 <p className="text-nca-dark-blue-light">
@@ -123,7 +123,7 @@ export default function LandingPage() {
                 </p>
               </CardContent>
             </Card>
-
+            
             <Card className="bg-white border-nca-teal">
               <CardContent className="pt-6">
                 <div className="mb-4 text-nca-teal">
@@ -339,7 +339,7 @@ export default function LandingPage() {
       <section id="benefits" className="py-20 bg-nca-light-blue">
         <div className="container">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4 text-nca-dark-blue">فوائد استخدام المنصة</h2>
+            <h2 className="text-3xl font-bold mb-4 text-nca-dark-blue">أهداف استخدام المنصة</h2>
             <p className="text-xl text-nca-dark-blue-light max-w-2xl mx-auto">
               تساهم منصتنا في تحسين أداء إدارة الامتثال وفهم أفضل للمتطلبات التنظيمية وحماية أقوى للأنظمة الحساسة
             </p>
