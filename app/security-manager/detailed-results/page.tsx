@@ -142,6 +142,118 @@ function DetailedResultsContent() {
   const [selectedControls, setSelectedControls] = useState<string[]>([]);
   const [reviewNote, setReviewNote] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+  // Fetch systems when user is available
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchSystems = async () => {
+      setIsSystemsLoading(true);
+      setSystemsError(null);
+      try {
+        const response = await fetch(`/api/users/${user.id}/sensitive-systems`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch systems: ${response.statusText}`);
+        }
+        const data = await response.json();
+        setSystems(data);
+      } catch (err) {
+        console.error("Error fetching systems:", err);
+        setSystemsError(err instanceof Error ? err.message : "An unknown error occurred");
+      } finally {
+        setIsSystemsLoading(false);
+      }
+    };
+
+    fetchSystems();
+  }, [user]);
+
+  // Fetch summary analytics for all systems
+  useEffect(() => {
+    if (!user?.id || systems.length === 0) return;
+
+    const fetchSystemAnalytics = async () => {
+      setIsSystemAnalyticsLoading(true);
+      setSystemAnalyticsError(null);
+      try {
+        const response = await fetch(`/api/control-assignments/analytics/summary-by-system?securityManagerId=${user.id}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch analytics: ${response.statusText}`);
+        }
+        const data = await response.json();
+        setSystemAnalytics(data);
+      } catch (err) {
+        console.error("Error fetching analytics:", err);
+        setSystemAnalyticsError(err instanceof Error ? err.message : "An unknown error occurred");
+      } finally {
+        setIsSystemAnalyticsLoading(false);
+      }
+    };
+
+    fetchSystemAnalytics();
+  }, [user, systems]);
+
+  // Fetch detailed analytics when a system is selected
+  useEffect(() => {
+    if (!selectedSystemId || !user?.id) return;
+
+    const fetchDetailedAnalytics = async () => {
+      setIsDetailsLoading(true);
+      setDetailsError(null);
+      try {
+        const response = await fetch(`/api/control-assignments/analytics/by-system/${selectedSystemId}?securityManagerId=${user.id}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch detailed analytics: ${response.statusText}`);
+        }
+        const data: DetailedSystemAnalyticsResponse = await response.json();
+        
+        // Process the data into the required format
+        const processedData: ProcessedDetailedAnalytics = {};
+        data.assignments.forEach(assignment => {
+          const mainComponent = assignment.control.mainComponent;
+          if (!processedData[mainComponent]) {
+            processedData[mainComponent] = {
+              subControls: [],
+              counts: {
+                total: 0,
+                finished: 0,
+                assigned: 0,
+                notAssigned: 0
+              }
+            };
+          }
+          
+          processedData[mainComponent].subControls.push(assignment);
+          processedData[mainComponent].counts.total++;
+          if (assignment.status === TaskStatus.COMPLETED) {
+            processedData[mainComponent].counts.finished++;
+          }
+          if (assignment.assignedUserId) {
+            processedData[mainComponent].counts.assigned++;
+          } else {
+            processedData[mainComponent].counts.notAssigned++;
+          }
+        });
+
+          setSelectedSystemDetails(processedData);
+
+          // Also refresh the summary analytics
+          const analyticsResponse = await fetch(`/api/control-assignments/analytics/summary-by-system?securityManagerId=${user.id}`);
+          if (analyticsResponse.ok) {
+            const analyticsData = await analyticsResponse.json();
+            setSystemAnalytics(analyticsData);
+          }
+      } catch (err) {
+        console.error("Error fetching detailed analytics:", err);
+        setDetailsError(err instanceof Error ? err.message : "An unknown error occurred");
+      } finally {
+        setIsDetailsLoading(false);
+      }
+    };
+
+    fetchDetailedAnalytics();
+  }, [selectedSystemId, user]);
 
   // Handle security review submission
   const handleSecurityReviewSubmit = async () => {
@@ -151,13 +263,20 @@ function DetailedResultsContent() {
 
     setIsSubmittingReview(true);
     try {
+      // Get stored user from localStorage
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        throw new Error('User not found');
+      }
+
       const response = await fetch('/api/security-reviews', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${encodeURIComponent(storedUser)}`,
         },
         body: JSON.stringify({
-          taskId: selectedSystemId,
+          systemId: selectedSystemId,
           mainComponent: selectedMainComponent,
           action: selectedAction,
           note: reviewNote,
@@ -169,18 +288,51 @@ function DetailedResultsContent() {
         throw new Error('Failed to submit security review');
       }
 
-      // Reset form and close dialog
-      setSelectedAction(null);
-      setSelectedControls([]);
-      setReviewNote('');
-      setIsReviewDialogOpen(false);
+      // Show success message and reset form
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setSelectedAction(null);
+        setSelectedControls([]);
+        setReviewNote('');
+        setIsReviewDialogOpen(false);
+      }, 1500);
 
       // Refresh the detailed view
       if (selectedSystemId && user?.id) {
         const response = await fetch(`/api/control-assignments/analytics/by-system/${selectedSystemId}?securityManagerId=${user.id}`);
         if (response.ok) {
-          const rawData: DetailedSystemAnalyticsResponse = await response.json();
-          // Process and update the data...
+          const data: DetailedSystemAnalyticsResponse = await response.json();
+          
+          // Process the data into the required format
+          const processedData: ProcessedDetailedAnalytics = {};
+          data.assignments.forEach(assignment => {
+            const mainComponent = assignment.control.mainComponent;
+            if (!processedData[mainComponent]) {
+              processedData[mainComponent] = {
+                subControls: [],
+                counts: {
+                  total: 0,
+                  finished: 0,
+                  assigned: 0,
+                  notAssigned: 0
+                }
+              };
+            }
+            
+            processedData[mainComponent].subControls.push(assignment);
+            processedData[mainComponent].counts.total++;
+            if (assignment.status === TaskStatus.COMPLETED) {
+              processedData[mainComponent].counts.finished++;
+            }
+            if (assignment.assignedUserId) {
+              processedData[mainComponent].counts.assigned++;
+            } else {
+              processedData[mainComponent].counts.notAssigned++;
+            }
+          });
+
+          setSelectedSystemDetails(processedData);
         }
       }
     } catch (error) {
@@ -469,6 +621,7 @@ function DetailedResultsContent() {
                                           <div className="group relative">
                                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 cursor-help">
                                               <AlertCircle className="h-4 w-4" />
+                                              <span className="mr-1">طلب مراجعة</span>
                                             </span>
                                             {assignment.reviewComment && (
                                               <div className="absolute z-10 hidden group-hover:block bg-white border border-gray-200 rounded-md shadow-lg p-2 w-64 text-right text-xs text-gray-700 right-0 mt-1">
@@ -477,6 +630,11 @@ function DetailedResultsContent() {
                                               </div>
                                             )}
                                           </div>
+                                        ) : assignment.status === TaskStatus.APPROVED ? (
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            <CheckCircle className="h-4 w-4 mr-1" />
+                                            معتمد
+                                          </span>
                                         ) : (
                                           <span className="text-gray-400">-</span>
                                         )}
@@ -503,6 +661,12 @@ function DetailedResultsContent() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>مراجعة الضوابط</DialogTitle>
+            {showSuccessMessage && (
+              <div className="mt-2 p-2 bg-green-50 text-green-700 rounded-md text-sm flex items-center justify-center">
+                <CheckCircle className="h-4 w-4 mr-2" />
+                تم حفظ المراجعة بنجاح
+              </div>
+            )}
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -520,21 +684,46 @@ function DetailedResultsContent() {
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Select
-                value={selectedControls.length > 0 ? selectedControls[0] : undefined}
-                onValueChange={(value: string) => setSelectedControls([value])}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="اختر الضوابط" />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedMainComponent && selectedSystemDetails?.[selectedMainComponent]?.subControls.map(control => (
-                    <SelectItem key={control.id} value={control.id}>
-                      {control.control.controlNumber} - {control.control.subComponent || control.control.controlText}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="col-span-3 space-y-2">
+                <div className="flex flex-wrap gap-2 min-h-[2.5rem] p-2 border rounded-md">
+                  {selectedControls.map(controlId => {
+                    const control = selectedMainComponent && 
+                      selectedSystemDetails?.[selectedMainComponent]?.subControls.find(c => c.id === controlId)?.control;
+                    return control ? (
+                      <div key={controlId} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md text-xs">
+                        <span>{control.controlNumber}</span>
+                        <button
+                          onClick={() => setSelectedControls(prev => prev.filter(id => id !== controlId))}
+                          className="hover:text-red-500"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+                <Select
+                  value={undefined}
+                  onValueChange={(value: string) => {
+                    if (!selectedControls.includes(value)) {
+                      setSelectedControls(prev => [...prev, value]);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر الضوابط" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedMainComponent && selectedSystemDetails?.[selectedMainComponent]?.subControls
+                      .filter(control => !selectedControls.includes(control.id))
+                      .map(control => (
+                        <SelectItem key={control.id} value={control.id}>
+                          {control.control.controlNumber} - {control.control.subComponent || control.control.controlText}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Textarea

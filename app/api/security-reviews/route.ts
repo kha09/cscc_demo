@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getToken } from "next-auth/jwt";
+import { getCurrentUser } from "@/lib/api-auth";
 
 type SecurityAction = "CONFIRM" | "REQUEST_REVIEW";
 
 export async function POST(req: NextRequest) {
   try {
-    // Get token from request
-    const token = await getToken({ req });
-    if (!token?.sub) {
+    // Get user from request
+    const user = await getCurrentUser(req);
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const data = await req.json();
-    const { taskId, mainComponent, action, note, controlAssignmentIds } = data;
+    const { systemId, mainComponent, action, note, controlAssignmentIds } = data;
 
     // Validate required fields
-    if (!taskId || !mainComponent || !action || !controlAssignmentIds?.length) {
+    if (!systemId || !mainComponent || !action || !controlAssignmentIds?.length) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -37,9 +37,9 @@ export async function POST(req: NextRequest) {
       // Create the security review
       const review = await prisma.securityReview.create({
         data: {
-          taskId,
+          systemId,
           mainComponent,
-          securityManagerId: token.sub,
+          securityManagerId: user.id,
           action: action as SecurityAction,
           note,
         },
@@ -73,16 +73,11 @@ export async function POST(req: NextRequest) {
               nameAr: true,
             },
           },
-          task: {
-            include: {
-              assignedBy: {
-                select: {
-                  id: true,
-                  name: true,
-                  nameAr: true,
-                  department: true,
-                },
-              },
+          system: {
+            select: {
+              id: true,
+              systemName: true,
+              systemDescription: true,
             },
           },
         },
@@ -101,25 +96,25 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Get token from request
-    const token = await getToken({ req });
-    if (!token?.sub) {
+    // Get user from request
+    const user = await getCurrentUser(req);
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
-    const taskId = searchParams.get("taskId");
+    const systemId = searchParams.get("systemId");
     const mainComponent = searchParams.get("mainComponent");
 
-    if (!taskId) {
+    if (!systemId) {
       return NextResponse.json(
-        { error: "taskId is required" },
+        { error: "systemId is required" },
         { status: 400 }
       );
     }
 
     const where = {
-      taskId,
+      systemId,
       ...(mainComponent && { mainComponent }),
     };
 
@@ -142,18 +137,13 @@ export async function GET(req: NextRequest) {
             nameAr: true,
           },
         },
-        task: {
-          include: {
-            assignedBy: {
-              select: {
-                id: true,
-                name: true,
-                nameAr: true,
-                department: true,
-              },
+          system: {
+            select: {
+              id: true,
+              systemName: true,
+              systemDescription: true,
             },
           },
-        },
       },
       orderBy: {
         createdAt: "desc",

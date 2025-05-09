@@ -25,9 +25,9 @@ model User {
   departmentManagerAssessments AssessmentStatus[]  @relation("AssessmentStatusDepartmentManager")
   securityManagerAssessments   AssessmentStatus[]  @relation("AssessmentStatusSecurityManager")
   controlAssignments           ControlAssignment[]
+  securityReviews              SecurityReview[]
   assignedTasks                Task[]              @relation("AssignedTasks")
   responsibleTasks             Task[]              @relation("ResponsibleTasks")
-  securityReviews              SecurityReview[]
 }
 
 model Assessment {
@@ -83,6 +83,7 @@ model SensitiveSystemInfo {
   assessmentStatuses         AssessmentStatus[]
   assessment                 Assessment         @relation(fields: [assessmentId], references: [id])
   tasks                      Task[]
+  securityReviews           SecurityReview[]
 
   @@index([assessmentId])
 }
@@ -119,7 +120,6 @@ model Task {
   assignedBy         User                @relation("AssignedTasks", fields: [assignedById], references: [id])
   assignedTo         User?               @relation("ResponsibleTasks", fields: [assignedToId], references: [id])
   sensitiveSystem    SensitiveSystemInfo @relation(fields: [sensitiveSystemId], references: [id])
-  securityReviews    SecurityReview[]
 
   @@index([sensitiveSystemId])
   @@index([assignedById])
@@ -168,12 +168,12 @@ model AssessmentStatus {
   departmentManagerId     String
   securityManagerStatus   ReviewStatus?
   departmentManagerStatus ReviewStatus?
-  createdAt              DateTime            @default(now())
-  updatedAt              DateTime            @updatedAt
-  assessment             Assessment          @relation(fields: [assessmentId], references: [id])
-  departmentManager      User                @relation("AssessmentStatusDepartmentManager", fields: [departmentManagerId], references: [id])
-  securityManager        User                @relation("AssessmentStatusSecurityManager", fields: [securityManagerId], references: [id])
-  sensitiveSystem        SensitiveSystemInfo @relation(fields: [sensitiveSystemId], references: [id])
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  assessment              Assessment          @relation(fields: [assessmentId], references: [id])
+  departmentManager       User                @relation("AssessmentStatusDepartmentManager", fields: [departmentManagerId], references: [id])
+  securityManager         User                @relation("AssessmentStatusSecurityManager", fields: [securityManagerId], references: [id])
+  sensitiveSystem         SensitiveSystemInfo @relation(fields: [sensitiveSystemId], references: [id])
 
   @@index([assessmentId])
   @@index([sensitiveSystemId])
@@ -182,19 +182,19 @@ model AssessmentStatus {
 }
 
 model SecurityReview {
-  id                String                            @id @default(uuid())
-  taskId            String
-  mainComponent     String
-  securityManagerId String
-  action            SecurityAction
-  note             String?
-  createdAt         DateTime                          @default(now())
-  updatedAt         DateTime                          @updatedAt
-  task              Task                              @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  securityManager   User                              @relation(fields: [securityManagerId], references: [id], onDelete: Cascade)
+  id                 String                            @id @default(uuid())
+  systemId           String
+  mainComponent      String
+  securityManagerId  String
+  action             SecurityAction
+  note               String?
+  createdAt          DateTime                          @default(now())
+  updatedAt          DateTime                          @updatedAt
+  securityManager    User                              @relation(fields: [securityManagerId], references: [id], onDelete: Cascade)
+  system             SensitiveSystemInfo               @relation(fields: [systemId], references: [id], onDelete: Cascade)
   controlAssignments SecurityReviewControlAssignment[]
 
-  @@index([taskId])
+  @@index([systemId])
   @@index([securityManagerId])
 }
 
@@ -203,8 +203,8 @@ model SecurityReviewControlAssignment {
   securityReviewId    String
   controlAssignmentId String
   createdAt           DateTime          @default(now())
-  securityReview      SecurityReview    @relation(fields: [securityReviewId], references: [id], onDelete: Cascade)
   controlAssignment   ControlAssignment @relation(fields: [controlAssignmentId], references: [id], onDelete: Cascade)
+  securityReview      SecurityReview    @relation(fields: [securityReviewId], references: [id], onDelete: Cascade)
 
   @@index([securityReviewId])
   @@index([controlAssignmentId])
@@ -235,7 +235,7 @@ enum ComplianceLevel {
 
 enum ReviewStatus {
   REVIEW_REQUESTED @map("طلب مراجعة")
-  FINISHED        @map("معتمد")
+  FINISHED         @map("معتمد")
 }
 
 enum SecurityAction {
