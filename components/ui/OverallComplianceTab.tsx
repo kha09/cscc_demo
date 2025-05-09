@@ -444,7 +444,7 @@ export function OverallComplianceTab({
             />
           </div>
         )}
-        <h2 className="text-xl font-bold text-slate-800">{assessment.assessmentName}</h2>
+        <h2 className="text-lg font-medium text-slate-600">{assessment.assessmentName}</h2>
         <h3 className="text-lg font-medium text-slate-600 mt-2">المستوى العام للالتزام</h3>
       </div>
       
@@ -531,9 +531,9 @@ export function OverallComplianceTab({
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">مستوى الالتزام</th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">عدد الضوابط</th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">النسبة المئوية</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500">مستوى الالتزام</th>
+                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500">عدد الضوابط</th>
+                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500">النسبة المئوية</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -586,7 +586,7 @@ export function OverallComplianceTab({
          </div>
       ) : (
         <div className="mt-12">
-          <h2 className="text-xl font-bold text-slate-800 text-center mb-8">مستوى الالتزام لكل نظام</h2>
+          <h2 className="text-lg font-medium text-slate-600 text-center mb-8">مستوى الالتزام لكل نظام</h2>
           
           {systemsComplianceData.map((system, index) => (
             <div key={index} className="mb-12 pb-12 border-b border-gray-200 last:border-0">
@@ -674,9 +674,9 @@ export function OverallComplianceTab({
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">مستوى الالتزام</th>
-                          <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">عدد الضوابط</th>
-                          <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">النسبة المئوية</th>
+                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500">مستوى الالتزام</th>
+                          <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500">عدد الضوابط</th>
+                          <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500">النسبة المئوية</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -726,13 +726,13 @@ export function OverallComplianceTab({
                     <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
                       &nbsp; {/* Placeholder for name */}
                     </div>
-                    <span className="text-sm text-gray-600">الاسم</span>
+                    <span className="text-sm text-gray-600 p-2">الاسم</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <div className="border-b border-gray-400 w-full text-center pb-1 mb-1">
                       &nbsp; {/* Placeholder for date */}
                     </div>
-                    <span className="text-sm text-gray-600">التاريخ</span>
+                    <span className="text-sm text-gray-600 p-2">التاريخ</span>
                   </div>
                 </div>
               </div>

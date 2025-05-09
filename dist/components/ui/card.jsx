@@ -23,7 +23,7 @@ var CardHeader = React.forwardRef(function (_a, ref) {
 CardHeader.displayName = "CardHeader";
 var CardTitle = React.forwardRef(function (_a, ref) {
     var className = _a.className, props = __rest(_a, ["className"]);
-    return (<div ref={ref} className={cn("font-semibold leading-none tracking-tight", className)} {...props}/>);
+    return (<div ref={ref} className={cn("font-semibold leading-none", className)} {...props}/>);
 });
 CardTitle.displayName = "CardTitle";
 var CardDescription = React.forwardRef(function (_a, ref) {

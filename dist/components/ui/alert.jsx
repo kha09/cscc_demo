@@ -30,7 +30,7 @@ var Alert = React.forwardRef(function (_a, ref) {
 Alert.displayName = "Alert";
 var AlertTitle = React.forwardRef(function (_a, ref) {
     var className = _a.className, props = __rest(_a, ["className"]);
-    return (<h5 ref={ref} className={cn("mb-1 font-medium leading-none tracking-tight", className)} {...props}/>);
+    return (<h5 ref={ref} className={cn("mb-1 font-medium leading-none", className)} {...props}/>);
 });
 AlertTitle.displayName = "AlertTitle";
 var AlertDescription = React.forwardRef(function (_a, ref) {

@@ -65,7 +65,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-nca-dark-blue to-nca-dark-blue-light py-20 md:py-32 text-white">
         <div className="container flex flex-col items-center text-center">
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
+          <h1 className="text-4xl md:text-6xl font-bold mb-6">
             تقييم الامتثال لضوابط الأمن السيبراني للأنظمة الحساسة
           </h1>
           <p className="text-xl text-nca-light-blue max-w-3xl mb-10">

@@ -49,7 +49,7 @@ var DialogFooter = function (_a) {
 DialogFooter.displayName = "DialogFooter";
 var DialogTitle = React.forwardRef(function (_a, ref) {
     var className = _a.className, props = __rest(_a, ["className"]);
-    return (<DialogPrimitive.Title ref={ref} className={cn("text-lg font-semibold leading-none tracking-tight", className)} {...props}/>);
+    return (<DialogPrimitive.Title ref={ref} className={cn("text-lg font-semibold leading-none", className)} {...props}/>);
 });
 DialogTitle.displayName = DialogPrimitive.Title.displayName;
 var DialogDescription = React.forwardRef(function (_a, ref) {
