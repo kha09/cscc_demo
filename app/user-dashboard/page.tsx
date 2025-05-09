@@ -572,7 +572,7 @@ export default function UserDashboardPage() {
               
               <h2 className="text-xl font-semibold"> </h2>
             </div>
-            <ChatBox assistantId="asst_XTKU0lEZIXIxr1LlWqGMhdnt" />
+<ChatBox assistantId="asst_eG6IXbCoDgmOBx8eMa2qJWML" />
           </div>
 
         </div>
