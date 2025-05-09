@@ -115,7 +115,7 @@ function DetailedResultsContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Auth state
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
 
   // State for systems
   const [systems, setSystems] = useState<SensitiveSystemInfo[]>([]);

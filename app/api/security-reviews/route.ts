@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/api-auth";
 
 type SecurityAction = "CONFIRM" | "REQUEST_REVIEW";
@@ -32,56 +31,53 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create the security review with control assignments in a transaction
-    const securityReview = await prisma.$transaction(async (prisma) => {
-      // Create the security review
-      const review = await prisma.securityReview.create({
-        data: {
-          systemId,
-          mainComponent,
-          securityManagerId: user.id,
-          action: action as SecurityAction,
-          note,
-        },
-      });
+    // Create the security review
+    const review = await prisma.securityReview.create({
+      data: {
+        systemId,
+        mainComponent,
+        securityManagerId: user.id,
+        action: action as SecurityAction,
+        note,
+      },
+    });
 
-      // Create the control assignment links
-      await prisma.securityReviewControlAssignment.createMany({
-        data: controlAssignmentIds.map((controlAssignmentId: string) => ({
-          securityReviewId: review.id,
-          controlAssignmentId,
-        })),
-      });
+    // Create the control assignment links
+    await prisma.securityReviewControlAssignment.createMany({
+      data: controlAssignmentIds.map((controlAssignmentId: string) => ({
+        securityReviewId: review.id,
+        controlAssignmentId,
+      })),
+    });
 
-      // Return the created review with its relationships
-      return prisma.securityReview.findUnique({
-        where: { id: review.id },
-        include: {
-          controlAssignments: {
-            include: {
-              controlAssignment: {
-                include: {
-                  control: true,
-                },
+    // Fetch the created review with its relationships
+    const securityReview = await prisma.securityReview.findUnique({
+      where: { id: review.id },
+      include: {
+        controlAssignments: {
+          include: {
+            controlAssignment: {
+              include: {
+                control: true,
               },
             },
           },
-          securityManager: {
-            select: {
-              id: true,
-              name: true,
-              nameAr: true,
-            },
-          },
-          system: {
-            select: {
-              id: true,
-              systemName: true,
-              systemDescription: true,
-            },
+        },
+        securityManager: {
+          select: {
+            id: true,
+            name: true,
+            nameAr: true,
           },
         },
-      });
+        system: {
+          select: {
+            id: true,
+            systemName: true,
+            systemDescription: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json(securityReview, { status: 201 });
