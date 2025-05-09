@@ -617,20 +617,19 @@ function DetailedResultsContent() {
                                         </div>
                                       </td>
                                       <td className="px-4 py-2 text-center whitespace-nowrap">
-                                        {assignment.reviewRequested ? (
-                                          <div className="group relative">
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 cursor-help">
-                                              <AlertCircle className="h-4 w-4" />
-                                              <span className="mr-1">طلب مراجعة</span>
-                                            </span>
-                                            {assignment.reviewComment && (
-                                              <div className="absolute z-10 hidden group-hover:block bg-white border border-gray-200 rounded-md shadow-lg p-2 w-64 text-right text-xs text-gray-700 right-0 mt-1">
-                                                <p className="font-bold mb-1">تعليق المراجعة:</p>
-                                                <p>{assignment.reviewComment}</p>
-                                              </div>
-                                            )}
-                                          </div>
-                                        ) : assignment.status === TaskStatus.APPROVED ? (
+{assignment.reviewRequested ? (
+  <div className="relative inline-block group">
+    <div className="flex items-center justify-center">
+      <AlertCircle className="h-5 w-5 text-amber-500 cursor-help" />
+    </div>
+    {assignment.reviewComment && (
+      <div className="absolute z-10 hidden group-hover:block bg-white border border-gray-200 rounded-md shadow-lg p-2 w-64 text-right text-xs text-gray-700 right-0 mt-1">
+        <p className="font-bold mb-1">تعليق المراجعة:</p>
+        <p>{assignment.reviewComment}</p>
+      </div>
+    )}
+  </div>
+) : assignment.status === TaskStatus.APPROVED ? (
                                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                             <CheckCircle className="h-4 w-4 mr-1" />
                                             معتمد
