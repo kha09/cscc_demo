@@ -1,13 +1,15 @@
-"use client"
+"use client";
 
 import { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
-import { AppHeader } from "@/components/ui/AppHeader";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, MinusCircle, ChevronDown, ChevronUp, User } from "lucide-react"; // Removed XCircle, AlertTriangle
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { AppHeader } from "@/components/ui/AppHeader";
+import { useAuth } from "@/lib/auth-context";
+import { AlertCircle, Loader2, Menu, LayoutDashboard, Server, BarChart, Building, CheckCircle, MinusCircle, ChevronDown, ChevronUp, User } from "lucide-react";
 import { TaskStatus } from "@prisma/client";
 
 // Define ComplianceLevel Enum based on Prisma schema
@@ -28,11 +30,14 @@ const complianceLevelLabels: Record<ComplianceLevel, string> = {
 
 // Define colors for consistency
 const complianceLevelColors: Record<ComplianceLevel, string> = {
-  [ComplianceLevel.NOT_IMPLEMENTED]: '#EF4444', // Red-500
-  [ComplianceLevel.PARTIALLY_IMPLEMENTED]: '#F59E0B', // Amber-500
-  [ComplianceLevel.IMPLEMENTED]: '#10B981', // Emerald-500
-  [ComplianceLevel.NOT_APPLICABLE]: '#6B7280', // Gray-500
+  [ComplianceLevel.NOT_IMPLEMENTED]: '#EF4444',
+  [ComplianceLevel.PARTIALLY_IMPLEMENTED]: '#F59E0B',
+  [ComplianceLevel.IMPLEMENTED]: '#10B981',
+  [ComplianceLevel.NOT_APPLICABLE]: '#6B7280',
 };
+
+// Define estimated header height (should match AppHeader)
+const HEADER_HEIGHT = 88; // Adjust if AppHeader styling changes
 
 // --- Detailed Analytics Types ---
 interface DetailedAssignmentData {
@@ -105,10 +110,7 @@ interface SystemSummaryAnalytics {
   finished: number;
 }
 
-// Client component
 function DetailedResultsContent() {
-  // const router = useRouter(); // Removed unused router
-  
   // State for layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -120,9 +122,6 @@ function DetailedResultsContent() {
   const [isSystemsLoading, setIsSystemsLoading] = useState(false);
   const [systemsError, setSystemsError] = useState<string | null>(null);
 
-  // State for security manager approval status - Removed unused securityStatusMap
-  // const [securityStatusMap, setSecurityStatusMap] = useState<Record<string, string | null>>({});
-
   // State for summary analytics per system (for the cards)
   const [systemAnalytics, setSystemAnalytics] = useState<Record<string, SystemSummaryAnalytics>>({});
   const [isSystemAnalyticsLoading, setIsSystemAnalyticsLoading] = useState(false);
@@ -131,212 +130,70 @@ function DetailedResultsContent() {
   // State for detailed view when a system is selected
   const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
   const [selectedSystemDetails, setSelectedSystemDetails] = useState<ProcessedDetailedAnalytics | null>(null);
-  // const [selectedSystemChartData, setSelectedSystemChartData] = useState<ChartDataPoint[] | null>(null); // Removed unused state
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [expandedMainComponents, setExpandedMainComponents] = useState<Record<string, boolean>>({});
   const [updatingComplianceId, setUpdatingComplianceId] = useState<string | null>(null);
 
-  // --- Systems List Fetch (Triggered by user) ---
-  useEffect(() => {
-    if (!user?.id) {
-      if (systems.length > 0) setSystems([]);
-      if (isSystemsLoading) setIsSystemsLoading(false);
+  // State for security review dialog
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [selectedMainComponent, setSelectedMainComponent] = useState<string | null>(null);
+  const [selectedAction, setSelectedAction] = useState<"CONFIRM" | "REQUEST_REVIEW" | null>(null);
+  const [selectedControls, setSelectedControls] = useState<string[]>([]);
+  const [reviewNote, setReviewNote] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  // Handle security review submission
+  const handleSecurityReviewSubmit = async () => {
+    if (!selectedMainComponent || !selectedAction || selectedControls.length === 0) {
       return;
     }
 
-    const userId = user.id;
+    setIsSubmittingReview(true);
+    try {
+      const response = await fetch('/api/security-reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          taskId: selectedSystemId,
+          mainComponent: selectedMainComponent,
+          action: selectedAction,
+          note: reviewNote,
+          controlAssignmentIds: selectedControls,
+        }),
+      });
 
-    const fetchSystems = async () => {
-      setIsSystemsLoading(true);
-      setSystemsError(null);
-      setSystems([]);
-
-      try {
-        console.log(`Fetching systems for user ID: ${userId}`);
-        const response = await fetch(`/api/users/${userId}/sensitive-systems`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to fetch systems: ${response.statusText}`);
-        }
-        const fetchedSystems: SensitiveSystemInfo[] = await response.json();
-        setSystems(fetchedSystems);
-        
-        // Fetch security approval status for each system
-        const statusMap: Record<string, string | null> = {};
-        for (const system of fetchedSystems) {
-          try {
-            const statusResponse = await fetch(
-              `/api/assessment-status/security-check?assessmentId=${system.id}&sensitiveSystemId=${system.id}&securityManagerId=${userId}`
-            );
-            if (statusResponse.ok) {
-              const statusData = await statusResponse.json();
-              statusMap[system.id] = statusData.securityManagerStatus;
-              console.log(`Status for system ${system.id}:`, statusData.securityManagerStatus);
-            }
-          } catch (statusErr) {
-            console.error(`Error fetching security status for system ${system.id}:`, statusErr);
-          }
-        }
-        // setSecurityStatusMap(statusMap); // Removed usage of commented-out state setter
-      } catch (err) {
-        console.error("Error fetching systems:", err);
-        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching systems.";
-        setSystemsError(errorMsg);
-      } finally {
-        setIsSystemsLoading(false);
+      if (!response.ok) {
+        throw new Error('Failed to submit security review');
       }
-    };
 
-    fetchSystems();
-  }, [user?.id]);
+      // Reset form and close dialog
+      setSelectedAction(null);
+      setSelectedControls([]);
+      setReviewNote('');
+      setIsReviewDialogOpen(false);
 
-  // --- System Summary Analytics Fetch ---
-  useEffect(() => {
-    if (!user?.id) {
-      if (Object.keys(systemAnalytics).length > 0) setSystemAnalytics({});
-      if (isSystemAnalyticsLoading) setIsSystemAnalyticsLoading(false);
-      return;
+      // Refresh the detailed view
+      if (selectedSystemId && user?.id) {
+        const response = await fetch(`/api/control-assignments/analytics/by-system/${selectedSystemId}?securityManagerId=${user.id}`);
+        if (response.ok) {
+          const rawData: DetailedSystemAnalyticsResponse = await response.json();
+          // Process and update the data...
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting security review:', error);
+      // Handle error (show notification, etc.)
+    } finally {
+      setIsSubmittingReview(false);
     }
-
-    const userId = user.id;
-
-    const fetchSystemAnalytics = async () => {
-      setIsSystemAnalyticsLoading(true);
-      setSystemAnalyticsError(null);
-      setSystemAnalytics({});
-
-      try {
-        console.log(`Fetching system summary analytics for user ID: ${userId}`);
-        const response = await fetch(`/api/control-assignments/analytics/summary-by-system?securityManagerId=${userId}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to fetch system summary analytics: ${response.statusText}`);
-        }
-        const fetchedAnalytics: Record<string, SystemSummaryAnalytics> = await response.json();
-        setSystemAnalytics(fetchedAnalytics);
-      } catch (err) {
-        console.error("Error fetching system summary analytics:", err);
-        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching system analytics.";
-        setSystemAnalyticsError(errorMsg);
-      } finally {
-        setIsSystemAnalyticsLoading(false);
-      }
-    };
-
-    fetchSystemAnalytics();
-  }, [user?.id]);
-
-  // --- Detailed System Analytics Fetch ---
-  useEffect(() => {
-    if (!selectedSystemId || !user?.id) {
-      setSelectedSystemDetails(null);
-      // setSelectedSystemChartData(null); // Removed usage of unused state
-      setDetailsError(null);
-      if (isDetailsLoading) setIsDetailsLoading(false);
-      setExpandedMainComponents({});
-      return;
-    }
-
-    const userId = user.id;
-
-    const fetchDetailedAnalytics = async () => {
-      setIsDetailsLoading(true);
-      setDetailsError(null);
-      setSelectedSystemDetails(null);
-      // setSelectedSystemChartData(null); // Removed usage of unused state
-      setExpandedMainComponents({});
-
-      try {
-        console.log(`Fetching detailed analytics for system ID: ${selectedSystemId}, user ID: ${userId}`);
-        const response = await fetch(`/api/control-assignments/analytics/by-system/${selectedSystemId}?securityManagerId=${userId}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to fetch detailed analytics: ${response.statusText}`);
-        }
-        const rawData: DetailedSystemAnalyticsResponse = await response.json();
-
-        // Process the detailed data
-        const processed: ProcessedDetailedAnalytics = {};
-        
-        // Track first control in each main component to add sample review request
-        const firstControlInComponent: Record<string, boolean> = {};
-        
-        rawData.assignments.forEach(assignment => {
-          const mainComponent = assignment.control.mainComponent;
-          if (!processed[mainComponent]) {
-            processed[mainComponent] = {
-              subControls: [],
-              counts: { total: 0, finished: 0, assigned: 0, notAssigned: 0 }
-            };
-            firstControlInComponent[mainComponent] = true;
-          }
-          
-          // Add sample review request data to the first control of each component
-          if (firstControlInComponent[mainComponent]) {
-            assignment.reviewRequested = true;
-            assignment.reviewComment = `طلب مراجعة من مدير القسم: يرجى التحقق من مستوى الامتثال لهذا الضابط والتأكد من صحة التقييم`;
-            firstControlInComponent[mainComponent] = false;
-          } else {
-            assignment.reviewRequested = false;
-            assignment.reviewComment = null;
-          }
-          
-          processed[mainComponent].subControls.push(assignment);
-          processed[mainComponent].counts.total++;
-
-          if (assignment.status === TaskStatus.COMPLETED) {
-            processed[mainComponent].counts.finished++;
-          } else if (assignment.assignedUserId) {
-            processed[mainComponent].counts.assigned++;
-          } else {
-            processed[mainComponent].counts.notAssigned++;
-          }
-        });
-
-        // Sort subControls within each main component
-        Object.values(processed).forEach(mc => {
-          mc.subControls.sort((a, b) => a.control.controlNumber.localeCompare(b.control.controlNumber));
-        });
-
-        setSelectedSystemDetails(processed);
-        // setSelectedSystemChartData(rawData.chartData); // Removed usage of unused state
-
-      } catch (err) {
-        console.error("Error fetching detailed system analytics:", err);
-        const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching detailed analytics.";
-        setDetailsError(errorMsg);
-      } finally {
-        setIsDetailsLoading(false);
-      }
-    };
-
-    fetchDetailedAnalytics();
-  }, [selectedSystemId, user?.id]);
-
-  // Handle loading and unauthenticated states
-  if (authLoading) {
-    return <div className="flex justify-center items-center min-h-screen">جاري التحميل...</div>;
-  }
-
-  if (!user) {
-    return <div className="flex justify-center items-center min-h-screen">الرجاء تسجيل الدخول للوصول لهذه الصفحة.</div>;
-  }
-
-  // Ensure user is a Security Manager
-  if (user.role !== 'SECURITY_MANAGER') {
-    return <div className="flex justify-center items-center min-h-screen">غير مصرح لك بالوصول لهذه الصفحة.</div>;
-  }
-
-  // Define estimated header height (should match AppHeader)
-  const HEADER_HEIGHT = 88; // Adjust if AppHeader styling changes
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
-      {/* Use shared AppHeader */}
       <AppHeader />
-
-      {/* Main Layout with Sidebar */}
       <div className="flex flex-row">
         {/* Sidebar */}
         {/* Conditional rendering for mobile sidebar overlay */}
@@ -376,12 +233,8 @@ function DetailedResultsContent() {
             </Link>
           </nav>
         </aside>
-
-        {/* Main Content Area */}
         <main className={`flex-1 p-4 md:p-6 overflow-y-auto h-[calc(100vh-${HEADER_HEIGHT}px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-64' : 'md:mr-20'}`}>
           <div className="space-y-6 pt-4" dir="rtl">
-            <h2 className="text-xl font-bold text-slate-800 text-right">سير العمل - النتائج المفصلة لكل نظام</h2>
-            
             {/* Combined loading state check */}
             {isSystemsLoading || isSystemAnalyticsLoading ? (
               <div className="flex justify-center items-center h-[calc(100vh-250px)]">
@@ -442,16 +295,16 @@ function DetailedResultsContent() {
                         <span>الضوابط المتأخرة:</span>
                         <span className="font-medium text-red-600">-- / 105</span>
                       </div>
-                  {/* Department Manager Information */}
-                  <div className="flex items-center gap-2 pt-2 border-t mt-2 text-gray-700">
-                    <Building className="h-4 w-4 text-gray-500"/>
-                    <span>
-                      مدير القسم:{' '}
-                      {system.assessment?.assessmentStatuses?.[0]?.departmentManager 
-                        ? `${system.assessment.assessmentStatuses[0].departmentManager.nameAr || system.assessment.assessmentStatuses[0].departmentManager.name} - ${system.assessment.assessmentStatuses[0].departmentManager.department}`
-                        : 'غير متوفر'}
-                    </span>
-                  </div>
+                      {/* Department Manager Information */}
+                      <div className="flex items-center gap-2 pt-2 border-t mt-2 text-gray-700">
+                        <Building className="h-4 w-4 text-gray-500"/>
+                        <span>
+                          مدير القسم:{' '}
+                          {system.assessment?.assessmentStatuses?.[0]?.departmentManager 
+                            ? `${system.assessment.assessmentStatuses[0].departmentManager.nameAr || system.assessment.assessmentStatuses[0].departmentManager.name} - ${system.assessment.assessmentStatuses[0].departmentManager.department}`
+                            : 'غير متوفر'}
+                        </span>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -487,11 +340,25 @@ function DetailedResultsContent() {
                           onClick={() => setExpandedMainComponents(prev => ({ ...prev, [mainComponent]: !prev[mainComponent] }))}
                         >
                           <CardTitle className="text-base font-medium text-slate-700">{mainComponent}</CardTitle>
-                          <div className="flex items-center gap-4 text-xs text-gray-600">
-                            <span>الإجمالي: {data.counts.total}</span>
-                            <span className="text-green-600">مكتمل: {data.counts.finished}</span>
-                            <span className="text-blue-600">معين: {data.counts.assigned}</span>
-                            <span className="text-orange-600">غير معين: {data.counts.notAssigned}</span>
+                          <div className="flex items-center gap-4">
+                            <div className="text-xs text-gray-600">
+                              <span>الإجمالي: {data.counts.total}</span>
+                              <span className="mx-2 text-green-600">مكتمل: {data.counts.finished}</span>
+                              <span className="mx-2 text-blue-600">معين: {data.counts.assigned}</span>
+                              <span className="mx-2 text-orange-600">غير معين: {data.counts.notAssigned}</span>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedMainComponent(mainComponent);
+                                setIsReviewDialogOpen(true);
+                              }}
+                              className="mr-4"
+                            >
+                              الإجراء
+                            </Button>
                             {expandedMainComponents[mainComponent] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </div>
                         </CardHeader>
@@ -531,7 +398,7 @@ function DetailedResultsContent() {
                                       <td className="px-4 py-2 text-center whitespace-nowrap">
                                         <div className="relative">
                                           <Select
-                                            value={assignment.complianceLevel ?? ""}
+                                            value={assignment.complianceLevel ?? undefined}
                                             onValueChange={async (value) => {
                                               setUpdatingComplianceId(assignment.id);
                                               try {
@@ -592,7 +459,7 @@ function DetailedResultsContent() {
                                           </Select>
                                           {updatingComplianceId === assignment.id && (
                                             <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50">
-                                              <Loader className="h-4 w-4 animate-spin" />
+                                              <Loader2 className="h-4 w-4 animate-spin" />
                                             </div>
                                           )}
                                         </div>
@@ -630,11 +497,76 @@ function DetailedResultsContent() {
           </div>
         </main>
       </div>
+
+      {/* Security Review Dialog */}
+      <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>مراجعة الضوابط</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Select
+                value={selectedAction || undefined}
+                onValueChange={(value: "CONFIRM" | "REQUEST_REVIEW") => setSelectedAction(value)}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="اختر الإجراء" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CONFIRM">اعتماد</SelectItem>
+                  <SelectItem value="REQUEST_REVIEW">طلب مراجعة</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Select
+                value={selectedControls.length > 0 ? selectedControls[0] : undefined}
+                onValueChange={(value: string) => setSelectedControls([value])}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="اختر الضوابط" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedMainComponent && selectedSystemDetails?.[selectedMainComponent]?.subControls.map(control => (
+                    <SelectItem key={control.id} value={control.id}>
+                      {control.control.controlNumber} - {control.control.subComponent || control.control.controlText}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Textarea
+                value={reviewNote}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReviewNote(e.target.value)}
+                placeholder="أضف ملاحظاتك هنا..."
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="submit"
+              onClick={handleSecurityReviewSubmit}
+              disabled={!selectedAction || selectedControls.length === 0 || isSubmittingReview}
+            >
+              {isSubmittingReview ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  جاري الحفظ...
+                </>
+              ) : (
+                'حفظ'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-// Main page component with Suspense boundary
 export default function SecurityManagerDetailedResultsPage() {
   return (
     <Suspense fallback={<div className="flex justify-center items-center min-h-screen">جاري التحميل...</div>}>
@@ -642,6 +574,3 @@ export default function SecurityManagerDetailedResultsPage() {
     </Suspense>
   );
 }
-
-// Add missing import
-import Link from "next/link";
