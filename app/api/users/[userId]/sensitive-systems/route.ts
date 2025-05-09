@@ -24,11 +24,22 @@ export async function GET(
         },
       },
       include: {
-        assessment: { // Include assessment details if needed (e.g., company name)
+        assessment: {
           select: {
             id: true,
             companyNameAr: true,
             companyNameEn: true,
+            assessmentStatuses: {
+              select: {
+                departmentManager: {
+                  select: {
+                    nameAr: true,
+                    name: true,
+                    department: true
+                  }
+                }
+              }
+            }
           }
         }
       },

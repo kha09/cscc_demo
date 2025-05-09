@@ -70,13 +70,17 @@ interface SensitiveSystemInfo {
   id: string;
   systemName: string;
   systemDescription?: string | null;
-  department?: {
+  assessment?: {
     id: string;
-    name: string;
-    manager?: {
-      id: string;
-      name: string;
-    } | null;
+    companyNameAr: string;
+    companyNameEn: string;
+    assessmentStatuses: {
+      departmentManager: {
+        nameAr: string | null;
+        name: string;
+        department: string | null;
+      };
+    }[];
   } | null;
 }
 
@@ -438,10 +442,15 @@ function DetailedResultsContent() {
                         <span>الضوابط المتأخرة:</span>
                         <span className="font-medium text-red-600">-- / 105</span>
                       </div>
-                  {/* Department Managers - Placeholder since department relation is not available */}
+                  {/* Department Manager Information */}
                   <div className="flex items-center gap-2 pt-2 border-t mt-2 text-gray-700">
                     <Building className="h-4 w-4 text-gray-500"/>
-                    <span>مدير القسم: غير متوفر</span>
+                    <span>
+                      مدير القسم:{' '}
+                      {system.assessment?.assessmentStatuses?.[0]?.departmentManager 
+                        ? `${system.assessment.assessmentStatuses[0].departmentManager.nameAr || system.assessment.assessmentStatuses[0].departmentManager.name} - ${system.assessment.assessmentStatuses[0].departmentManager.department}`
+                        : 'غير متوفر'}
+                    </span>
                   </div>
                     </CardContent>
                   </Card>
