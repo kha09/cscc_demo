@@ -709,7 +709,13 @@ export default function DepartmentManagerDashboardPage() {
               <h2 className="text-xl font-semibold">المهام المعينة لك ({user?.nameAr || user?.name})</h2> {/* Use user.nameAr or user.name */}
               <Button 
                 onClick={openApproveConfirmation} 
-                disabled={isApproved || !latestAssessment || isApprovingAssessment}
+                disabled={isApproved || !latestAssessment || isApprovingAssessment || (() => {
+                  const latestTask = managerTasks.find(
+                    (t) => t.sensitiveSystem?.assessment?.id === latestAssessment?.assessmentId
+                  );
+                  const { text: latestStatusText } = getDMTaskStatus(latestTask!);
+                  return latestStatusText !== 'مكتمل للمراجعة والاعتماد';
+                })()}
                 className={`${isApproved ? 'bg-gray-500' : 'bg-blue-800 hover:bg-blue-900'} text-white`}
               >
                 {isApprovingAssessment ? 'جاري الاعتماد...' : isApproved ? 'تم الاعتماد' : 'اعتماد'}
