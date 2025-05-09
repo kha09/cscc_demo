@@ -1155,12 +1155,12 @@ export default function SecurityManagerDashboardPage() {
                     <p className="text-center text-gray-500">لا توجد مراجعات من المدراء لعرضها.</p>
                   ) : (
                     riskAssignments.map((assignment) => (
-                      <div key={assignment.id} className={`border rounded-lg p-4 ${assignment.managerStatus === 'REJECTED' ? 'bg-red-50 border-red-200' : assignment.managerStatus === 'APPROVED' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                      <div key={assignment.id} className={`border rounded-lg p-4 ${assignment.managerStatus === 'REJECTED' ? 'bg-red-50 border-red-200' : assignment.managerStatus === 'معتمد' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-sm font-medium flex-1 mr-2" title={assignment.control.controlText}>
                             {assignment.control.controlNumber} - {assignment.control.controlText}
                           </span>
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getManagerStatusBadgeClass(assignment.managerStatus)}`}>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${assignment.managerStatus === 'معتمد' ? 'bg-green-100 text-green-800' : getManagerStatusBadgeClass(assignment.managerStatus)}`}>
                             {translateManagerStatus(assignment.managerStatus)}
                           </span>
                         </div>
