@@ -562,7 +562,7 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
             {/* TODO: Link to actual assessment management page when created */}
             <Link href="/admin#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
               <FileText className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة التقييمات</span>
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>حالة النظام</span>
             </Link>
             <Link href="/admin#system-settings" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
               <Server className="h-5 w-5 flex-shrink-0" /> {/* Using Server icon for settings */}
@@ -917,7 +917,7 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
                 {/* <p className="text-xs text-muted-foreground">+2 from last month</p> */}
               </CardContent>
             </Card>
-
+            {/*
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">التقييمات النشطة</CardTitle>
@@ -925,10 +925,11 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">18</div>
-                {/* <p className="text-xs text-muted-foreground">+5 this week</p> */}
+                 <p className="text-xs text-muted-foreground">+5 this week</p>
               </CardContent>
             </Card>
-
+            */}
+            {/*
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">متوسط نسبة الامتثال</CardTitle>
@@ -936,10 +937,10 @@ const [assessmentName, setAssessmentName] = useState('غير محدد'); // Defa
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">76%</div>
-                {/* <p className="text-xs text-muted-foreground">Up from 72% last period</p> */}
+                  <p className="text-xs text-muted-foreground">Up from 72% last period</p>
               </CardContent>
             </Card>
-
+            */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">توافر النظام</CardTitle>
