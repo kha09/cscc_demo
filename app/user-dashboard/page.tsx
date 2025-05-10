@@ -114,6 +114,42 @@ export default function UserDashboardPage() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]); // State for already uploaded files
   const [isUploading, setIsUploading] = useState(false); // State for upload loading indicator
   const [uploadError, setUploadError] = useState<string | null>(null); // State for upload errors
+  const [securityReviews, setSecurityReviews] = useState<any[]>([]); // State for security reviews
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false); // Loading state for reviews
+
+  // Fetch security reviews
+  const fetchSecurityReviews = useCallback(async () => {
+    if (!currentUser?.id) return;
+
+    setIsLoadingReviews(true);
+    try {
+      // Get user from localStorage for auth header
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        throw new Error('User not authenticated');
+      }
+
+      const response = await fetch(`/api/security-reviews?userId=${currentUser.id}`, {
+        headers: {
+          'Authorization': `Bearer ${encodeURIComponent(storedUser)}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch security reviews');
+      }
+      const data = await response.json();
+      setSecurityReviews(data);
+    } catch (err) {
+      console.error('Error fetching security reviews:', err);
+      // Don't set error state as this is a secondary feature
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    fetchSecurityReviews();
+  }, [fetchSecurityReviews]);
 
   // Auth and Routing - Need router for redirect
   // const { logout } = useAuth(); // Logout is handled by AppHeader
@@ -166,7 +202,18 @@ export default function UserDashboardPage() {
 
     setIsLoadingControls(true);
     try {
-      const response = await fetch(`/api/control-assignments?userId=${currentUser.id}`, { cache: 'no-store' });
+      // Get user from localStorage for auth header
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        throw new Error('User not authenticated');
+      }
+
+      const response = await fetch(`/api/control-assignments?userId=${currentUser.id}`, {
+        cache: 'no-store',
+        headers: {
+          'Authorization': `Bearer ${encodeURIComponent(storedUser)}`
+        }
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch assigned controls: ${response.statusText}`);
       }
@@ -236,7 +283,17 @@ export default function UserDashboardPage() {
   const fetchUploadedFiles = useCallback(async (assignmentId: string) => {
     if (!assignmentId) return;
     try {
-      const response = await fetch(`/api/control-assignments/${assignmentId}/files`);
+      // Get user from localStorage for auth header
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        throw new Error('User not authenticated');
+      }
+
+      const response = await fetch(`/api/control-assignments/${assignmentId}/files`, {
+        headers: {
+          'Authorization': `Bearer ${encodeURIComponent(storedUser)}`
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch files');
       }
@@ -262,10 +319,18 @@ export default function UserDashboardPage() {
     }
 
     try {
+      // Get user from localStorage for auth header
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        throw new Error('User not authenticated');
+      }
+
       const response = await fetch(`/api/control-assignments/${selectedAssignment.id}/files`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${encodeURIComponent(storedUser)}`
+        },
         body: formData,
-        // Don't set Content-Type header, browser does it automatically for FormData
       });
 
       if (!response.ok) {
@@ -351,11 +416,20 @@ export default function UserDashboardPage() {
     };
 
     try {
-        const response = await fetch(`/api/control-assignments/${selectedAssignment.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
+      // Get user from localStorage for auth header
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        throw new Error('User not authenticated');
+      }
+
+      const response = await fetch(`/api/control-assignments/${selectedAssignment.id}`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${encodeURIComponent(storedUser)}`
+          },
+          body: JSON.stringify(payload),
+      });
 
         if (!response.ok) {
             const errorData = await response.json();
@@ -564,6 +638,102 @@ export default function UserDashboardPage() {
                  </tbody>
                </table>
              </div>
+          </Card>
+
+          {/* Security Manager Reviews */}
+          <Card className="p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">ملاحظات مدير الأمن</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-right border-b border-gray-200">
+                    <th className="pb-3 font-medium text-gray-700">المكون الرئيسي</th>
+                    <th className="pb-3 font-medium text-gray-700">الإجراء</th>
+                    <th className="pb-3 font-medium text-gray-700">الملاحظات</th>
+                    <th className="pb-3 font-medium text-gray-700">الضوابط المتأثرة</th>
+                    <th className="pb-3 font-medium text-gray-700">التاريخ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoadingReviews ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-4">
+                        <RefreshCw className="h-6 w-6 animate-spin inline-block mr-2" />
+                        جاري تحميل المراجعات...
+                      </td>
+                    </tr>
+                  ) : securityReviews.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-4">
+                        لا توجد ملاحظات جديدة من مدير الأمن
+                      </td>
+                    </tr>
+                  ) : (
+                    securityReviews.map((review) => (
+                      <tr key={review.id} className="border-b border-gray-100">
+                        <td className="py-4">{review.mainComponent}</td>
+                        <td className="py-4">
+                          <Badge variant="outline" className={review.action === 'CONFIRM' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                            {review.action === 'CONFIRM' ? 'اعتماد' : 'طلب مراجعة'}
+                          </Badge>
+                        </td>
+                        <td className="py-4">{review.note || '-'}</td>
+                        <td className="py-4">
+                          {review.controlAssignments.map((ca: { id: string; controlAssignment: { control: { controlNumber: string } } }) => (
+                            <Badge key={ca.id} variant="outline" className="mr-1 mb-1">
+                              {ca.controlAssignment.control.controlNumber}
+                            </Badge>
+                          ))}
+                        </td>
+                        <td className="py-4">
+                          {formatDate(review.createdAt)}
+                          {review.controlAssignments.every((ca: { forwarded: boolean }) => ca.forwarded) ? (
+                            <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">تم التحويل</Badge>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mr-2"
+                              onClick={async () => {
+                                try {
+                                  // Get user from localStorage for auth header
+                                  const storedUser = localStorage.getItem('user');
+                                  if (!storedUser) {
+                                    throw new Error('User not authenticated');
+                                  }
+
+                                  const response = await fetch('/api/security-reviews/forward', {
+                                    method: 'POST',
+                                    headers: { 
+                                      'Content-Type': 'application/json',
+                                      'Authorization': `Bearer ${encodeURIComponent(storedUser)}`
+                                    },
+                                    body: JSON.stringify({ reviewId: review.id })
+                                  });
+
+                                  if (!response.ok) {
+                                    throw new Error('Failed to forward review');
+                                  }
+
+                                  // Refresh reviews after successful forward
+                                  fetchSecurityReviews();
+                                } catch (error) {
+                                  console.error('Error forwarding review:', error);
+                                }
+                              }}
+                            >
+                              تحويل للمدير
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </Card>
 
           {/* OpenAI Chat Assistant */}

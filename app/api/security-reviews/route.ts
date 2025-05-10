@@ -2,31 +2,87 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/api-auth";
 
-type SecurityAction = "CONFIRM" | "REQUEST_REVIEW";
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Get all reviews that affect this user's control assignments
+    const reviews = await prisma.securityReview.findMany({
+      where: {
+        controlAssignments: {
+          some: {
+            controlAssignment: {
+              assignedUserId: userId
+            }
+          }
+        }
+      },
+      select: {
+        id: true,
+        mainComponent: true,
+        action: true,
+        note: true,
+        createdAt: true,
+        securityManager: {
+          select: {
+            name: true,
+            nameAr: true,
+          },
+        },
+      controlAssignments: {
+        select: {
+          id: true,
+          forwarded: true,
+          acknowledged: true,
+          controlAssignment: {
+            select: {
+              control: {
+                select: {
+                  controlNumber: true,
+                  controlText: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json(reviews);
+  } catch (error) {
+    console.error("Error fetching security reviews:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch security reviews" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
-    // Get user from request
     const user = await getCurrentUser(req);
-    if (!user?.id) {
+    if (!user?.id || user.role !== 'SECURITY_MANAGER') {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const data = await req.json();
     const { systemId, mainComponent, action, note, controlAssignmentIds } = data;
 
-    // Validate required fields
     if (!systemId || !mainComponent || !action || !controlAssignmentIds?.length) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    // Validate action is a valid SecurityAction
-    if (!["CONFIRM", "REQUEST_REVIEW"].includes(action)) {
-      return NextResponse.json(
-        { error: "Invalid action value" },
         { status: 400 }
       );
     }
@@ -37,120 +93,24 @@ export async function POST(req: NextRequest) {
         systemId,
         mainComponent,
         securityManagerId: user.id,
-        action: action as SecurityAction,
+        action,
         note,
-      },
-    });
-
-    // Create the control assignment links
-    await prisma.securityReviewControlAssignment.createMany({
-      data: controlAssignmentIds.map((controlAssignmentId: string) => ({
-        securityReviewId: review.id,
-        controlAssignmentId,
-      })),
-    });
-
-    // Fetch the created review with its relationships
-    const securityReview = await prisma.securityReview.findUnique({
-      where: { id: review.id },
-      include: {
         controlAssignments: {
-          include: {
-            controlAssignment: {
-              include: {
-                control: true,
-              },
-            },
-          },
+          create: controlAssignmentIds.map((id: string) => ({
+            controlAssignmentId: id,
+          })),
         },
-        securityManager: {
-          select: {
-            id: true,
-            name: true,
-            nameAr: true,
-          },
-        },
-        system: {
-          select: {
-            id: true,
-            systemName: true,
-            systemDescription: true,
-          },
-        },
+      },
+      include: {
+        controlAssignments: true,
       },
     });
 
-    return NextResponse.json(securityReview, { status: 201 });
+    return NextResponse.json(review);
   } catch (error) {
     console.error("Error creating security review:", error);
     return NextResponse.json(
       { error: "Failed to create security review" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET(req: NextRequest) {
-  try {
-    // Get user from request
-    const user = await getCurrentUser(req);
-    if (!user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const systemId = searchParams.get("systemId");
-    const mainComponent = searchParams.get("mainComponent");
-
-    if (!systemId) {
-      return NextResponse.json(
-        { error: "systemId is required" },
-        { status: 400 }
-      );
-    }
-
-    const where = {
-      systemId,
-      ...(mainComponent && { mainComponent }),
-    };
-
-    const reviews = await prisma.securityReview.findMany({
-      where,
-      include: {
-        controlAssignments: {
-          include: {
-            controlAssignment: {
-              include: {
-                control: true,
-              },
-            },
-          },
-        },
-        securityManager: {
-          select: {
-            id: true,
-            name: true,
-            nameAr: true,
-          },
-        },
-          system: {
-            select: {
-              id: true,
-              systemName: true,
-              systemDescription: true,
-            },
-          },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    return NextResponse.json(reviews);
-  } catch (error) {
-    console.error("Error fetching security reviews:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch security reviews" },
       { status: 500 }
     );
   }

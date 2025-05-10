@@ -43,20 +43,31 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Removed Tooltip import as it seems unused and causes errors
 import { Badge } from "@/components/ui/badge"; // Added Badge for status
-import { Textarea as _Textarea } from "@/components/ui/textarea"; // Added Textarea for notes
-import { Label as _Label } from "@/components/ui/label"; // Added Label import
+import { Textarea } from "@/components/ui/textarea"; // Added Textarea for notes
+import { Label } from "@/components/ui/label"; // Added Label import
 import React, { ChangeEvent as _ChangeEvent } from "react"; // Import React for Fragment and ChangeEvent
 
 // Define User type for frontend use
 type FrontendUser = Pick<PrismaUser, 'id' | 'name' | 'nameAr' | 'email' | 'role' | 'department'>;
 
 // Define ControlAssignment type for frontend use, including notes
+interface SecurityReview {
+  id: string;
+  mainComponent: string;
+  action: 'CONFIRM' | 'REQUEST_REVIEW';
+  note: string | null;
+  createdAt: string;
+  forwarded: boolean;
+  acknowledged: boolean;
+}
+
 interface FrontendControlAssignment extends Omit<PrismaControlAssignment, 'createdAt' | 'updatedAt' | 'control' | 'assignedUser'> {
   control: Pick<PrismaControl, 'id' | 'controlNumber' | 'controlText' | 'mainComponent' | 'subComponent' | 'controlType'>;
-  assignedUser: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null; // Make assignedUser required but nullable
-  notes: string | null; // Ensure notes is included
-  status: TaskStatus; // Ensure status is included
-  complianceLevel: ComplianceLevel | null; // Add complianceLevel
+  assignedUser: Pick<PrismaUser, 'id' | 'name' | 'nameAr'> | null;
+  notes: string | null;
+  status: TaskStatus;
+  complianceLevel: ComplianceLevel | null;
+  securityReviews?: SecurityReview[];
 }
 
 // Define Task type for frontend use, including controlAssignments and assessmentName
@@ -103,6 +114,9 @@ export default function DepartmentManagerDashboardPage() {
   const [_selectedTaskForDetailsModal] = useState<FrontendTask | null>(null); // Removed unused setter
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
+  const [selectedReview, setSelectedReview] = useState<{ id: string; action: string; note: string | null } | null>(null);
+  const [acknowledgeAction, setAcknowledgeAction] = useState<string>('');
+  const [acknowledgeNote, setAcknowledgeNote] = useState<string>('');
   // Removed state related to the old incorrect assignment modal
 
   // Auth and Routing
@@ -855,6 +869,135 @@ export default function DepartmentManagerDashboardPage() {
                 </tbody>
               </table>
             </div>
+          </Card>
+
+          {/* Security Reviews Card */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold">مراجعات مدير الأمن</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-right border-b border-gray-200">
+                      <th className="pb-3 font-medium text-gray-700">المكون الرئيسي</th>
+                      <th className="pb-3 font-medium text-gray-700">الإجراء</th>
+                      <th className="pb-3 font-medium text-gray-700">الملاحظات</th>
+                      <th className="pb-3 font-medium text-gray-700">الضوابط المتأثرة</th>
+                      <th className="pb-3 font-medium text-gray-700">التاريخ</th>
+                      <th className="pb-3 font-medium text-gray-700">الإجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {managerTasks.flatMap(task => 
+                      task.controlAssignments
+                        .filter(ca => ca.securityReviews?.some((sr: SecurityReview) => sr.forwarded && !sr.acknowledged))
+                        .map(ca => ca.securityReviews?.map((review: SecurityReview) => (
+                          <tr key={review.id} className="border-b border-gray-100">
+                            <td className="py-4">{review.mainComponent}</td>
+                            <td className="py-4">
+                              <Badge variant="outline" className={review.action === 'CONFIRM' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                                {review.action === 'CONFIRM' ? 'اعتماد' : 'طلب مراجعة'}
+                              </Badge>
+                            </td>
+                            <td className="py-4">{review.note || '-'}</td>
+                            <td className="py-4">
+                              {ca.control.controlNumber}
+                            </td>
+                            <td className="py-4">{formatDate(review.createdAt)}</td>
+                            <td className="py-4">
+                              <Dialog onOpenChange={(open) => {
+                                if (open) {
+                                  setSelectedReview(review);
+                                  setAcknowledgeAction('');
+                                  setAcknowledgeNote('');
+                                }
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" size="sm">الرد</Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>الرد على مراجعة مدير الأمن</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="grid gap-4 py-4">
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label htmlFor="action" className="text-right">الإجراء</Label>
+                                      <Select
+                                        value={acknowledgeAction}
+                                        onValueChange={setAcknowledgeAction}
+                                      >
+                                        <SelectTrigger className="col-span-3">
+                                          <SelectValue placeholder="اختر الإجراء" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="CONFIRM">اعتماد</SelectItem>
+                                          <SelectItem value="REQUEST_REVIEW">طلب مراجعة</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label htmlFor="note" className="text-right">ملاحظات</Label>
+                                      <Textarea
+                                        id="note"
+                                        value={acknowledgeNote}
+                                        onChange={(e) => setAcknowledgeNote(e.target.value)}
+                                        placeholder="أضف ملاحظاتك هنا..."
+                                        className="col-span-3"
+                                        required={acknowledgeAction === 'REQUEST_REVIEW'}
+                                      />
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <Button onClick={async () => {
+                                      if (!selectedReview) return;
+                                      
+                                      if (acknowledgeAction === 'REQUEST_REVIEW' && !acknowledgeNote) {
+                                        alert('الملاحظات مطلوبة عند طلب المراجعة');
+                                        return;
+                                      }
+
+                                      try {
+                                        const response = await fetch('/api/security-reviews/acknowledge', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            reviewId: selectedReview.id,
+                                            action: acknowledgeAction,
+                                            note: acknowledgeNote
+                                          }),
+                                        });
+
+                                        if (!response.ok) {
+                                          throw new Error('Failed to acknowledge review');
+                                        }
+
+                                        // Refresh tasks to update the UI
+                                        fetchManagerTasks();
+                                        
+                                        // Reset form
+                                        setSelectedReview(null);
+                                        setAcknowledgeAction('');
+                                        setAcknowledgeNote('');
+                                      } catch (error) {
+                                        console.error('Error acknowledging review:', error);
+                                        alert('فشل في حفظ الرد');
+                                      }
+                                    }}>
+                                      حفظ
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            </td>
+                          </tr>
+                        )))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Two Column Layout for Team Members and Team Tasks */}

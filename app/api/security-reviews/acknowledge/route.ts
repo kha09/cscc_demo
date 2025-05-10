@@ -4,61 +4,88 @@ import { getCurrentUser } from "@/lib/api-auth";
 
 export async function POST(req: NextRequest) {
   try {
-    // Get user from request
     const user = await getCurrentUser(req);
-    if (!user?.id) {
+    if (!user?.id || user.role !== 'DEPARTMENT_MANAGER') {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const data = await req.json();
-    const { reviewAssignmentIds } = data;
+    const { reviewId, action, note } = data;
 
-    if (!reviewAssignmentIds?.length) {
+    if (!reviewId || !action) {
       return NextResponse.json(
-        { error: "Review assignment IDs are required" },
+        { error: "Review ID and action are required" },
         { status: 400 }
       );
     }
 
-    // Verify user owns these assignments
-    const assignments = await prisma.securityReviewControlAssignment.findMany({
-      where: {
-        id: { in: reviewAssignmentIds },
-        controlAssignment: {
-          assignedUserId: user.id,
-        },
-        forwarded: true,
-        acknowledged: false,
-      },
-    });
-
-    if (assignments.length !== reviewAssignmentIds.length) {
+    // Note is optional but should be required for REQUEST_REVIEW action
+    if (action === 'REQUEST_REVIEW' && !note) {
       return NextResponse.json(
-        { error: "Some review assignments are not accessible" },
-        { status: 403 }
+        { error: "Note is required when requesting review" },
+        { status: 400 }
       );
     }
 
-    // Update all specified review assignments
-    await prisma.$transaction(
-      reviewAssignmentIds.map((id: string) =>
-        prisma.securityReviewControlAssignment.update({
-          where: { id },
-          data: {
-            acknowledged: true,
-            acknowledgedAt: new Date(),
-          },
-        })
-      )
-    );
-
-    return NextResponse.json({
-      message: "Reviews acknowledged successfully",
+    // Get the review and verify it's forwarded
+    const review = await prisma.securityReview.findUnique({
+      where: { id: reviewId },
+      include: {
+        controlAssignments: true
+      }
     });
+
+    if (!review) {
+      return NextResponse.json(
+        { error: "Review not found" },
+        { status: 404 }
+      );
+    }
+
+    // Verify all control assignments are forwarded
+    const allForwarded = review.controlAssignments.every(ca => ca.forwarded);
+    if (!allForwarded) {
+      return NextResponse.json(
+        { error: "Review must be forwarded before acknowledgement" },
+        { status: 400 }
+      );
+    }
+
+    // Start a transaction to update both SecurityReviewControlAssignment and ControlAssignment
+    await prisma.$transaction(async (tx) => {
+      // Update SecurityReviewControlAssignment records
+      await tx.securityReviewControlAssignment.updateMany({
+        where: {
+          securityReviewId: reviewId
+        },
+        data: {
+          acknowledged: true,
+          acknowledgedAt: new Date()
+        }
+      });
+
+      // Get all control assignment IDs from the review
+      const controlAssignmentIds = review.controlAssignments.map(ca => ca.controlAssignmentId);
+
+      // Update ControlAssignment records with the appropriate status
+      await tx.controlAssignment.updateMany({
+        where: {
+          id: {
+            in: controlAssignmentIds
+          }
+        },
+        data: {
+          managerStatus: action === 'CONFIRM' ? 'معتمد' : 'طلب مراجعة',
+          managerNote: note || null
+        }
+      });
+    });
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error acknowledging security reviews:", error);
+    console.error("Error acknowledging security review:", error);
     return NextResponse.json(
-      { error: "Failed to acknowledge security reviews" },
+      { error: "Failed to acknowledge security review" },
       { status: 500 }
     );
   }
