@@ -510,12 +510,16 @@ export function OverallComplianceTab({
               <h4 className="text-xl font-bold text-slate-800 mb-2">عدد الأنظمة الحساسة</h4>
               <div className="text-4xl font-bold text-nca-teal">{systemsCount}</div>
               
-              <div className="mt-8">
-                <h4 className="text-xl font-bold text-slate-800 mb-4">إجمالي الضوابط</h4>
-                <div className="text-3xl font-bold text-slate-700">
-                  {Object.values(complianceCounts).reduce((sum, count) => sum + count, 0)}
-                </div>
-              </div>
+<div className="mt-8">
+  <h4 className="text-xl font-bold text-slate-800 mb-4">نسبة الامتثال</h4>
+  <div className="text-3xl font-bold text-slate-700">
+    {(() => {
+      const total = Object.values(complianceCounts).reduce((sum, count) => sum + count, 0);
+      const implemented = complianceCounts[ComplianceLevel.IMPLEMENTED] || 0;
+      return total > 0 ? ((implemented / total) * 100).toFixed(1) : '0.0';
+    })()}%
+  </div>
+</div>
             </div>
           </CardContent>
         </Card>
