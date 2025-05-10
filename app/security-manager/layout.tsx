@@ -57,14 +57,6 @@ export default function SecurityManagerLayout({
               <LayoutDashboard className="h-5 w-5 flex-shrink-0" />
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>لوحة المعلومات</span>
             </Link>
-            <Link href="/security-manager/departments" className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
-              !isSidebarOpen ? 'justify-center' : '',
-              pathname === "/security-manager/departments" && "bg-slate-700"
-            )}>
-              <Building2 className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>الإدارات</span>
-            </Link>
             <Link href="/security-manager/system-info" className={cn(
               "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
               !isSidebarOpen ? 'justify-center' : '',
@@ -72,14 +64,6 @@ export default function SecurityManagerLayout({
             )}>
               <FileText className="h-5 w-5 flex-shrink-0" />
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>معلومات الأنظمة</span>
-            </Link>
-            <Link href="/security-manager/workflow" className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
-              !isSidebarOpen ? 'justify-center' : '',
-              pathname === "/security-manager/workflow" && "bg-slate-700"
-            )}>
-              <Activity className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>سير العمل</span>
             </Link>
             <Link href="/security-manager/results" className={cn(
               "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
