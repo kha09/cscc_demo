@@ -36,7 +36,7 @@ interface SecurityReview {
 type GroupedReviews = Record<string, SecurityReview[]>;
 
 export default function DepartmentManagerDetailedResults() {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const [reviews, setReviews] = useState<GroupedReviews>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

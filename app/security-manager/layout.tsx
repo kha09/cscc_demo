@@ -10,10 +10,10 @@ import {
   Menu,
   LayoutDashboard,
   FileText,
-  Building2,
+  Building2 as _Building2,
   ClipboardList,
   MessageSquare,
-  Activity,
+  Activity as _Activity,
   BarChart,
 } from "lucide-react";
 

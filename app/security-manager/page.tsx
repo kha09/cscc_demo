@@ -33,13 +33,13 @@ import {
   // Calendar, // Original Calendar icon, now aliased below
   ChevronDown as _ChevronDown, // Used with underscore prefix in JSX
   ChevronUp as _ChevronUp, // Used with underscore prefix in JSX
-  Menu, // Keep for sidebar toggle
-  Activity, // Added for workflow icon
-  Server, // Keep for sidebar icon
+  Menu as _Menu, // Keep for sidebar toggle
+  Activity as _Activity, // Added for workflow icon
+  Server as _Server, // Keep for sidebar icon
   // ListChecks, // Removed unused import
   ShieldCheck, // Keep for sidebar icon
   // FileWarning, // Removed unused import
-  LayoutDashboard,
+  LayoutDashboard as _LayoutDashboard,
   // Building, // Removed unused import
   // Check, // Removed unused import
   X // Keep for badge removal
@@ -47,7 +47,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import Link from "next/link";
+import { default as _Link } from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select components
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Added Popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"; // Added Command components

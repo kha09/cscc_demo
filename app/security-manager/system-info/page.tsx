@@ -6,7 +6,7 @@ import type { SensitiveSystemInfo, Assessment } from "@prisma/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SensitiveSystemForm from "@/components/sensitive-system-form";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Card, CardHeader as _CardHeader, CardContent } from "@/components/ui/card";
 
 // Extend SensitiveSystemInfo to include its assessment
 type SensitiveSystemInfoWithAssessment = SensitiveSystemInfo & {
@@ -26,9 +26,9 @@ export default function SystemInfoPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [latestAssessmentId, setLatestAssessmentId] = useState<string>("");
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [_assessments, setAssessments] = useState<Assessment[]>([]);
   const [isLoadingAssessments, setIsLoadingAssessments] = useState(true);
-  const [assessmentsError, setAssessmentsError] = useState<string | null>(null);
+  const [_assessmentsError, setAssessmentsError] = useState<string | null>(null);
 
   // Fetch assessments to find the latest one
   useEffect(() => {

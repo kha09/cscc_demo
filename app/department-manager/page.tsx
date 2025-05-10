@@ -43,8 +43,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Removed Tooltip import as it seems unused and causes errors
 import { Badge } from "@/components/ui/badge"; // Added Badge for status
-import { Textarea } from "@/components/ui/textarea"; // Added Textarea for notes
-import { Label } from "@/components/ui/label"; // Added Label import
+import { Textarea as _Textarea } from "@/components/ui/textarea"; // Added Textarea for notes (prefixed with underscore)
+import { Label as _Label } from "@/components/ui/label"; // Added Label import (prefixed with underscore)
 import React, { ChangeEvent as _ChangeEvent } from "react"; // Import React for Fragment and ChangeEvent
 
 // Define User type for frontend use
@@ -114,9 +114,9 @@ export default function DepartmentManagerDashboardPage() {
   const [_selectedTaskForDetailsModal] = useState<FrontendTask | null>(null); // Removed unused setter
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
-  const [selectedReview, setSelectedReview] = useState<{ id: string; action: string; note: string | null } | null>(null);
-  const [acknowledgeAction, setAcknowledgeAction] = useState<string>('');
-  const [acknowledgeNote, setAcknowledgeNote] = useState<string>('');
+  const [_selectedReview, _setSelectedReview] = useState<{ id: string; action: string; note: string | null } | null>(null); // Prefixed with underscore
+  const [_acknowledgeAction, _setAcknowledgeAction] = useState<string>(''); // Prefixed with underscore
+  const [_acknowledgeNote, _setAcknowledgeNote] = useState<string>(''); // Prefixed with underscore
   // Removed state related to the old incorrect assignment modal
 
   // Auth and Routing

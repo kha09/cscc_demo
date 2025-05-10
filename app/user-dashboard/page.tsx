@@ -114,7 +114,22 @@ export default function UserDashboardPage() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]); // State for already uploaded files
   const [isUploading, setIsUploading] = useState(false); // State for upload loading indicator
   const [uploadError, setUploadError] = useState<string | null>(null); // State for upload errors
-  const [securityReviews, setSecurityReviews] = useState<any[]>([]); // State for security reviews
+  const [securityReviews, setSecurityReviews] = useState<{
+    id: string;
+    mainComponent: string;
+    action: string;
+    note: string | null;
+    createdAt: string;
+    controlAssignments: {
+      id: string;
+      forwarded: boolean;
+      controlAssignment: {
+        control: {
+          controlNumber: string;
+        };
+      };
+    }[];
+  }[]>([]); // State for security reviews with proper type instead of any
   const [isLoadingReviews, setIsLoadingReviews] = useState(false); // Loading state for reviews
 
   // Fetch security reviews

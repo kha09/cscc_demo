@@ -83,11 +83,11 @@ function ResultsContent() {
       }
     };
 
-    // Fetch only if user exists and assessment is not already loaded/loading
-    if (user?.id && !assessment && !isAssessmentLoading) {
-      fetchAssessment();
-    }
-  }, [user?.id]); // Depend only on user ID to prevent loops if user object reference changes
+  // Fetch only if user exists and assessment is not already loaded/loading
+  if (user?.id && !assessment && !isAssessmentLoading) {
+    fetchAssessment();
+  }
+}, [user?.id, assessment, isAssessmentLoading]); // Include all dependencies
 
   // Handle loading and unauthenticated states FIRST
   if (authLoading) {
