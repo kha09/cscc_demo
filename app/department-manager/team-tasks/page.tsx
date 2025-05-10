@@ -306,7 +306,11 @@ export default function TeamTasksPage() {
     if (!user?.id) return;
     setIsLoadingReviews(true);
     try {
-      const response = await fetch(`/api/security-reviews/forward?userId=${user.id}`);
+      const response = await fetch(`/api/security-reviews/forward?userId=${user.id}`, {
+        headers: {
+          Authorization: `Bearer ${encodeURIComponent(JSON.stringify(user))}`
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch security reviews');
       const data = await response.json();
       setSecurityReviews(data);
@@ -322,7 +326,10 @@ export default function TeamTasksPage() {
     try {
       const response = await fetch('/api/security-reviews/forward', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${encodeURIComponent(JSON.stringify(user))}`
+        },
         body: JSON.stringify({ reviewAssignmentIds }),
       });
 
@@ -409,7 +416,7 @@ export default function TeamTasksPage() {
                   </div>
                   <div className="flex justify-end">
                     <Button
-                      onClick={() => handleForwardReviews([review.id])}
+                      onClick={() => handleForwardReviews(review.controlAssignments.map(ca => ca.id))}
                       className="bg-nca-teal hover:bg-nca-teal/90"
                     >
                       إرسال للمستخدم

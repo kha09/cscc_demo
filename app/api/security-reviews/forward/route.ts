@@ -77,7 +77,6 @@ export async function GET(req: NextRequest) {
       where: {
         controlAssignments: {
           some: {
-            forwarded: false,
             controlAssignment: {
               task: {
                 assignedToId: userId
@@ -123,7 +122,10 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(reviews);
+    // Filter out reviews that have no unforwarded assignments
+    const filteredReviews = reviews.filter(review => review.controlAssignments.length > 0);
+
+    return NextResponse.json(filteredReviews);
   } catch (error) {
     console.error("Error fetching security reviews:", error);
     return NextResponse.json(
