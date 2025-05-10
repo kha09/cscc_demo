@@ -9,11 +9,12 @@ import { cn } from "@/lib/utils";
 import {
   Menu,
   LayoutDashboard,
-  Users2,
   FileText,
   Building2,
   ClipboardList,
   MessageSquare,
+  Activity,
+  BarChart,
 } from "lucide-react";
 
 export default function SecurityManagerLayout({
@@ -71,6 +72,22 @@ export default function SecurityManagerLayout({
             )}>
               <FileText className="h-5 w-5 flex-shrink-0" />
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>معلومات الأنظمة</span>
+            </Link>
+            <Link href="/security-manager/workflow" className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
+              !isSidebarOpen ? 'justify-center' : '',
+              pathname === "/security-manager/workflow" && "bg-slate-700"
+            )}>
+              <Activity className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>سير العمل</span>
+            </Link>
+            <Link href="/security-manager/results" className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
+              !isSidebarOpen ? 'justify-center' : '',
+              pathname === "/security-manager/results" && "bg-slate-700"
+            )}>
+              <BarChart className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
             </Link>
             <Link href="/security-manager/detailed-results" className={cn(
               "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
