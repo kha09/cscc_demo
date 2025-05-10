@@ -1,26 +1,14 @@
-"use client"
+"use client";
 
 import { useState, useEffect } from "react";
-// import Image from "next/image"; // Removed, AppHeader handles logo
-import { useAuth } from "@/lib/auth-context"; // Import useAuth
-import { User as _User, SensitiveSystemInfo, Assessment } from "@prisma/client"; // Added Assessment import
-import { AppHeader } from "@/components/ui/AppHeader"; // Import shared header
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Import Dialog components
-import SensitiveSystemForm from "@/components/sensitive-system-form"; // Import the form component
-import {
-  // Bell, // Removed, handled by AppHeader
-  // User as UserIcon, // Removed, handled by AppHeader
-  Menu,
-  Server, // Sidebar icon
-  LayoutDashboard, // Sidebar icon
-  BarChart, // Added for Results link
-  Activity // Added for workflow icon
-} from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import type { SensitiveSystemInfo, Assessment } from "@prisma/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import SensitiveSystemForm from "@/components/sensitive-system-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import Link from "next/link";
 
-// Define the type for the fetched data including the nested assessment
+// Extend SensitiveSystemInfo to include its assessment
 type SensitiveSystemInfoWithAssessment = SensitiveSystemInfo & {
   assessment: {
     id: string;
@@ -30,291 +18,212 @@ type SensitiveSystemInfoWithAssessment = SensitiveSystemInfo & {
 };
 
 export default function SystemInfoPage() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // State for sidebar
-  // const [userId, setUserId] = useState<string | null>(null); // Removed temporary userId state
-  // const [userError, setUserError] = useState<string | null>(null); // Removed userError state, handled by auth context
+  const { user, loading: authLoading } = useAuth();
 
-  // State for System Info list
   const [systemInfoList, setSystemInfoList] = useState<SensitiveSystemInfoWithAssessment[]>([]);
   const [systemInfoLoading, setSystemInfoLoading] = useState(true);
   const [systemInfoError, setSystemInfoError] = useState<string | null>(null);
-  
-  // State for modal and assessment
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [latestAssessmentId, setLatestAssessmentId] = useState<string | null>(null);
-  const [_assessments, _setAssessments] = useState<Assessment[]>([]);
+  const [latestAssessmentId, setLatestAssessmentId] = useState<string>("");
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [isLoadingAssessments, setIsLoadingAssessments] = useState(true);
   const [assessmentsError, setAssessmentsError] = useState<string | null>(null);
 
-  const { user, loading: authLoading } = useAuth(); // Get user and loading state
-
-  // Fetch assessments to get the latest one
+  // Fetch assessments to find the latest one
   useEffect(() => {
-    if (!user?.id) return; // Exit if no user ID
-
-    const userId = user.id; // Use authenticated user's ID
-
+    if (!user?.id) return;
+    const userId = user.id;
     const fetchAssessments = async () => {
       setIsLoadingAssessments(true);
       setAssessmentsError(null);
       try {
-        const response = await fetch(`/api/users/${userId}/assessments`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch assessments: ${response.statusText}`);
-        }
-        const data: Assessment[] = await response.json();
-        _setAssessments(data);
-        
-        // Sort assessments by createdAt in descending order and get the latest one
+        const resp = await fetch(`/api/users/${userId}/assessments`);
+        if (!resp.ok) throw new Error(resp.statusText);
+        const data: Assessment[] = await resp.json();
+        setAssessments(data);
         if (data.length > 0) {
-          const sortedAssessments = [...data].sort((a, b) => 
+          const sorted = [...data].sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
-          setLatestAssessmentId(sortedAssessments[0].id);
+          setLatestAssessmentId(sorted[0].id);
         }
       } catch (err: unknown) {
-        console.error("Error fetching assessments:", err);
-        setAssessmentsError(err instanceof Error ? err.message : "An unknown error occurred fetching assessments");
+        setAssessmentsError(err instanceof Error ? err.message : "Unknown error");
       } finally {
         setIsLoadingAssessments(false);
       }
     };
-
     fetchAssessments();
-  }, [user]); // Depend on user object
+  }, [user]);
 
-  // Fetch sensitive system info when user is available
+  // Fetch sensitive system info
   useEffect(() => {
-    if (!user?.id) return; // Exit if no user ID
-
-    const userId = user.id; // Use authenticated user's ID
-
+    if (!user?.id) return;
+    const userId = user.id;
     const fetchSystemInfo = async () => {
       setSystemInfoLoading(true);
       setSystemInfoError(null);
       try {
-        const response = await fetch(`/api/users/${userId}/sensitive-systems`); // Use authenticated userId
-        if (!response.ok) {
-          throw new Error(`Failed to fetch system info: ${response.statusText}`);
-        }
-        const data: SensitiveSystemInfoWithAssessment[] = await response.json();
+        const resp = await fetch(`/api/users/${userId}/sensitive-systems`);
+        if (!resp.ok) throw new Error(resp.statusText);
+        const data: SensitiveSystemInfoWithAssessment[] = await resp.json();
         setSystemInfoList(data);
-      } catch (err: unknown) { // Changed any to unknown
-        console.error("Error fetching system info:", err);
-        // Added instanceof Error check
-        setSystemInfoError(err instanceof Error ? err.message : "An unknown error occurred");
+      } catch (err: unknown) {
+        setSystemInfoError(err instanceof Error ? err.message : "Unknown error");
       } finally {
         setSystemInfoLoading(false);
       }
     };
-
     fetchSystemInfo();
-  }, [user]); // Depend on user object
+  }, [user]);
 
-  // Format date helper
+  // Format dates for display
   const formatDate = (dateString: string | Date) => {
-    if (!dateString) return 'N/A';
     try {
-      return new Date(dateString).toLocaleDateString('ar-SA', { 
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
+      return new Date(dateString).toLocaleDateString("ar-SA", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
       });
-    } catch { // Removed unused variable e
-      return 'Invalid Date';
+    } catch {
+      return "Invalid Date";
     }
   };
 
-  // Handle loading and unauthenticated states
   if (authLoading) {
-    return <div className="flex justify-center items-center min-h-screen">جاري التحميل...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        جاري التحميل...
+      </div>
+    );
   }
-
   if (!user) {
-    return <div className="flex justify-center items-center min-h-screen">الرجاء تسجيل الدخول للوصول لهذه الصفحة.</div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        الرجاء تسجيل الدخول للوصول لهذه الصفحة.
+      </div>
+    );
+  }
+  if (user.role !== "SECURITY_MANAGER") {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        غير مصرح لك بالوصول لهذه الصفحة.
+      </div>
+    );
   }
 
-  // Ensure user is a Security Manager
-  if (user.role !== 'SECURITY_MANAGER') {
-    return <div className="flex justify-center items-center min-h-screen">غير مصرح لك بالوصول لهذه الصفحة.</div>;
-  }
-
-  // Define estimated header height (should match AppHeader)
-  const HEADER_HEIGHT = 88; // Adjust if AppHeader styling changes
+  const HEADER_HEIGHT = 88;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
-      {/* Use shared AppHeader */}
-      <AppHeader />
+      <main
+        className={`p-6 overflow-y-auto h-[calc(100vh-${HEADER_HEIGHT}px)] flex-1`}
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-slate-800">
+            معلومات الأنظمة المقدمة
+          </h1>
+          <Button
+            variant="default"
+            size="sm"
+            className="bg-nca-teal text-white hover:bg-nca-teal-dark"
+            onClick={() => setIsModalOpen(true)}
+            disabled={isLoadingAssessments || !latestAssessmentId}
+          >
+            إضافة معلومات النظام
+          </Button>
+        </div>
 
-      {/* Main Layout with Sidebar */}
-      <div className="flex flex-row">
-        {/* Sidebar - Adjusted sticky top and height */}
-        <aside className={`bg-slate-800 text-white p-4 sticky top-[${HEADER_HEIGHT}px] h-[calc(100vh-${HEADER_HEIGHT}px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
-           <div className={`flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
-             <Button
-               variant="ghost"
-               size="icon"
-               className="text-white hover:bg-slate-700"
-               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-             >
-               <Menu className="h-6 w-6" />
-             </Button>
-           </div>
-          <nav className="space-y-2">
-            {/* Sidebar Links - Copied from main dashboard, adjust active state if needed */}
-            <Link href="/security-manager" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <LayoutDashboard className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>لوحة المعلومات</span>
-            </Link>
-            {/* <Link href="/security-manager#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <ShieldCheck className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقييمات المعينة</span>
-            </Link> */}
-             {/* Highlight the current page */}
-             <Link href="/security-manager/system-info" className={`flex items-center gap-3 px-3 py-2 rounded bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <Server className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>معلومات الأنظمة</span>
-            </Link>
-            {/* <Link href="/security-manager#tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <ListChecks className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المهام</span>
-            </Link> */}
-            {/* <Link href="/security-manager#risks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <FileWarning className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المخاطر</span>
-            </Link> */}
-            {/* <Link href="/security-manager#reports" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <FileText className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقارير</span>
-            </Link> */}
-            {/* Link to Results/Analytics Page - Added */}
-            <Link href="/security-manager/results" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <BarChart className="h-5 w-5 flex-shrink-0" /> {/* Using BarChart icon for analytics */}
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
-            </Link>
-            <Link href="/security-manager/detailed-results" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <Activity className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>سير العمل</span>
-            </Link>
-            {/* Add missing Departments link (commented out) for consistency, though it wasn't here before */}
-            {/* <Link href="/security-manager/departments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <Building className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة الأقسام</span>
-            </Link> */}
-          </nav>
-        </aside>
-
-        {/* Main Content Area - Adjusted height */}
-        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-${HEADER_HEIGHT}px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">معلومات الأنظمة المقدمة</h1>
-            <Button 
-              variant="default" 
-              size="sm" 
-              className="bg-nca-teal text-white hover:bg-nca-teal-dark"
-              onClick={() => setIsModalOpen(true)}
-              disabled={isLoadingAssessments || !latestAssessmentId}
-            >
-              إضافة معلومات النظام
-            </Button>
-          </div>
-
-          {/* System Information Section */}
-           <Card className="mb-6">
-            <CardHeader>
-              {/* Optional: Add filter/export buttons here if needed */}
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-right border-b border-gray-200">
-                      <th className="pb-3 font-medium text-gray-700 pr-4">اسم النظام</th>
-                      <th className="pb-3 font-medium text-gray-700">فئة النظام</th>
-                      <th className="pb-3 font-medium text-gray-700">الشركة</th>
-                      <th className="pb-3 font-medium text-gray-700">تاريخ الإدخال</th>
-                      <th className="pb-3 font-medium text-gray-700">إجمالي الأصول</th>
-                      {/* <th className="pb-3 font-medium text-gray-700">الإجراءات</th> */}
+        <Card className="mb-6">
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-right">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="pb-3 font-medium text-gray-700 pr-4">
+                      اسم النظام
+                    </th>
+                    <th className="pb-3 font-medium text-gray-700">
+                      فئة النظام
+                    </th>
+                    <th className="pb-3 font-medium text-gray-700">
+                      الشركة
+                    </th>
+                    <th className="pb-3 font-medium text-gray-700">
+                      تاريخ الإدخال
+                    </th>
+                    <th className="pb-3 font-medium text-gray-700">
+                      إجمالي الأصول
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {systemInfoLoading ? (
+                    <tr>
+                      <td colSpan={5} className="py-4 text-center">
+                        جاري تحميل معلومات الأنظمة...
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {/* Removed userError check here, handled by initial auth checks */}
-                    {systemInfoLoading ? (
-                      <tr><td colSpan={5} className="text-center py-4">جاري تحميل معلومات الأنظمة...</td></tr>
-                    ) : systemInfoError ? (
-                      <tr><td colSpan={5} className="text-center py-4 text-red-600">{systemInfoError}</td></tr>
-                    ) : systemInfoList.length === 0 ? (
-                      <tr><td colSpan={5} className="text-center py-4">لم يتم إدخال معلومات أنظمة بعد.</td></tr>
-                    ) : (
-                      systemInfoList.map((info) => (
-                        <tr key={info.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-4 pr-4">{info.systemName}</td>
-                          <td className="py-4">{info.systemCategory}</td>
-                          <td className="py-4">{info.assessment?.companyNameAr || 'N/A'}</td>
-                          <td className="py-4">{formatDate(info.createdAt)}</td>
-                          <td className="py-4">{info.totalAssetCount}</td>
-                          {/* Add actions like 'View Details' button if needed */}
-                          {/* <td className="py-4">
-                            <Button variant="ghost" size="sm">عرض</Button>
-                          </td> */}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
+                  ) : systemInfoError ? (
+                    <tr>
+                      <td colSpan={5} className="py-4 text-center text-red-600">
+                        {systemInfoError}
+                      </td>
+                    </tr>
+                  ) : systemInfoList.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-4 text-center">
+                        لم يتم إدخال معلومات أنظمة بعد.
+                      </td>
+                    </tr>
+                  ) : (
+                    systemInfoList.map((info) => (
+                      <tr
+                        key={info.id}
+                        className="border-b border-gray-100 hover:bg-gray-50"
+                      >
+                        <td className="py-4 pr-4">{info.systemName}</td>
+                        <td className="py-4">{info.systemCategory}</td>
+                        <td className="py-4">
+                          {info.assessment?.companyNameAr || "N/A"}
+                        </td>
+                        <td className="py-4">{formatDate(info.createdAt)}</td>
+                        <td className="py-4">{info.totalAssetCount}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
 
-      {/* Modal for Sensitive System Form */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>إضافة نظام جديد</DialogTitle>
+            <DialogTitle>إضافة معلومات النظام</DialogTitle>
           </DialogHeader>
           {latestAssessmentId ? (
-            <div className="space-y-4 py-4">
-              <SensitiveSystemForm
-                assessmentId={latestAssessmentId}
-                onFormSubmit={() => {
-                  setIsModalOpen(false);
-                  // Refresh the systems list after adding a new system
-                  if (user?.id) {
-                    const fetchSystemInfo = async () => {
-                      setSystemInfoLoading(true);
-                      try {
-                        const response = await fetch(`/api/users/${user.id}/sensitive-systems`);
-                        if (response.ok) {
-                          const data = await response.json();
-                          setSystemInfoList(data);
-                        }
-                      } catch (err) {
-                        console.error("Error refreshing system info:", err);
-                      } finally {
-                        setSystemInfoLoading(false);
-                      }
-                    };
-                    fetchSystemInfo();
-                  }
-                }}
-              />
-            </div>
-          ) : (
-            <div className="p-4 text-center">
-              {isLoadingAssessments ? (
-                <p>جاري تحميل التقييمات...</p>
-              ) : assessmentsError ? (
-                <p className="text-red-600">خطأ: {assessmentsError}</p>
-              ) : (
-                <p>لم يتم العثور على تقييمات. يرجى إنشاء تقييم أولاً.</p>
-              )}
-            </div>
-          )}
+            <SensitiveSystemForm
+              assessmentId={latestAssessmentId}
+              onFormSubmit={() => {
+                setIsModalOpen(false);
+                // Refresh list
+                if (user?.id) {
+                  setSystemInfoLoading(true);
+                  fetch(`/api/users/${user.id}/sensitive-systems`)
+                    .then((r) => (r.ok ? r.json() : []))
+                    .then((d) => setSystemInfoList(d))
+                    .catch((e) => console.error(e))
+                    .finally(() => setSystemInfoLoading(false));
+                }
+              }}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>
-  );
+);
 }
