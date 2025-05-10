@@ -15,7 +15,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "^6.5.0",
+    "@prisma/client": "^6.7.0",
     "@radix-ui/react-alert-dialog": "^1.1.10",
     "@radix-ui/react-checkbox": "^1.2.2",
     "@radix-ui/react-dialog": "^1.1.10",
@@ -39,7 +39,7 @@
     "next": "14.2.16",
     "next-auth": "^4.24.11",
     "openai": "^4.96.2",
-    "prisma": "^6.5.0",
+    "prisma": "^6.7.0",
     "react": "^18",
     "react-apexcharts": "^1.7.0",
     "react-day-picker": "^8.10.1",

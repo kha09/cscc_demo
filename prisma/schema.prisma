@@ -203,11 +203,17 @@ model SecurityReviewControlAssignment {
   securityReviewId    String
   controlAssignmentId String
   createdAt           DateTime          @default(now())
+  forwarded           Boolean           @default(false)
+  forwardedAt         DateTime?
+  acknowledged        Boolean           @default(false)
+  acknowledgedAt      DateTime?
   controlAssignment   ControlAssignment @relation(fields: [controlAssignmentId], references: [id], onDelete: Cascade)
   securityReview      SecurityReview    @relation(fields: [securityReviewId], references: [id], onDelete: Cascade)
 
   @@index([securityReviewId])
   @@index([controlAssignmentId])
+  @@index([forwarded])
+  @@index([acknowledged])
 }
 
 enum Role {

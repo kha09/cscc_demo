@@ -11,7 +11,7 @@ import {
   TaskStatus,
   ComplianceLevel
 } from "@prisma/client";
-import { Card, CardHeader as _CardHeader, CardTitle as _CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -64,6 +64,32 @@ export default function TeamTasksPage() {
   const [assignmentFiles, setAssignmentFiles] = useState<{ [key: string]: FrontendControlFile[] }>({});
   // State to track which assignments are currently loading files
   const [filesLoadingAssignments, setFilesLoadingAssignments] = useState<Set<string>>(new Set());
+  const [securityReviews, setSecurityReviews] = useState<SecurityReview[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+
+  type SecurityAction = 'CONFIRM' | 'REQUEST_REVIEW';
+
+  interface SecurityReview {
+    id: string;
+    mainComponent: string;
+    action: SecurityAction;
+    note: string | null;
+    createdAt: string;
+    securityManager: {
+      name: string;
+      nameAr: string | null;
+    };
+    controlAssignments: {
+      id: string;
+      controlAssignment: {
+        control: {
+          controlNumber: string;
+          controlText: string;
+          subComponent: string | null;
+        };
+      };
+    }[];
+  }
 
 
   // --- Helper Functions (Copied from original page.tsx) ---
@@ -275,9 +301,46 @@ export default function TeamTasksPage() {
     }
   }, [user]);
 
+  // --- Fetch Security Reviews ---
+  const fetchSecurityReviews = useCallback(async () => {
+    if (!user?.id) return;
+    setIsLoadingReviews(true);
+    try {
+      const response = await fetch(`/api/security-reviews/forward?userId=${user.id}`);
+      if (!response.ok) throw new Error('Failed to fetch security reviews');
+      const data = await response.json();
+      setSecurityReviews(data);
+    } catch (error) {
+      console.error('Error fetching security reviews:', error);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  }, [user]);
+
+  // Forward reviews to assigned users
+  const handleForwardReviews = async (reviewAssignmentIds: string[]) => {
+    try {
+      const response = await fetch('/api/security-reviews/forward', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewAssignmentIds }),
+      });
+
+      if (!response.ok) throw new Error('Failed to forward reviews');
+      
+      // Refresh reviews list
+      fetchSecurityReviews();
+      alert('تم إرسال الملاحظات بنجاح');
+    } catch (error) {
+      console.error('Error forwarding reviews:', error);
+      alert('فشل في إرسال الملاحظات');
+    }
+  };
+
   useEffect(() => {
     fetchManagerTasks();
-  }, [fetchManagerTasks]);
+    fetchSecurityReviews();
+  }, [fetchManagerTasks, fetchSecurityReviews]);
   // --- End Fetch Manager's Tasks ---
 
   // --- Calculate Team Assignments ---
@@ -299,6 +362,65 @@ export default function TeamTasksPage() {
       )}
 
       <h1 className="text-2xl font-bold text-slate-800 mb-6">مهام الفريق</h1>
+
+      {/* Security Manager Notes Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold">ملاحظات مدير الأمن</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoadingReviews ? (
+            <div className="flex items-center justify-center p-4">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-500 mr-2" />
+              <span>جاري تحميل الملاحظات...</span>
+            </div>
+          ) : securityReviews.length === 0 ? (
+            <p className="text-gray-500 text-center p-4">لا توجد ملاحظات جديدة من مدير الأمن</p>
+          ) : (
+            <div className="space-y-4">
+              {securityReviews.map((review) => (
+                <div key={review.id} className="border rounded-lg p-4 bg-white">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold text-lg">{review.mainComponent}</h3>
+                      <p className="text-sm text-gray-600">
+                        من: {review.securityManager.nameAr || review.securityManager.name}
+                      </p>
+                    </div>
+                    <Badge className={review.action === 'CONFIRM' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
+                      {review.action === 'CONFIRM' ? 'اعتماد' : 'طلب مراجعة'}
+                    </Badge>
+                  </div>
+                  {review.note && (
+                    <div className="mb-3 bg-gray-50 rounded p-3">
+                      <p className="text-sm">{review.note}</p>
+                    </div>
+                  )}
+                  <div className="mb-3">
+                    <h4 className="text-sm font-medium mb-2">الضوابط المتعلقة:</h4>
+                    <ul className="list-disc list-inside space-y-1">
+                      {review.controlAssignments.map((ca) => (
+                        <li key={ca.id} className="text-sm">
+                          {ca.controlAssignment.control.controlNumber} - {' '}
+                          {ca.controlAssignment.control.subComponent || ca.controlAssignment.control.controlText}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => handleForwardReviews([review.id])}
+                      className="bg-nca-teal hover:bg-nca-teal/90"
+                    >
+                      إرسال للمستخدم
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Team Tasks Section Card */}
       <Card className="p-6 mb-6">
