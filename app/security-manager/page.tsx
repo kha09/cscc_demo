@@ -4,7 +4,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context"; // Import useAuth
-import { AppHeader } from "@/components/ui/AppHeader"; // Import the shared header
 // Explicitly import types from the generated client
 import type { Assessment, User, SensitiveSystemInfo, Control as _Control } from "@prisma/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -101,7 +100,6 @@ type TaskAssignmentMessage = {
 } | null;
 
 export default function SecurityManagerDashboardPage() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [sensitiveSystems, setSensitiveSystems] = useState<SimpleSensitiveSystemInfo[]>([]); // State for sensitive systems
@@ -526,74 +524,9 @@ export default function SecurityManagerDashboardPage() {
 
 
   return (
-    // Removed ProtectedRoute
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
-      {/* Use the shared AppHeader */}
-      <AppHeader />
-
       {/* Main Layout with Sidebar */}
-      <div className="flex flex-row"> {/* Flex container for sidebar and main */}
-        {/* Sidebar */}
-        {/* Adjusted sticky top and height based on HEADER_HEIGHT */}
-        <aside className={`bg-slate-800 text-white p-4 sticky top-[${HEADER_HEIGHT}px] h-[calc(100vh-${HEADER_HEIGHT}px)] overflow-y-auto transition-all duration-300 ease-in-out hidden md:block ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
-           {/* Toggle Button inside sidebar for larger screens */}
-           <div className={`flex ${isSidebarOpen ? 'justify-end' : 'justify-center'} mb-4`}>
-             <Button
-               variant="ghost"
-               size="icon"
-               className="text-white hover:bg-slate-700"
-               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-             >
-               <Menu className="h-6 w-6" />
-             </Button>
-           </div>
-          <nav className="space-y-2">
-            {/* Links updated for Security Manager */}
-            <Link href="/security-manager" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <LayoutDashboard className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>لوحة المعلومات</span>
-            </Link>
-            {/* <Link href="/security-manager#assessments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <ShieldCheck className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقييمات المعينة</span>
-            </Link> */}
-             <Link href="/security-manager/system-info" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}> {/* Updated href */}
-              <Server className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>معلومات الأنظمة</span>
-            </Link>
-            {/* Link to Manage Departments */}
-            {/* <Link href="/security-manager/departments" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <Building className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>إدارة الأقسام</span>
-            </Link> */}
-            {/* <Link href="/security-manager#tasks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <ListChecks className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المهام</span>
-            </Link> */}
-            {/* <Link href="/security-manager#risks" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <FileWarning className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>المخاطر</span>
-            </Link> */}
-            {/* <Link href="/security-manager#reports" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <FileText className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>التقارير</span>
-            </Link> */}
-            {/* Link to Results/Analytics Page */}
-            <Link href="/security-manager/results" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <BarChart className="h-5 w-5 flex-shrink-0" /> {/* Using BarChart icon for analytics */}
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
-            </Link>
-            <Link href="/security-manager/detailed-results" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
-              <Activity className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>سير العمل</span>
-            </Link>
-            {/* Add more relevant links */}
-          </nav>
-        </aside>
-
-        {/* Main Content Area */}
-        {/* Adjusted height based on HEADER_HEIGHT */}
-        <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-${HEADER_HEIGHT}px)] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:mr-0' : 'md:mr-20'}`}>
+      <main className={`flex-1 p-6 overflow-y-auto h-[calc(100vh-${HEADER_HEIGHT}px)]`}>
           {/* Removed max-w-7xl and mx-auto from here */}
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-slate-800">لوحة مدير الأمن</h1> {/* Title */}
@@ -1241,8 +1174,6 @@ export default function SecurityManagerDashboardPage() {
           </Card>
           {/* End of main content sections */}
         </main>
-      </div> {/* End Flex container */}
     </div>
-    // </ProtectedRoute>
   )
 }
