@@ -65,21 +65,13 @@ export default function SecurityManagerLayout({
               <FileText className="h-5 w-5 flex-shrink-0" />
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>معلومات الأنظمة</span>
             </Link>
-            <Link href="/security-manager/results" className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
-              !isSidebarOpen ? 'justify-center' : '',
-              pathname === "/security-manager/results" && "bg-slate-700"
-            )}>
-              <BarChart className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
-            </Link>
             <Link href="/security-manager/detailed-results" className={cn(
               "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
               !isSidebarOpen ? 'justify-center' : '',
               pathname === "/security-manager/detailed-results" && "bg-slate-700"
             )}>
               <ClipboardList className="h-5 w-5 flex-shrink-0" />
-              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج التفصيلية</span>
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>سير العمل</span>
             </Link>
             <Link href="/security-manager/manager-reviews" className={cn(
               "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
@@ -88,6 +80,14 @@ export default function SecurityManagerLayout({
             )}>
               <MessageSquare className="h-5 w-5 flex-shrink-0" />
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>ملاحظات مدير القسم</span>
+            </Link>
+            <Link href="/security-manager/results" className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700",
+              !isSidebarOpen ? 'justify-center' : '',
+              pathname === "/security-manager/results" && "bg-slate-700"
+            )}>
+              <BarChart className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>النتائج</span>
             </Link>
           </nav>
         </aside>

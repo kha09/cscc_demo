@@ -659,9 +659,13 @@ export function OverallComplianceTab({
                       <h4 className="text-xl font-bold text-slate-800 mb-2">اسم النظام</h4>
                       <div className="text-2xl font-bold text-nca-teal mb-8">{system.systemName}</div>
                       
-                      <h4 className="text-xl font-bold text-slate-800 mb-4">إجمالي الضوابط</h4>
+                      <h4 className="text-xl font-bold text-slate-800 mb-4">نسبة الامتثال</h4>
                       <div className="text-3xl font-bold text-slate-700">
-                        {system.totalControls}
+                        {(() => {
+                          const total = system.totalControls;
+                          const implemented = system.complianceCounts[ComplianceLevel.IMPLEMENTED] || 0;
+                          return total > 0 ? ((implemented / total) * 100).toFixed(1) : '0.0';
+                        })()}%
                       </div>
                     </div>
                   </CardContent>
