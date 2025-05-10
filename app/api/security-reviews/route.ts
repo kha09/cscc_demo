@@ -14,11 +14,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get all reviews that affect this user's control assignments
+    // Get all forwarded but not yet acknowledged reviews for this user
     const reviews = await prisma.securityReview.findMany({
       where: {
         controlAssignments: {
           some: {
+            forwarded: true,
+            acknowledged: false,
             controlAssignment: {
               assignedUserId: userId
             }
@@ -97,7 +99,7 @@ export async function POST(req: NextRequest) {
         note,
         controlAssignments: {
           create: controlAssignmentIds.map((id: string) => ({
-            controlAssignmentId: id,
+            controlAssignmentId: id
           })),
         },
       },

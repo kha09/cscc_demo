@@ -302,18 +302,21 @@ export default function TeamTasksPage() {
   }, [user]);
 
   // --- Fetch Security Reviews ---
-  const fetchSecurityReviews = useCallback(async () => {
+const fetchSecurityReviews = useCallback(async () => {
     if (!user?.id) return;
     setIsLoadingReviews(true);
     try {
-      const response = await fetch(`/api/security-reviews/forward?userId=${user.id}`, {
+      const response = await fetch(`/api/security-reviews/forwarded`, { 
+        cache: 'no-store',
         headers: {
           Authorization: `Bearer ${encodeURIComponent(JSON.stringify(user))}`
         }
       });
       if (!response.ok) throw new Error('Failed to fetch security reviews');
       const data = await response.json();
-      setSecurityReviews(data);
+      // Convert grouped data to flat array and assert type
+      const reviews = Object.values(data).flat() as SecurityReview[];
+      setSecurityReviews(reviews);
     } catch (error) {
       console.error('Error fetching security reviews:', error);
     } finally {
@@ -322,7 +325,7 @@ export default function TeamTasksPage() {
   }, [user]);
 
   // Forward reviews to assigned users
-  const handleForwardReviews = async (reviewAssignmentIds: string[]) => {
+  const handleForwardReviews = async (reviewId: string) => {
     try {
       const response = await fetch('/api/security-reviews/forward', {
         method: 'POST',
@@ -330,7 +333,7 @@ export default function TeamTasksPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${encodeURIComponent(JSON.stringify(user))}`
         },
-        body: JSON.stringify({ reviewAssignmentIds }),
+        body: JSON.stringify({ reviewId }),
       });
 
       if (!response.ok) throw new Error('Failed to forward reviews');
@@ -416,7 +419,7 @@ export default function TeamTasksPage() {
                   </div>
                   <div className="flex justify-end">
                     <Button
-                      onClick={() => handleForwardReviews(review.controlAssignments.map(ca => ca.id))}
+                      onClick={() => handleForwardReviews(review.id)}
                       className="bg-nca-teal hover:bg-nca-teal/90"
                     >
                       إرسال للمستخدم
