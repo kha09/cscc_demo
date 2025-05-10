@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/api-auth";
+import { ReviewStatus } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,74 +13,81 @@ export async function POST(req: NextRequest) {
     const data = await req.json();
     const { reviewId, action, note } = data;
 
-    if (!reviewId || !action) {
+    if (!reviewId || !action || (action === ReviewStatus.REVIEW_REQUESTED && !note)) {
       return NextResponse.json(
-        { error: "Review ID and action are required" },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Note is optional but should be required for REQUEST_REVIEW action
-    if (action === 'REQUEST_REVIEW' && !note) {
-      return NextResponse.json(
-        { error: "Note is required when requesting review" },
-        { status: 400 }
-      );
-    }
-
-    // Get the review and verify it's forwarded
-    const review = await prisma.securityReview.findUnique({
-      where: { id: reviewId },
+    // Get the review and verify it's forwarded to this manager
+    const review = await prisma.securityReview.findFirst({
+      where: {
+        id: reviewId,
+        controlAssignments: {
+          some: {
+            forwarded: true,
+            acknowledged: false,
+            controlAssignment: {
+              task: {
+                assignedToId: user.id
+              }
+            }
+          }
+        }
+      },
       include: {
-        controlAssignments: true
+        controlAssignments: {
+          where: {
+            forwarded: true,
+            acknowledged: false,
+          },
+          include: {
+            controlAssignment: true
+          }
+        }
       }
     });
 
     if (!review) {
       return NextResponse.json(
-        { error: "Review not found" },
+        { error: "Review not found or not forwarded to you" },
         { status: 404 }
       );
     }
 
-    // Verify all control assignments are forwarded
-    const allForwarded = review.controlAssignments.every(ca => ca.forwarded);
-    if (!allForwarded) {
-      return NextResponse.json(
-        { error: "Review must be forwarded before acknowledgement" },
-        { status: 400 }
-      );
-    }
-
-    // Start a transaction to update both SecurityReviewControlAssignment and ControlAssignment
-    await prisma.$transaction(async (tx) => {
-      // Update SecurityReviewControlAssignment records
-      await tx.securityReviewControlAssignment.updateMany({
+    // Update all control assignments with manager's response
+    await prisma.$transaction([
+      // Mark the join records as acknowledged
+      prisma.securityReviewControlAssignment.updateMany({
         where: {
-          securityReviewId: reviewId
+          securityReviewId: reviewId,
+          forwarded: true,
+          acknowledged: false,
+          controlAssignment: {
+            task: {
+              assignedToId: user.id
+            }
+          }
         },
         data: {
           acknowledged: true,
           acknowledgedAt: new Date()
         }
-      });
-
-      // Get all control assignment IDs from the review
-      const controlAssignmentIds = review.controlAssignments.map(ca => ca.controlAssignmentId);
-
-      // Update ControlAssignment records with the appropriate status
-      await tx.controlAssignment.updateMany({
+      }),
+      // Update the control assignments with manager's status and note
+      prisma.controlAssignment.updateMany({
         where: {
           id: {
-            in: controlAssignmentIds
+            in: review.controlAssignments.map(ca => ca.controlAssignmentId)
           }
         },
         data: {
-          managerStatus: action === 'CONFIRM' ? 'معتمد' : 'طلب مراجعة',
+          managerStatus: action,
           managerNote: note || null
         }
-      });
-    });
+      })
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {

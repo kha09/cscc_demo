@@ -14,6 +14,7 @@ import {
   Menu,
   LayoutDashboard,
   Users, // Icon for Team Tasks
+  ClipboardCheck, // Icon for Detailed Results
 } from "lucide-react";
 
 export default function DepartmentManagerLayout({
@@ -66,7 +67,10 @@ export default function DepartmentManagerLayout({
               <Users className="h-5 w-5 flex-shrink-0" /> {/* Using Users icon */}
               <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>مهام الفريق</span>
             </Link>
-            {/* Add more relevant links for Department Manager if needed */}
+            <Link href="/department-manager/detailed-results" className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-700 ${!isSidebarOpen ? 'justify-center' : ''}`}>
+              <ClipboardCheck className="h-5 w-5 flex-shrink-0" />
+              <span className={`${!isSidebarOpen ? 'hidden' : 'block'}`}>مراجعات مدير الأمن</span>
+            </Link>
           </nav>
         </aside>
 
