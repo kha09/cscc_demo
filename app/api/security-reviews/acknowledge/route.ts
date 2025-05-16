@@ -6,19 +6,13 @@ import { ReviewStatus } from "@prisma/client";
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser(req);
-    if (!user?.id || user.role !== 'DEPARTMENT_MANAGER') {
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const data = await req.json();
-    const { reviewId, action, note } = data;
+    const { reviewId } = data;
 
-    if (!reviewId || !action || (action === ReviewStatus.REVIEW_REQUESTED && !note)) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
 
     // Get the review and verify it's forwarded to this manager
     const review = await prisma.securityReview.findFirst({
@@ -28,11 +22,9 @@ export async function POST(req: NextRequest) {
           some: {
             forwarded: true,
             acknowledged: false,
-            controlAssignment: {
-              task: {
-                assignedToId: user.id
-              }
-            }
+          controlAssignment: {
+            assignedUserId: user.id
+          }
           }
         }
       },
@@ -56,38 +48,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update all control assignments with manager's response
-    await prisma.$transaction([
-      // Mark the join records as acknowledged
-      prisma.securityReviewControlAssignment.updateMany({
-        where: {
-          securityReviewId: reviewId,
-          forwarded: true,
-          acknowledged: false,
-          controlAssignment: {
-            task: {
-              assignedToId: user.id
-            }
-          }
-        },
-        data: {
-          acknowledged: true,
-          acknowledgedAt: new Date()
+    // Mark all forwarded join records as acknowledged
+    await prisma.securityReviewControlAssignment.updateMany({
+      where: {
+        securityReviewId: reviewId,
+        forwarded: true,
+        acknowledged: false,
+        controlAssignment: {
+          assignedUserId: user.id
         }
-      }),
-      // Update the control assignments with manager's status and note
-      prisma.controlAssignment.updateMany({
-        where: {
-          id: {
-            in: review.controlAssignments.map(ca => ca.controlAssignmentId)
-          }
-        },
-        data: {
-          managerStatus: action,
-          managerNote: note || null
-        }
-      })
-    ]);
+      },
+      data: {
+        acknowledged: true,
+        acknowledgedAt: new Date()
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
