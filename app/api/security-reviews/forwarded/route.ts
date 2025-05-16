@@ -28,7 +28,6 @@ export async function GET(req: NextRequest) {
         },
         controlAssignments: {
           where: {
-            forwarded: true,
             acknowledged: false,
           },
           select: {
