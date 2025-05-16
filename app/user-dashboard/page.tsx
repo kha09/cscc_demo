@@ -704,7 +704,7 @@ export default function UserDashboardPage() {
                         </td>
                         <td className="py-4">
                           {formatDate(review.createdAt)}
-                          {review.controlAssignments.every((ca: { forwarded: boolean }) => ca.forwarded) ? (
+                          {review.controlAssignments.every((ca: { acknowledged: boolean }) => ca.acknowledged) ? (
                             <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">تم التحويل</Badge>
                           ) : (
                             <Button
@@ -713,13 +713,9 @@ export default function UserDashboardPage() {
                               className="mr-2"
                               onClick={async () => {
                                 try {
-                                  // Get user from localStorage for auth header
                                   const storedUser = localStorage.getItem('user');
-                                  if (!storedUser) {
-                                    throw new Error('User not authenticated');
-                                  }
-
-                                  const response = await fetch('/api/security-reviews/forward', {
+                                  if (!storedUser) throw new Error('User not authenticated');
+                                  const response = await fetch('/api/security-reviews/acknowledge', {
                                     method: 'POST',
                                     headers: { 
                                       'Content-Type': 'application/json',
@@ -727,15 +723,10 @@ export default function UserDashboardPage() {
                                     },
                                     body: JSON.stringify({ reviewId: review.id })
                                   });
-
-                                  if (!response.ok) {
-                                    throw new Error('Failed to forward review');
-                                  }
-
-                                  // Refresh reviews after successful forward
+                                  if (!response.ok) throw new Error('Failed to acknowledge review');
                                   fetchSecurityReviews();
                                 } catch (error) {
-                                  console.error('Error forwarding review:', error);
+                                  console.error('Error acknowledging review:', error);
                                 }
                               }}
                             >
