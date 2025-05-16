@@ -123,6 +123,7 @@ export default function UserDashboardPage() {
     controlAssignments: {
       id: string;
       forwarded: boolean;
+      acknowledged: boolean;
       controlAssignment: {
         control: {
           controlNumber: string;
@@ -704,7 +705,7 @@ export default function UserDashboardPage() {
                         </td>
                         <td className="py-4">
                           {formatDate(review.createdAt)}
-                          {review.controlAssignments.every((ca: { acknowledged: boolean }) => ca.acknowledged) ? (
+                          {review.controlAssignments.every(ca => ca.acknowledged) ? (
                             <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">تم التحويل</Badge>
                           ) : (
                             <Button
