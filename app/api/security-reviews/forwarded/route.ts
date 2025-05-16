@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/api-auth";
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser(req);
-    if (!user?.id || user.role !== 'DEPARTMENT_MANAGER') {
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

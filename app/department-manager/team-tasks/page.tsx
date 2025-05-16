@@ -302,14 +302,16 @@ export default function TeamTasksPage() {
   }, [user]);
 
   // --- Fetch Security Reviews ---
-const fetchSecurityReviews = useCallback(async () => {
-    if (!user?.id) return;
-    setIsLoadingReviews(true);
+  const fetchSecurityReviews = useCallback(async () => {
+      if (!user?.id) return;
+      setIsLoadingReviews(true);
     try {
-      const response = await fetch(`/api/security-reviews/forwarded`, { 
+      // Get stored user for Authorization header
+      const storedUser = localStorage.getItem('user');
+      const response = await fetch(`/api/security-reviews/forwarded`, {
         cache: 'no-store',
         headers: {
-          Authorization: `Bearer ${encodeURIComponent(JSON.stringify(user))}`
+          'Authorization': `Bearer ${encodeURIComponent(storedUser ?? '')}`
         }
       });
       if (!response.ok) throw new Error('Failed to fetch security reviews');
