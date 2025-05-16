@@ -19,6 +19,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Retrieve departmentManagerId from existing review
+    const reviewRecord = await prisma.securityReview.findUnique({
+      where: { id: reviewId },
+      select: { departmentManagerId: true }
+    });
+    const departmentManagerId = reviewRecord?.departmentManagerId;
+    if (!departmentManagerId) {
+      return NextResponse.json(
+        { error: "Department Manager ID not found on review" },
+        { status: 400 }
+      );
+    }
+
     // Forward all pending join records for this review
     await prisma.securityReviewControlAssignment.updateMany({
       where: {
@@ -30,6 +43,7 @@ export async function POST(req: NextRequest) {
         forwardedAt: new Date()
       }
     });
+
 
     return NextResponse.json({ success: true });
   } catch (error) {

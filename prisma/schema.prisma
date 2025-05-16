@@ -25,7 +25,8 @@ model User {
   departmentManagerAssessments AssessmentStatus[]  @relation("AssessmentStatusDepartmentManager")
   securityManagerAssessments   AssessmentStatus[]  @relation("AssessmentStatusSecurityManager")
   controlAssignments           ControlAssignment[]
-  securityReviews              SecurityReview[]
+  securityManagerReviews       SecurityReview[]    @relation("SecurityManagerReviews")
+  departmentManagerReviews     SecurityReview[]    @relation("DepartmentManagerReviews")
   assignedTasks                Task[]              @relation("AssignedTasks")
   responsibleTasks             Task[]              @relation("ResponsibleTasks")
 }
@@ -186,16 +187,19 @@ model SecurityReview {
   systemId           String
   mainComponent      String
   securityManagerId  String
+  departmentManagerId String?
   action             SecurityAction
   note               String?
   createdAt          DateTime                          @default(now())
   updatedAt          DateTime                          @updatedAt
-  securityManager    User                              @relation(fields: [securityManagerId], references: [id], onDelete: Cascade)
+  securityManager    User                              @relation("SecurityManagerReviews", fields: [securityManagerId], references: [id], onDelete: Cascade)
+  departmentManager  User?                             @relation("DepartmentManagerReviews", fields: [departmentManagerId], references: [id])
   system             SensitiveSystemInfo               @relation(fields: [systemId], references: [id], onDelete: Cascade)
   controlAssignments SecurityReviewControlAssignment[]
 
   @@index([systemId])
   @@index([securityManagerId])
+  @@index([departmentManagerId])
 }
 
 model SecurityReviewControlAssignment {

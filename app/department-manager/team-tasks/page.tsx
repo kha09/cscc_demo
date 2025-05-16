@@ -327,13 +327,21 @@ const fetchSecurityReviews = useCallback(async () => {
   // Forward reviews to assigned users
   const handleForwardReviews = async (reviewId: string) => {
     try {
+      if (!user?.id) {
+        alert('يجب تسجيل الدخول لإرسال الملاحظات');
+        return;
+      }
+      
       const response = await fetch('/api/security-reviews/forward', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${encodeURIComponent(JSON.stringify(user))}`
         },
-        body: JSON.stringify({ reviewId }),
+        body: JSON.stringify({ 
+          reviewId,
+          departmentManagerId: user.id 
+        }),
       });
 
       if (!response.ok) throw new Error('Failed to forward reviews');

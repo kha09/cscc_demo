@@ -80,7 +80,19 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { systemId, mainComponent, action, note, controlAssignmentIds } = data;
+const { systemId, mainComponent, action, note, controlAssignmentIds } = data;
+    
+    // Derive departmentManagerId from the assessment status for this system
+const status = await prisma.assessmentStatus.findFirst({
+      where: { sensitiveSystemId: systemId },
+      orderBy: { createdAt: 'desc' },
+      select: { departmentManagerId: true },
+    });
+    console.log("Derived departmentManagerId:", status?.departmentManagerId);
+    const departmentManagerId = status?.departmentManagerId;
+    if (!departmentManagerId) {
+      console.warn(`No departmentManagerId found for system ${systemId}`);
+    }
 
     if (!systemId || !mainComponent || !action || !controlAssignmentIds?.length) {
       return NextResponse.json(
@@ -95,6 +107,7 @@ export async function POST(req: NextRequest) {
         systemId,
         mainComponent,
         securityManagerId: user.id,
+        departmentManagerId,
         action,
         note,
         controlAssignments: {
