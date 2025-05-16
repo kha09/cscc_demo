@@ -9,10 +9,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get all forwarded but not acknowledged reviews for this department manager
+    // Determine whether fetching new reviews (not yet forwarded) or returned ones
+    const returned = req.nextUrl.searchParams.get("returned") === "true";
+
+    // Get all reviews for this department manager:
+    // - if returned=false: forwarded=false & acknowledged=false
+    // - if returned=true: forwarded=true & acknowledged=true
     const reviews = await prisma.securityReview.findMany({
       where: {
-        departmentManagerId: user.id
+        departmentManagerId: user.id,
+        controlAssignments: {
+          some: {
+            forwarded: returned,
+            acknowledged: returned
+          }
+        }
       },
       select: {
         id: true,
@@ -28,7 +39,8 @@ export async function GET(req: NextRequest) {
         },
         controlAssignments: {
           where: {
-            acknowledged: false,
+            forwarded: returned,
+            acknowledged: returned
           },
           select: {
             id: true,

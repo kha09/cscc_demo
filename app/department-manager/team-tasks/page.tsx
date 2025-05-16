@@ -308,7 +308,7 @@ export default function TeamTasksPage() {
     try {
       // Get stored user for Authorization header
       const storedUser = localStorage.getItem('user');
-      const response = await fetch(`/api/security-reviews/forwarded`, {
+      const response = await fetch(`/api/security-reviews/forwarded?returned=false`, {
         cache: 'no-store',
         headers: {
           'Authorization': `Bearer ${encodeURIComponent(storedUser ?? '')}`

@@ -59,7 +59,7 @@ export default function DepartmentManagerDetailedResults() {
         throw new Error('User not authenticated');
       }
 
-      const response = await fetch('/api/security-reviews/forwarded', {
+      const response = await fetch('/api/security-reviews/forwarded?returned=true', {
         headers: {
           'Authorization': `Bearer ${encodeURIComponent(storedUser)}`
         }
